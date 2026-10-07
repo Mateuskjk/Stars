@@ -19,6 +19,7 @@ export const routes: Routes = [
   },
   { path: 'configuracoes', children: [] },
   { path: 'conta', children: [] },
+  { path: 'perfis', children: [] },
   { path: 'api-publica', children: [] },
   { path: 'erros-navegador', children: [] },
 ];

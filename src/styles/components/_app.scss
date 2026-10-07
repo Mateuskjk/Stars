@@ -8,8 +8,8 @@
   grid-template-columns: 360px 1fr;
   grid-template-rows: 74px 1fr;
   gap: 10px 20px; // linhas, colunas
-  min-height: calc(100vh - 36px);
-  margin: 18px;
+  min-height: calc(100vh - 30px);
+  margin: 12px;
   border: 0.5px solid red;
 }
 
@@ -27,7 +27,95 @@
 
 .left-content {
   grid-area: left;
-  border: 0.5px solid #c8a2c8;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hello-world {
+  margin-bottom: 10px; // + gap de 10px do left-content = 20px
+
+  &__title {
+    color: $color-title;
+    font-family: $font-family-title;
+    font-size: 35px;
+  }
+}
+
+.side-card {
+  padding: 16px;
+  border-radius: 15px;
+  background-color: $color-surface;
+  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: $color-title;
+    font-size: 16px;
+  }
+
+  &__icon {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: $color-title;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  &__list {
+    list-style: none;
+
+    li + li {
+      border-top: 1px solid $color-surface-hover;
+    }
+  }
+
+  &__item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    // margem negativa: o fundo do hover passa da borda sem recuar o texto
+    margin: 0 -8px;
+    padding: 8px;
+    border-radius: 8px;
+    color: $color-text;
+    font-size: 14px;
+    text-decoration: none;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: $color-surface-hover;
+    }
+  }
+
+  &__label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__avatar {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: $color-title;
+    color: $color-surface;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  &__type {
+    margin-right: 6px;
+    color: $color-icon;
+    font-size: 12px;
+  }
 }
 
 .logo-sys {
