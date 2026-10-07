@@ -4,7 +4,7 @@
     'nav  nav'
     'left main';
   grid-template-columns: 360px 1fr;
-  grid-template-rows: 64px 1fr;
+  grid-template-rows: 74px 1fr;
   gap: 10px 20px; // linhas, colunas
   min-height: calc(100vh - 36px);
   margin: 18px;
@@ -18,7 +18,6 @@
 
 .navigation-top {
   grid-area: nav;
-  padding: 25px;
   border: 0.5px solid green;
 }
 
