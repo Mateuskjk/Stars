@@ -30,16 +30,22 @@
         <li><a class="center-options__link" routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Home</a></li>
         <li><a class="center-options__link" routerLink="/dashboards" routerLinkActive="is-active">Dashboards</a></li>
         <li><a class="center-options__link" routerLink="/conversas" routerLinkActive="is-active">Conversas</a></li>
-        <li><a class="center-options__link" routerLink="/projetos" routerLinkActive="is-active">Projetos</a></li>
+        <li class="center-options__dropdown" routerLinkActive="is-active">
+          <button class="center-options__link" type="button" aria-haspopup="true">Projetos</button>
+          <ul class="center-options__submenu">
+            <li><a class="center-options__link" routerLink="/projetos">Dash de Projetos</a></li>
+            <li><a class="center-options__link" routerLink="/projetos/novo">Criar Novo Projeto</a></li>
+          </ul>
+        </li>
         <li class="center-options__dropdown" routerLinkActive="is-active">
           <button class="center-options__link" type="button" aria-haspopup="true">Workspace</button>
           <ul class="center-options__submenu">
-            <li><a class="center-options__link" routerLink="/workspace/daily" routerLinkActive="is-active">Daily</a></li>
-            <li><a class="center-options__link" routerLink="/workspace/backlog" routerLinkActive="is-active">Backlog</a></li>
-            <li><a class="center-options__link" routerLink="/workspace/planning" routerLinkActive="is-active">Planning</a></li>
-            <li><a class="center-options__link" routerLink="/workspace/notes" routerLinkActive="is-active">Notes</a></li>
-            <li><a class="center-options__link" routerLink="/workspace/favorites" routerLinkActive="is-active">Favorites</a></li>
-            <li><a class="center-options__link" routerLink="/workspace/brain" routerLinkActive="is-active">Brain</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/daily">Daily</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/backlog">Backlog</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/planning">Planning</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/notes">Notes</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/favorites">Favorites</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/brain">Brain</a></li>
           </ul>
         </li>
         <li><a class="center-options__link" routerLink="/configuracoes" routerLinkActive="is-active">Configurações</a></li>

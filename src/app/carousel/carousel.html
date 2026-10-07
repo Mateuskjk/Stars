@@ -15,7 +15,7 @@
 </div>
 
 <ul #track class="carousel__track">
-  @for (item of items(); track item.name) {
+  @for (item of items(); track $index) {
     <li class="carousel__card">
       <div class="carousel__image" [style.background]="item.cover"></div>
       <div class="carousel__footer">

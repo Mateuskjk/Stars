@@ -13,7 +13,7 @@ interface Message {
 }
 
 // ponytail: usuários e mensagens fixos de exemplo; trocar por um service/API (e tempo real) quando o backend existir
-const USERS: User[] = [
+export const USERS: User[] = [
   { id: 1, name: 'Ana Souza', role: 'Product Manager' },
   { id: 2, name: 'Carlos Lima', role: 'Desenvolvedor' },
   { id: 3, name: 'Bruna Alves', role: 'Designer' },

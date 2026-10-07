@@ -1,0 +1,524 @@
+@use '../variables' as *;
+
+$kanban-column: #f0f2f3;
+$kanban-muted: #898781;
+
+// Cores de situação: sempre acompanhadas do nome da coluna, nunca sozinhas
+$status-active: #0ca30c;
+$status-paused: #fab219;
+$status-archived: #898781;
+$status-canceled: #d03b3b;
+
+.projects {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.kanban {
+  display: flex;
+  flex: 1 1 0; // ocupa o espaço que sobra embaixo do carrossel
+  flex-direction: column;
+  gap: 12px;
+  min-height: 420px;
+
+  &__title {
+    padding: 0 4px;
+    color: $color-title;
+    font-size: 16px;
+  }
+
+  &__board {
+    display: grid;
+    flex: 1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    min-height: 0;
+  }
+
+  &__column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 10px;
+    border: 2px dashed transparent;
+    border-radius: 15px;
+    background-color: $kanban-column;
+    transition:
+      border-color 0.15s,
+      background-color 0.15s;
+
+    &.is-drop-target {
+      border-color: $color-nav-hover;
+      background-color: #e6e9ee;
+    }
+  }
+
+  &__column-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 4px 10px;
+  }
+
+  &__status {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+
+    &--active {
+      background-color: $status-active;
+    }
+
+    &--paused {
+      background-color: $status-paused;
+    }
+
+    &--archived {
+      background-color: $status-archived;
+    }
+
+    &--canceled {
+      background-color: $status-canceled;
+    }
+  }
+
+  &__column-title {
+    flex: 1;
+    color: $color-title;
+    font-size: 14px;
+  }
+
+  &__count {
+    min-width: 24px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background-color: $color-surface;
+    color: $color-text;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  &__cards {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    list-style: none;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 10px;
+    background-color: $color-surface;
+    box-shadow: 0 1px 4px rgba(32, 43, 67, 0.1);
+    cursor: grab;
+    transition:
+      box-shadow 0.15s,
+      opacity 0.15s;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(32, 43, 67, 0.16);
+    }
+
+    &.is-dragging {
+      opacity: 0.4;
+    }
+  }
+
+  &__card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  &__project {
+    min-width: 0;
+    overflow: hidden;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: $kanban-column;
+    color: $color-text;
+    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__card-title {
+    color: $color-title;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  &__card-footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__avatar {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: $color-title;
+    color: $color-surface;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  &__assignee {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: $kanban-muted;
+    font-size: 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  // Seletor compacto: só o ícone de setas; ao abrir, mostra a lista de colunas
+  &__move {
+    flex-shrink: 0;
+    appearance: none;
+    width: 28px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid #e1e0d9;
+    border-radius: 6px;
+    background: $color-surface
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23222b44' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 7h13l-4-4M17 17H4l4 4'/%3E%3C/svg%3E")
+      center / 14px no-repeat;
+    color: transparent; // esconde o texto da opção escolhida
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+
+    &:hover,
+    &:focus-visible {
+      background-color: $kanban-column;
+    }
+
+    option {
+      color: $color-text;
+    }
+  }
+
+  &__empty {
+    padding: 16px 4px;
+    color: $kanban-muted;
+    font-size: 13px;
+    text-align: center;
+  }
+}
+
+// ---------- Responsivo ----------
+
+// Telas menores: as colunas rolam para o lado, cada uma com largura confortável
+@media (max-width: $bp-tablet) {
+  .kanban__board {
+    grid-template-columns: repeat(4, minmax(240px, 1fr));
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
+  }
+
+  .kanban__column {
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .kanban {
+    flex: none;
+    min-height: auto;
+  }
+
+  .kanban__board {
+    grid-template-columns: repeat(4, 85%); // aparece um pedaço da próxima coluna
+  }
+
+  .kanban__cards {
+    max-height: 60dvh;
+  }
+}
+
+// ---------- Tabela de criação de projetos (/projetos/novo) ----------
+
+$table-line: #e7e8ea;
+$table-head: #f0f2f3;
+
+.project-create {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+    padding: 0 4px;
+  }
+
+  &__title {
+    color: $color-title;
+    font-size: 20px;
+  }
+
+  &__subtitle {
+    color: $kanban-muted;
+    font-size: 13px;
+  }
+
+  &__count {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background-color: $table-head;
+    color: $color-text;
+    font-size: 12px;
+  }
+
+  &__feedback {
+    min-height: 20px;
+    padding: 0 4px;
+    color: $status-active;
+    font-size: 14px;
+
+    a {
+      color: $color-title;
+      font-weight: 600;
+    }
+  }
+}
+
+// A tabela rola para o lado em telas menores; a coluna do nome fica fixa
+.project-table {
+  overflow-x: auto;
+  border: 1px solid $table-line;
+  border-radius: 15px;
+
+  &__table {
+    width: 100%;
+    min-width: 1500px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+  }
+
+  th,
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid $table-line;
+    color: $color-text;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  thead th {
+    background-color: $table-head;
+    color: $color-title;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  tbody tr:hover > * {
+    background-color: #f5f6f7;
+  }
+
+  &__sticky {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 200px;
+    background-color: $color-surface;
+    box-shadow: 1px 0 0 $table-line;
+  }
+
+  // Coluna do botão "Criar projeto" fixa à direita: sempre visível sem rolar a tabela
+  &__sticky-end {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background-color: $color-surface;
+    box-shadow: -1px 0 0 $table-line;
+  }
+
+  thead &__sticky,
+  thead &__sticky-end {
+    background-color: $table-head;
+  }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: $color-title;
+    font-weight: 600;
+  }
+
+  &__cover {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  &__description {
+    max-width: 240px;
+  }
+
+  &__money {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums; // valores alinhados na coluna
+  }
+
+  &__docs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    list-style: none;
+  }
+
+  &__doc {
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: $table-head;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  // Linha de criação
+  &__new > * {
+    border-bottom: none;
+    background-color: #f7f8f9;
+  }
+
+  &__new &__sticky,
+  &__new &__sticky-end {
+    background-color: #f7f8f9;
+  }
+
+  &__input {
+    width: 100%;
+    min-width: 120px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid $table-line;
+    border-radius: 8px;
+    background-color: #fff;
+    color: $color-text;
+    font: inherit;
+
+    &:focus {
+      outline: 2px solid $color-nav-hover;
+      outline-offset: -1px;
+    }
+  }
+
+  &__file {
+    max-width: 200px;
+    font: inherit;
+    font-size: 12px;
+
+    &::file-selector-button {
+      margin-right: 8px;
+      padding: 6px 10px;
+      border: 1px solid $table-line;
+      border-radius: 8px;
+      background-color: #fff;
+      color: $color-title;
+      font: inherit;
+      cursor: pointer;
+    }
+  }
+
+  // Bolinha com a cor do status ao lado do select
+  &__status-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    &::before {
+      content: '';
+      flex-shrink: 0;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--status-color);
+    }
+  }
+
+  &__create {
+    height: 36px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 25px;
+    background-color: $color-nav-hover;
+    color: $color-surface;
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  }
+
+  &__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+// Etiqueta de status: bolinha colorida + nome
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background-color: color-mix(in srgb, var(--status-color) 14%, transparent);
+  color: $color-title;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--status-color);
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .project-create__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .project-table__sticky {
+    min-width: 150px;
+  }
+}

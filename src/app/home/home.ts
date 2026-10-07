@@ -1,5 +1,6 @@
 import { Component, DestroyRef, afterNextRender, inject, signal } from '@angular/core';
-import { Carousel, CarouselItem } from '../carousel/carousel';
+import { Carousel } from '../carousel/carousel';
+import { COMPANIES, ProjectStore } from '../projects/project-store';
 
 @Component({
   imports: [Carousel],
@@ -19,25 +20,9 @@ export class Home {
     });
   }
 
-  // ponytail: listas fixas de exemplo; trocar por um service/API quando o backend existir
-  protected readonly projects: CarouselItem[] = [
-    { name: 'Redesign do site', cover: 'linear-gradient(135deg, #222b44, #5b6b9a)', link: '/projetos' },
-    { name: 'App mobile', cover: 'linear-gradient(135deg, #3e4352, #92979d)', link: '/projetos' },
-    { name: 'Portal do cliente', cover: 'linear-gradient(135deg, #2f5d62, #a7c4bc)', link: '/projetos' },
-    { name: 'CRM interno', cover: 'linear-gradient(135deg, #5c3d6e, #c8a2c8)', link: '/projetos' },
-    { name: 'Campanha Q4', cover: 'linear-gradient(135deg, #8a4b3c, #e0b39a)', link: '/projetos' },
-    { name: 'Data Lake', cover: 'linear-gradient(135deg, #1f4e79, #8fb8de)', link: '/projetos' },
-    { name: 'Onboarding', cover: 'linear-gradient(135deg, #4d5b2f, #c2cf9a)', link: '/projetos' },
-  ];
+  protected readonly projects = inject(ProjectStore).carouselItems;
 
-  protected readonly companies: CarouselItem[] = [
-    { name: 'Acme Ltda', cover: 'linear-gradient(135deg, #222b44, #8a93b8)', link: '/perfis' },
-    { name: 'Nova Tech', cover: 'linear-gradient(135deg, #1f4e79, #a7c4e0)', link: '/perfis' },
-    { name: 'Grupo Horizonte', cover: 'linear-gradient(135deg, #8a4b3c, #f0c9a8)', link: '/perfis' },
-    { name: 'Verde Alimentos', cover: 'linear-gradient(135deg, #2f5d3a, #b5d6a7)', link: '/perfis' },
-    { name: 'Lumen Saúde', cover: 'linear-gradient(135deg, #2f5d62, #bfe0dc)', link: '/perfis' },
-    { name: 'Órbita Logística', cover: 'linear-gradient(135deg, #5c3d6e, #d9c2e6)', link: '/perfis' },
-  ];
+  protected readonly companies = COMPANIES;
 }
 
 // Ex.: "Quarta-feira, 7 de outubro"

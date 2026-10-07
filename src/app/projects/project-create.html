@@ -1,0 +1,143 @@
+<header class="project-create__header">
+  <div>
+    <h2 class="project-create__title">Projetos</h2>
+    <p class="project-create__subtitle">Cada linha vira um card no carrossel de projetos. Preencha a última linha para criar um novo.</p>
+  </div>
+  <span class="project-create__count">{{ projects().length }} projetos</span>
+</header>
+
+<form id="new-project" (submit)="create($event)"></form>
+
+<div class="project-table">
+  <table class="project-table__table">
+    <thead>
+      <tr>
+        <th class="project-table__sticky" scope="col">Nome do projeto</th>
+        <th scope="col">Descrição</th>
+        <th scope="col">Responsável</th>
+        <th scope="col">Status</th>
+        <th scope="col">Quem solicitou</th>
+        <th scope="col" class="project-table__money">Custo inicial</th>
+        <th scope="col" class="project-table__money">Custo de desenvolvimento</th>
+        <th scope="col" class="project-table__money">Custo final</th>
+        <th scope="col">Documentação</th>
+        <th scope="col">Empresa</th>
+        <th scope="col">Time responsável</th>
+        <th class="project-table__sticky-end" scope="col"><span class="project-table__sr-only">Ações</span></th>
+      </tr>
+    </thead>
+
+    <tbody>
+      @for (project of projects(); track project.id) {
+        <tr>
+          <th class="project-table__sticky" scope="row">
+            <span class="project-table__name">
+              <span class="project-table__cover" [style.background]="project.cover" aria-hidden="true"></span>
+              {{ project.name }}
+            </span>
+          </th>
+          <td class="project-table__description">{{ project.description || '—' }}</td>
+          <td>{{ project.owner || '—' }}</td>
+          <td>
+            <span class="status-chip" [style.--status-color]="status(project.status).color">
+              {{ status(project.status).label }}
+            </span>
+          </td>
+          <td>{{ project.requester || '—' }}</td>
+          <td class="project-table__money">{{ money(project.costInitial) }}</td>
+          <td class="project-table__money">{{ money(project.costDev) }}</td>
+          <td class="project-table__money">{{ money(project.costFinal) }}</td>
+          <td>
+            @if (project.docs.length) {
+              <ul class="project-table__docs">
+                @for (doc of project.docs; track $index) {
+                  <li class="project-table__doc">{{ doc }}</li>
+                }
+              </ul>
+            } @else {
+              —
+            }
+          </td>
+          <td>{{ project.company || '—' }}</td>
+          <td>{{ project.team || '—' }}</td>
+          <td class="project-table__sticky-end"></td>
+        </tr>
+      }
+    </tbody>
+
+    <!-- Última linha: criação de um novo projeto -->
+    <tfoot>
+      <tr class="project-table__new">
+        <th class="project-table__sticky" scope="row">
+          <input class="project-table__input" form="new-project" name="name" placeholder="Nome do projeto *" aria-label="Nome do projeto" required />
+        </th>
+        <td>
+          <input class="project-table__input" form="new-project" name="description" placeholder="Descrição" aria-label="Descrição" />
+        </td>
+        <td>
+          <select class="project-table__input" form="new-project" name="owner" aria-label="Responsável">
+            <option value="">Responsável</option>
+            @for (person of people; track person) {
+              <option [value]="person">{{ person }}</option>
+            }
+          </select>
+        </td>
+        <td>
+          <span class="project-table__status-field" [style.--status-color]="status(draftStatus()).color">
+            <select
+              class="project-table__input"
+              form="new-project"
+              name="status"
+              aria-label="Status"
+              (change)="draftStatus.set($any($event.target).value)"
+            >
+              @for (option of statuses; track option.id) {
+                <option [value]="option.id" [selected]="option.id === draftStatus()">{{ option.label }}</option>
+              }
+            </select>
+          </span>
+        </td>
+        <td>
+          <input class="project-table__input" form="new-project" name="requester" placeholder="Quem solicitou" aria-label="Quem solicitou" />
+        </td>
+        <td>
+          <input class="project-table__input project-table__money" form="new-project" name="costInitial" type="number" min="0" step="0.01" placeholder="R$ 0,00" aria-label="Custo inicial" />
+        </td>
+        <td>
+          <input class="project-table__input project-table__money" form="new-project" name="costDev" type="number" min="0" step="0.01" placeholder="R$ 0,00" aria-label="Custo de desenvolvimento" />
+        </td>
+        <td>
+          <input class="project-table__input project-table__money" form="new-project" name="costFinal" type="number" min="0" step="0.01" placeholder="R$ 0,00" aria-label="Custo final" />
+        </td>
+        <td>
+          <input class="project-table__file" form="new-project" name="docs" type="file" multiple aria-label="Anexos de documentação" />
+        </td>
+        <td>
+          <select class="project-table__input" form="new-project" name="company" aria-label="Empresa associada">
+            <option value="">Empresa</option>
+            @for (company of companies; track company) {
+              <option [value]="company">{{ company }}</option>
+            }
+          </select>
+        </td>
+        <td>
+          <select class="project-table__input" form="new-project" name="team" aria-label="Time responsável">
+            <option value="">Time</option>
+            @for (team of teams; track team) {
+              <option [value]="team">{{ team }}</option>
+            }
+          </select>
+        </td>
+        <td class="project-table__sticky-end">
+          <button class="project-table__create" type="submit" form="new-project">Criar projeto</button>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<p class="project-create__feedback" aria-live="polite">
+  @if (created(); as name) {
+    “{{ name }}” foi criado e já aparece no carrossel. <a routerLink="/projetos">Ver no Dash de Projetos</a>
+  }
+</p>

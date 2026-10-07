@@ -1,0 +1,54 @@
+<app-carousel title="Projetos" [items]="projects()" />
+
+<section class="kanban" aria-label="Kanban de atividades de todos os projetos">
+  <h2 class="kanban__title">Atividades de todos os projetos</h2>
+
+  <div class="kanban__board">
+    @for (column of board(); track column.id) {
+      <div
+        class="kanban__column"
+        [class.is-drop-target]="dropTarget() === column.id"
+        (dragover)="onDragOver($event, column.id)"
+        (drop)="onDrop($event, column.id)"
+      >
+        <header class="kanban__column-header">
+          <span class="kanban__status" [class]="'kanban__status kanban__status--' + column.id"></span>
+          <h3 class="kanban__column-title">{{ column.label }}</h3>
+          <span class="kanban__count">{{ column.cards.length }}</span>
+        </header>
+
+        <ul class="kanban__cards">
+          @for (card of column.cards; track card.id) {
+            <li
+              class="kanban__card"
+              draggable="true"
+              [class.is-dragging]="dragging() === card.id"
+              (dragstart)="dragging.set(card.id)"
+              (dragend)="endDrag()"
+            >
+              <div class="kanban__card-header">
+                <span class="kanban__project">{{ card.project }}</span>
+                <select
+                  class="kanban__move"
+                  [attr.aria-label]="'Mover ' + card.title + ' para'"
+                  (change)="move(card.id, $any($event.target).value)"
+                >
+                  @for (option of columns; track option.id) {
+                    <option [value]="option.id" [selected]="option.id === card.status">{{ option.label }}</option>
+                  }
+                </select>
+              </div>
+              <p class="kanban__card-title">{{ card.title }}</p>
+              <div class="kanban__card-footer">
+                <span class="kanban__avatar" aria-hidden="true">{{ initials(card.assignee) }}</span>
+                <span class="kanban__assignee">{{ card.assignee }}</span>
+              </div>
+            </li>
+          } @empty {
+            <li class="kanban__empty">Nenhuma atividade</li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+</section>
