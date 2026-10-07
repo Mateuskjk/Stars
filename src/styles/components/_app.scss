@@ -1,0 +1,28 @@
+.container-main {
+  display: grid;
+  grid-template-areas:
+    'nav  nav'
+    'left main';
+  grid-template-columns: 360px 1fr;
+  grid-template-rows: 64px 1fr;
+  gap: 10px 20px; // linhas, colunas
+  min-height: calc(100vh - 36px);
+  margin: 18px;
+  border: 0.5px solid red;
+}
+
+.main-content {
+  grid-area: main;
+  border: 0.5px solid blue;
+}
+
+.navigation-top {
+  grid-area: nav;
+  padding: 25px;
+  border: 0.5px solid green;
+}
+
+.left-content {
+  grid-area: left;
+  border: 0.5px solid #c8a2c8;
+}
