@@ -1,3 +1,5 @@
+@use '../variables' as *;
+
 .container-main {
   display: grid;
   grid-template-areas:
@@ -18,10 +20,51 @@
 
 .navigation-top {
   grid-area: nav;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   border: 0.5px solid green;
 }
 
 .left-content {
   grid-area: left;
   border: 0.5px solid #c8a2c8;
+}
+
+.logo-sys {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 25px;
+  background-color: $color-surface;
+  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  color: $color-text;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: $color-surface-hover;
+  }
+
+  &__icon {
+    width: 32px;
+    height: 32px;
+    fill: $color-logo;
+  }
+
+  &__name {
+    font-family: $font-family-logo;
+    font-size: 20px;
+    font-weight: 600;
+  }
+}
+
+.center-options {
+  border: 0.5px solid yellow;
+}
+
+.bottons {
+  border: 0.5px solid black;
 }
