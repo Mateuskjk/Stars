@@ -3,13 +3,28 @@
     <router-outlet />
   </div>
   <div class="navigation-top">
-    <a class="logo-sys" routerLink="/">
-      <svg class="logo-sys__icon" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M13 1Q13 12 24 12Q13 12 13 23Q13 12 2 12Q13 12 13 1Z" />
-        <path d="M25 18Q25 24 31 24Q25 24 25 30Q25 24 19 24Q25 24 25 18Z" />
-      </svg>
-      <span class="logo-sys__name">Stars</span>
-    </a>
+    <div class="nav-brand">
+      <button
+        class="nav-button nav-toggle"
+        type="button"
+        aria-label="Menu"
+        [attr.aria-expanded]="openMenu() === 'nav'"
+        (click)="toggleMenu('nav')"
+      >
+        <svg class="nav-button__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6h16" />
+          <path d="M4 12h16" />
+          <path d="M4 18h16" />
+        </svg>
+      </button>
+      <a class="logo-sys" routerLink="/">
+        <svg class="logo-sys__icon" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M13 1Q13 12 24 12Q13 12 13 23Q13 12 2 12Q13 12 13 1Z" />
+          <path d="M25 18Q25 24 31 24Q25 24 25 30Q25 24 19 24Q25 24 25 18Z" />
+        </svg>
+        <span class="logo-sys__name">Stars</span>
+      </a>
+    </div>
     <nav class="center-options" [class.is-open]="openMenu() === 'nav'" (click)="closeNavOnLinkClick($event)">
       <ul class="center-options__list">
         <li><a class="center-options__link" routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Home</a></li>
@@ -31,19 +46,6 @@
       </ul>
     </nav>
     <div class="bottons">
-      <button
-        class="nav-button nav-toggle"
-        type="button"
-        aria-label="Menu"
-        [attr.aria-expanded]="openMenu() === 'nav'"
-        (click)="toggleMenu('nav')"
-      >
-        <svg class="nav-button__icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 6h16" />
-          <path d="M4 12h16" />
-          <path d="M4 18h16" />
-        </svg>
-      </button>
       <div class="nav-menu">
         <button
           class="nav-button"

@@ -389,6 +389,13 @@
   }
 }
 
+// ☰ + logo, lado a lado na esquerda
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 // Botão ☰: só aparece quando o menu do meio vira painel
 .nav-toggle {
   display: none;
