@@ -10,8 +10,130 @@
       </svg>
       <span class="logo-sys__name">Stars</span>
     </a>
-    <div class="center-options"></div>
-    <div class="bottons"></div>
+    <nav class="center-options">
+      <ul class="center-options__list">
+        <li><a class="center-options__link" routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Home</a></li>
+        <li><a class="center-options__link" routerLink="/dashboards" routerLinkActive="is-active">Dashboards</a></li>
+        <li><a class="center-options__link" routerLink="/conversas" routerLinkActive="is-active">Conversas</a></li>
+        <li><a class="center-options__link" routerLink="/projetos" routerLinkActive="is-active">Projetos</a></li>
+        <li class="center-options__dropdown" routerLinkActive="is-active">
+          <button class="center-options__link" type="button" aria-haspopup="true">Workspace</button>
+          <ul class="center-options__submenu">
+            <li><a class="center-options__link" routerLink="/workspace/daily" routerLinkActive="is-active">Daily</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/backlog" routerLinkActive="is-active">Backlog</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/planning" routerLinkActive="is-active">Planning</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/notes" routerLinkActive="is-active">Notes</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/favorites" routerLinkActive="is-active">Favorites</a></li>
+            <li><a class="center-options__link" routerLink="/workspace/brain" routerLinkActive="is-active">Brain</a></li>
+          </ul>
+        </li>
+        <li><a class="center-options__link" routerLink="/configuracoes" routerLinkActive="is-active">Configurações</a></li>
+      </ul>
+    </nav>
+    <div class="bottons">
+      <div class="nav-menu">
+        <button
+          class="nav-button"
+          type="button"
+          aria-label="Notificações"
+          [attr.aria-expanded]="openMenu() === 'notifications'"
+          (click)="toggleMenu('notifications')"
+        >
+          <svg class="nav-button__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          </svg>
+          @if (hasUnread()) {
+            <span class="nav-button__badge"></span>
+          }
+        </button>
+        @if (openMenu() === 'notifications') {
+          <div class="nav-menu__dropdown nav-menu__dropdown--notifications">
+            <ul class="nav-menu__list">
+              @for (notification of notifications(); track notification.id) {
+                <li class="nav-menu__notification" [class.is-unread]="!notification.read">
+                  {{ notification.text }}
+                </li>
+              } @empty {
+                <li class="nav-menu__notification">Nenhuma notificação</li>
+              }
+            </ul>
+            <button class="center-options__link" type="button" [disabled]="!hasUnread()" (click)="markAllAsRead()">
+              Concluir
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="nav-search" [class.is-open]="searchOpen()">
+        <input
+          #searchInput
+          class="nav-search__input"
+          type="search"
+          placeholder="Pesquisar..."
+          aria-label="Pesquisar"
+          [tabIndex]="searchOpen() ? 0 : -1"
+        />
+        <button
+          class="nav-button"
+          type="button"
+          aria-label="Pesquisar"
+          [attr.aria-expanded]="searchOpen()"
+          (click)="searchOpen.set(!searchOpen()); searchOpen() && searchInput.focus()"
+        >
+          <svg class="nav-button__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-4-4" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="nav-menu">
+        <button
+          class="nav-button"
+          type="button"
+          aria-label="Menu do usuário"
+          [attr.aria-expanded]="openMenu() === 'user'"
+          (click)="toggleMenu('user')"
+        >
+          <svg class="nav-button__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21a8 8 0 0 1 16 0" />
+          </svg>
+        </button>
+        @if (openMenu() === 'user') {
+          <ul class="nav-menu__dropdown nav-menu__list">
+            <li><a class="center-options__link" routerLink="/conta">Minha conta</a></li>
+            <li><a class="center-options__link" routerLink="/api-publica">API pública</a></li>
+            <li><a class="center-options__link" routerLink="/erros-navegador">Erros do navegador</a></li>
+            <li>
+              <label class="center-options__link nav-menu__toggle">
+                Notificações
+                <input
+                  type="checkbox"
+                  role="switch"
+                  [checked]="notificationsEnabled()"
+                  (change)="notificationsEnabled.set($any($event.target).checked)"
+                />
+              </label>
+            </li>
+            <li>
+              <label class="center-options__link nav-menu__toggle">
+                Som
+                <input
+                  type="checkbox"
+                  role="switch"
+                  [checked]="soundEnabled()"
+                  (change)="soundEnabled.set($any($event.target).checked)"
+                />
+              </label>
+            </li>
+            <!-- ponytail: sem autenticação ainda; ligar o logout aqui quando existir -->
+            <li><button class="center-options__link" type="button">Sair</button></li>
+          </ul>
+        }
+      </div>
+    </div>
   </div>
   <div class="left-content"></div>
 </div>
