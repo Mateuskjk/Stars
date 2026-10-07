@@ -1,0 +1,177 @@
+<!-- Indicadores -->
+<section class="dashboard__stats">
+  @for (stat of stats; track stat.label) {
+    <div class="dash-card stat">
+      <span class="stat__label">{{ stat.label }}</span>
+      <span class="stat__value">{{ stat.value }}</span>
+      <span class="stat__delta" [class.is-good]="stat.delta > 0 === stat.upIsGood">
+        {{ stat.delta > 0 ? '↑' : '↓' }} {{ stat.delta > 0 ? '+' : '' }}{{ stat.delta }} vs semana passada
+      </span>
+    </div>
+  }
+</section>
+
+<section class="dashboard__charts">
+  <!-- Taxa de conclusão de projeto -->
+  <div class="dash-card">
+    <h2 class="dash-card__title">Taxa de conclusão de projeto</h2>
+    <p class="dash-card__hero">{{ completion.total }}%</p>
+    <p class="dash-card__subtitle">média dos projetos ativos</p>
+    <ul class="meter-list">
+      @for (project of completion.projects; track project.name) {
+        <li class="meter-list__item">
+          <span class="meter-list__name">{{ project.name }}</span>
+          <span class="meter" role="img" [attr.aria-label]="project.name + ': ' + project.value + '%'">
+            <span class="meter__fill" [style.width.%]="project.value"></span>
+          </span>
+          <span class="meter-list__value">{{ project.value }}%</span>
+        </li>
+      }
+    </ul>
+  </div>
+
+  <!-- Entrega de atividades -->
+  <div class="dash-card">
+    <h2 class="dash-card__title">Entrega de atividades</h2>
+    <p class="dash-card__subtitle">atividades entregues por semana</p>
+    <svg class="chart" [attr.viewBox]="viewBox()" role="img" aria-label="Atividades entregues nas últimas 8 semanas">
+      @for (tick of deliveries().ticks; track tick.value) {
+        <line class="chart__grid" [attr.x1]="plot().left" [attr.x2]="plot().right" [attr.y1]="tick.y" [attr.y2]="tick.y" />
+        <text class="chart__tick" [attr.x]="plot().left - 6" [attr.y]="tick.y" text-anchor="end">{{ tick.value }}</text>
+      }
+      @for (col of deliveries().columns; track col.label) {
+        <g
+          class="chart__hit"
+          tabindex="0"
+          [attr.aria-label]="col.tip.heading + ': ' + col.tip.rows[0].value"
+          (pointermove)="showTip($event, col.tip)"
+          (pointerleave)="hideTip()"
+          (focus)="showTip($event, col.tip)"
+          (blur)="hideTip()"
+        >
+          <rect [attr.x]="col.hit.x" y="0" [attr.width]="col.hit.width" [attr.height]="plot().bottom" fill="transparent" />
+          <path class="chart__column" [attr.d]="col.path" />
+        </g>
+        <text class="chart__tick" [attr.x]="col.x" [attr.y]="plot().labelY" text-anchor="middle">{{ col.label }}</text>
+        @if (col.isLast) {
+          <text class="chart__value" [attr.x]="col.x" [attr.y]="col.y - 6" text-anchor="middle">{{ col.value }}</text>
+        }
+      }
+    </svg>
+  </div>
+
+  <!-- Burn-up -->
+  <div class="dash-card">
+    <h2 class="dash-card__title">Burn-up da sprint</h2>
+    <ng-container *ngTemplateOutlet="lineChart; context: { $implicit: burnUp(), label: 'Burn-up: escopo e pontos concluídos por dia' }" />
+  </div>
+
+  <!-- Burn-down -->
+  <div class="dash-card">
+    <h2 class="dash-card__title">Burn-down da sprint</h2>
+    <ng-container *ngTemplateOutlet="lineChart; context: { $implicit: burnDown(), label: 'Burn-down: pontos restantes, ideal e real' }" />
+  </div>
+
+  <!-- Carga de trabalho -->
+  <div class="dash-card">
+    <h2 class="dash-card__title">Carga de trabalho</h2>
+    <p class="dash-card__subtitle">atividades em aberto por pessoa</p>
+    <div class="pie">
+      <svg class="pie__chart" viewBox="0 0 180 180" role="img" aria-label="Distribuição das atividades em aberto por pessoa">
+        @for (slice of workload; track slice.name) {
+          <path
+            class="pie__slice"
+            [attr.d]="slice.path"
+            [attr.fill]="slice.color"
+            tabindex="0"
+            [attr.aria-label]="slice.tip.heading + ': ' + slice.tip.rows[0].value"
+            (pointermove)="showTip($event, slice.tip)"
+            (pointerleave)="hideTip()"
+            (focus)="showTip($event, slice.tip)"
+            (blur)="hideTip()"
+          />
+        }
+      </svg>
+      <ul class="legend legend--column">
+        @for (slice of workload; track slice.name) {
+          <li class="legend__item">
+            <span class="legend__swatch" [style.background]="slice.color"></span>
+            {{ slice.name }}
+            <span class="legend__value">{{ slice.value }} · {{ slice.percent }}%</span>
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+
+  <!-- Indo para a segunda sprint -->
+  <div class="dash-card">
+    <h2 class="dash-card__title">Atividades indo para a 2ª sprint</h2>
+    <p class="dash-card__subtitle">progresso das atividades que não fecharam na sprint atual</p>
+    <ul class="meter-list">
+      @for (activity of secondSprint; track activity.name) {
+        <li class="meter-list__item">
+          <span class="meter-list__name">{{ activity.name }}</span>
+          <span class="meter" role="img" [attr.aria-label]="activity.name + ': ' + activity.value + '% concluída'">
+            <span class="meter__fill" [style.width.%]="activity.value"></span>
+          </span>
+          <span class="meter-list__value">{{ activity.value }}%</span>
+        </li>
+      }
+    </ul>
+  </div>
+</section>
+
+<!-- Gráfico de linhas (burn-up e burn-down) -->
+<ng-template #lineChart let-chart let-label="label">
+  <ul class="legend">
+    @for (line of chart.lines; track line.name) {
+      <li class="legend__item">
+        <span class="legend__line" [style.background]="line.color"></span>
+        {{ line.name }}
+      </li>
+    }
+  </ul>
+  <svg class="chart" [attr.viewBox]="viewBox()" role="img" [attr.aria-label]="label">
+    @for (tick of chart.ticks; track tick.value) {
+      <line class="chart__grid" [attr.x1]="plot().left" [attr.x2]="plot().right" [attr.y1]="tick.y" [attr.y2]="tick.y" />
+      <text class="chart__tick" [attr.x]="plot().left - 6" [attr.y]="tick.y" text-anchor="end">{{ tick.value }}</text>
+    }
+    @for (x of chart.xLabels; track x.text) {
+      <text class="chart__tick" [attr.x]="x.x" [attr.y]="plot().labelY" text-anchor="middle">{{ x.text }}</text>
+    }
+    @for (line of chart.lines; track line.name) {
+      <path class="chart__line" [attr.d]="line.path" [attr.stroke]="line.color" />
+      <circle class="chart__dot" [attr.cx]="line.end.x" [attr.cy]="line.end.y" r="4" [attr.fill]="line.color" />
+      <text class="chart__value" [attr.x]="line.end.x + 8" [attr.y]="line.end.y">{{ line.name }} {{ line.end.value }}</text>
+    }
+    @for (hit of chart.hits; track hit.x) {
+      <g
+        class="chart__hit"
+        tabindex="0"
+        [attr.aria-label]="hit.tip.heading"
+        (pointermove)="showTip($event, hit.tip)"
+        (pointerleave)="hideTip()"
+        (focus)="showTip($event, hit.tip)"
+        (blur)="hideTip()"
+      >
+        <line class="chart__crosshair" [attr.x1]="hit.x" [attr.x2]="hit.x" y1="12" [attr.y2]="plot().bottom" />
+        <rect [attr.x]="hit.band.x" y="0" [attr.width]="hit.band.width" [attr.height]="plot().bottom" fill="transparent" />
+      </g>
+    }
+  </svg>
+</ng-template>
+
+<!-- Dica do hover (uma só para a página toda) -->
+@if (tip(); as t) {
+  <div class="chart-tip" [class.is-flipped]="t.flip" [style.left.px]="t.x" [style.top.px]="t.y" role="tooltip">
+    <p class="chart-tip__heading">{{ t.data.heading }}</p>
+    @for (row of t.data.rows; track row.name) {
+      <p class="chart-tip__row">
+        <span class="chart-tip__key" [style.background]="row.color"></span>
+        <strong class="chart-tip__value">{{ row.value }}</strong>
+        <span class="chart-tip__name">{{ row.name }}</span>
+      </p>
+    }
+  </div>
+}

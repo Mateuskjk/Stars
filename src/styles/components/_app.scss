@@ -451,10 +451,11 @@
 }
 
 @media (max-width: $bp-mobile) {
+  // Ordem no celular: barra, saudação, conteúdo da página e, por último, os cards da lateral
   .container-main {
     grid-template-areas:
       'nav'
-      'left'
+      'hello'
       'main';
     grid-template-columns: 1fr;
     grid-template-rows: 64px auto auto;
@@ -462,7 +463,18 @@
     margin: 10px;
   }
 
+  // Os filhos da lateral viram itens do grid: a saudação vai para 'hello'
+  // e os cards caem nas linhas depois do conteúdo
   .left-content {
+    display: contents;
+  }
+
+  .hello-world {
+    grid-area: hello;
+    margin-bottom: 0;
+  }
+
+  .side-card {
     min-width: 0;
   }
 

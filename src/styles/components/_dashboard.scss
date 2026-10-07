@@ -1,0 +1,337 @@
+@use '../variables' as *;
+
+// Cores de apoio dos gráficos (tinta de texto, grade e eixo)
+$chart-ink-secondary: #52514e;
+$chart-ink-muted: #898781;
+$chart-grid: #e1e0d9;
+$chart-accent: #2a78d6;
+$chart-track: #cde2fb;
+$status-good: #006300;
+$status-critical: #d03b3b;
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  &__charts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+.dash-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 15px;
+  background-color: $color-surface;
+  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+
+  &__title {
+    color: $color-title;
+    font-size: 16px;
+  }
+
+  &__subtitle {
+    margin-bottom: 12px;
+    color: $chart-ink-muted;
+    font-size: 13px;
+  }
+
+  &__hero {
+    color: $color-title;
+    font-size: 48px;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+}
+
+// Indicadores (número grande + variação)
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &__label {
+    color: $chart-ink-secondary;
+    font-size: 13px;
+  }
+
+  &__value {
+    color: $color-title;
+    font-size: 32px;
+    font-weight: 600;
+  }
+
+  &__delta {
+    color: $status-critical;
+    font-size: 12px;
+
+    &.is-good {
+      color: $status-good;
+    }
+  }
+}
+
+// Barras de progresso (conclusão de projeto e 2ª sprint)
+.meter-list {
+  display: flex;
+  flex: 1; // ocupa a altura que sobra no cartão
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 12px;
+  margin-top: 12px;
+  list-style: none;
+
+  &__item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(60px, 1fr) 40px;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+  }
+
+  &__name {
+    color: $color-text; // nome longo quebra a linha em vez de ser cortado
+  }
+
+  &__value {
+    color: $chart-ink-secondary;
+    text-align: right;
+  }
+}
+
+.meter {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 6px;
+  background-color: $chart-track;
+
+  &__fill {
+    display: block;
+    height: 100%;
+    border-radius: 6px;
+    background-color: $chart-accent;
+  }
+}
+
+// Gráficos SVG (linha e coluna)
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+
+  &__grid {
+    stroke: $chart-grid;
+    stroke-width: 1;
+  }
+
+  &__tick {
+    fill: $chart-ink-muted;
+    font-size: 11px;
+    dominant-baseline: middle;
+  }
+
+  &__value {
+    fill: $chart-ink-secondary;
+    font-size: 11px;
+    font-weight: 600;
+    dominant-baseline: middle;
+  }
+
+  &__line {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  &__dot {
+    stroke: $color-surface;
+    stroke-width: 2;
+  }
+
+  &__column {
+    fill: $chart-accent;
+    transition: opacity 0.15s;
+  }
+
+  &__crosshair {
+    stroke: $chart-ink-muted;
+    stroke-width: 1;
+    opacity: 0;
+  }
+
+  &__hit {
+    outline: none;
+    cursor: default;
+
+    &:hover .chart__crosshair,
+    &:focus-visible .chart__crosshair {
+      opacity: 1;
+    }
+
+    &:hover .chart__column,
+    &:focus-visible .chart__column {
+      opacity: 0.8;
+    }
+  }
+}
+
+// Legenda
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 8px 0 12px;
+  list-style: none;
+
+  &--column {
+    flex-direction: column;
+    margin: 0;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: $color-text;
+    font-size: 13px;
+  }
+
+  &__line {
+    width: 14px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  &__swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+
+  &__value {
+    margin-left: auto;
+    padding-left: 12px;
+    color: $chart-ink-secondary;
+  }
+}
+
+// Pizza
+.pie {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+
+  &__chart {
+    flex: 0 0 160px;
+    width: 160px;
+    height: 160px;
+  }
+
+  &__slice {
+    stroke: $color-surface; // separação de 2px entre as fatias
+    stroke-width: 2;
+    stroke-linejoin: round;
+    transition: opacity 0.15s;
+
+    &:hover,
+    &:focus-visible {
+      outline: none;
+      opacity: 0.8;
+    }
+  }
+
+  .legend {
+    flex: 1;
+  }
+}
+
+// Dica do hover: aparece na hora, ao lado do ponteiro
+.chart-tip {
+  position: fixed;
+  z-index: 50;
+  min-width: 120px;
+  padding: 8px 12px;
+  border: 1px solid rgba(11, 11, 11, 0.1);
+  border-radius: 10px;
+  background-color: #fff;
+  box-shadow: 0 6px 16px rgba(32, 43, 67, 0.16);
+  font-size: 12px;
+  transform: translate(12px, 12px);
+  pointer-events: none; // não rouba o hover do gráfico
+
+  &.is-flipped {
+    transform: translate(calc(-100% - 12px), 12px);
+  }
+
+  &__heading {
+    margin-bottom: 4px;
+    color: $chart-ink-muted;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__key {
+    width: 12px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  &__value {
+    color: $color-title;
+    font-size: 14px;
+  }
+
+  &__name {
+    color: $chart-ink-secondary;
+  }
+}
+
+// ---------- Responsivo ----------
+
+@media (max-width: $bp-tablet) {
+  .dashboard__stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .dashboard__charts {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-card__hero {
+    font-size: 40px;
+  }
+
+  .stat__value {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: $bp-small) {
+  .pie {
+    flex-direction: column;
+    align-items: stretch;
+
+    &__chart {
+      align-self: center;
+    }
+  }
+}
