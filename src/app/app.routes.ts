@@ -1,8 +1,9 @@
 import { Routes } from '@angular/router';
+import { Home } from './home/home';
 
 // ponytail: rotas sem página (children: []); trocar por component/loadComponent quando cada tela existir
 export const routes: Routes = [
-  { path: '', children: [] },
+  { path: '', component: Home },
   { path: 'dashboards', children: [] },
   { path: 'conversas', children: [] },
   { path: 'projetos', children: [] },

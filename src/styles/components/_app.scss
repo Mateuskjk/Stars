@@ -10,12 +10,17 @@
   gap: 10px 20px; // linhas, colunas
   min-height: calc(100vh - 30px);
   margin: 12px;
-  border: 0.5px solid red;
 }
 
 .main-content {
   grid-area: main;
-  border: 0.5px solid blue;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; // sem isso o carrossel estica a coluna do grid
+  padding: 16px;
+  border-radius: 15px;
+  background-color: $color-surface;
+  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
 }
 
 .navigation-top {
@@ -32,13 +37,24 @@
   gap: 10px;
 }
 
-.hello-world {
-  margin-bottom: 10px; // + gap de 10px do left-content = 20px
+// .week-date (Home) tem o mesmo tamanho do hello-world
+.hello-world,
+.week-date {
+  margin-bottom: 10px; // + gap de 10px da coluna = 20px
 
   &__title {
     color: $color-title;
     font-family: $font-family-title;
     font-size: 35px;
+  }
+}
+
+.week-date {
+  text-align: right;
+
+  &__title {
+    color: #a7afb9;
+    font-weight: 600;
   }
 }
 

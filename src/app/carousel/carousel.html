@@ -1,0 +1,27 @@
+<div class="carousel__header">
+  <h2 class="carousel__title">{{ title() }}</h2>
+  <div class="carousel__controls">
+    <button class="carousel__control" type="button" aria-label="Anterior" (click)="move(-1)">
+      <svg class="carousel__control-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m15 6-6 6 6 6" />
+      </svg>
+    </button>
+    <button class="carousel__control" type="button" aria-label="Próximo" (click)="move(1)">
+      <svg class="carousel__control-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m9 6 6 6-6 6" />
+      </svg>
+    </button>
+  </div>
+</div>
+
+<ul #track class="carousel__track">
+  @for (item of items(); track item.name) {
+    <li class="carousel__card">
+      <div class="carousel__image" [style.background]="item.cover"></div>
+      <div class="carousel__footer">
+        <span class="carousel__name">{{ item.name }}</span>
+        <a class="carousel__open" [routerLink]="item.link">Abrir</a>
+      </div>
+    </li>
+  }
+</ul>

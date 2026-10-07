@@ -1,4 +1,4 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 type Menu = 'notifications' | 'user';
@@ -21,6 +21,15 @@ export class App {
   // ponytail: nome fixo até existir login; trocar pelo usuário autenticado
   protected readonly userName = signal('Usuário');
   protected readonly greeting = signal(greetingFor(new Date().getHours()));
+
+  constructor() {
+    // Confere a hora a cada minuto, para trocar Bom dia/Boa tarde/Boa noite sem recarregar
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      const id = setInterval(() => this.greeting.set(greetingFor(new Date().getHours())), 60_000);
+      destroyRef.onDestroy(() => clearInterval(id));
+    });
+  }
 
   // ponytail: notificações fixas de exemplo; trocar por um service/API quando o backend existir
   protected readonly notifications = signal([
