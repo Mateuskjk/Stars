@@ -10,7 +10,7 @@
       </svg>
       <span class="logo-sys__name">Stars</span>
     </a>
-    <nav class="center-options">
+    <nav class="center-options" [class.is-open]="openMenu() === 'nav'" (click)="closeNavOnLinkClick($event)">
       <ul class="center-options__list">
         <li><a class="center-options__link" routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Home</a></li>
         <li><a class="center-options__link" routerLink="/dashboards" routerLinkActive="is-active">Dashboards</a></li>
@@ -31,6 +31,19 @@
       </ul>
     </nav>
     <div class="bottons">
+      <button
+        class="nav-button nav-toggle"
+        type="button"
+        aria-label="Menu"
+        [attr.aria-expanded]="openMenu() === 'nav'"
+        (click)="toggleMenu('nav')"
+      >
+        <svg class="nav-button__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6h16" />
+          <path d="M4 12h16" />
+          <path d="M4 18h16" />
+        </svg>
+      </button>
       <div class="nav-menu">
         <button
           class="nav-button"
@@ -142,31 +155,6 @@
     <div class="side-card">
       <h2 class="side-card__title">
         <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 7v5l3 2" />
-        </svg>
-        Recentes
-      </h2>
-      <ul class="side-card__list">
-        @for (item of recents(); track item.title) {
-          <li>
-            <a class="side-card__item" [routerLink]="item.link">
-              <span>
-                <span class="side-card__type">{{ item.type }}</span>
-                {{ item.title }}
-              </span>
-              <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 12h14" />
-                <path d="m13 6 6 6-6 6" />
-              </svg>
-            </a>
-          </li>
-        }
-      </ul>
-    </div>
-    <div class="side-card">
-      <h2 class="side-card__title">
-        <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
         Acesso rápido
@@ -182,6 +170,31 @@
                   }
                 </svg>
                 {{ item.label }}
+              </span>
+              <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14" />
+                <path d="m13 6 6 6-6 6" />
+              </svg>
+            </a>
+          </li>
+        }
+      </ul>
+    </div>
+    <div class="side-card">
+      <h2 class="side-card__title">
+        <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+        Recentes
+      </h2>
+      <ul class="side-card__list">
+        @for (item of recents(); track item.title) {
+          <li>
+            <a class="side-card__item" [routerLink]="item.link">
+              <span>
+                <span class="side-card__type">{{ item.type }}</span>
+                {{ item.title }}
               </span>
               <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 12h14" />

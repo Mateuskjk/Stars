@@ -126,3 +126,33 @@
     min-height: 280px;
   }
 }
+
+// ---------- Responsivo ----------
+
+@media (max-width: $bp-tablet) {
+  .carousel__card {
+    flex-basis: calc((100% - 2 * 16px) / 3); // 3 projetos por vez
+  }
+
+  .carousel--large .carousel__card {
+    flex-basis: calc((100% - 16px) / 2); // 2 empresas por vez
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .carousel__card {
+    flex-basis: calc((100% - 16px) / 2);
+    height: 200px;
+  }
+
+  .carousel--large .carousel__card {
+    flex-basis: 85%; // aparece um pedaço do próximo: indica que dá para arrastar
+    min-height: 240px;
+  }
+}
+
+@media (max-width: $bp-small) {
+  .carousel__card {
+    flex-basis: 75%;
+  }
+}

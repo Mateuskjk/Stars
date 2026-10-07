@@ -1,7 +1,7 @@
 import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
-type Menu = 'notifications' | 'user';
+type Menu = 'nav' | 'notifications' | 'user';
 
 @Component({
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
@@ -95,8 +95,15 @@ export class App {
     this.notifications.update((list) => list.map((n) => ({ ...n, read: true })));
   }
 
+  // No celular o menu do meio é um painel: fecha ao escolher uma página
+  protected closeNavOnLinkClick(event: Event) {
+    if ((event.target as Element).closest('a')) {
+      this.openMenu.set(null);
+    }
+  }
+
   protected closeMenuOnOutsideClick(event: Event) {
-    if (!(event.target as Element).closest('.nav-menu')) {
+    if (!(event.target as Element).closest('.nav-menu, .nav-toggle, .center-options')) {
       this.openMenu.set(null);
     }
   }

@@ -388,3 +388,122 @@
     }
   }
 }
+
+// Botão ☰: só aparece quando o menu do meio vira painel
+.nav-toggle {
+  display: none;
+}
+
+// ---------- Responsivo ----------
+
+@media (max-width: $bp-tablet) {
+  .container-main {
+    grid-template-columns: 280px 1fr;
+  }
+
+  .navigation-top {
+    position: relative; // referência para o painel do menu
+  }
+
+  .nav-toggle {
+    display: grid;
+  }
+
+  // Menu do meio vira um painel que desce abaixo da barra
+  .center-options {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    left: 0;
+    z-index: 20;
+    border-radius: 15px;
+    box-shadow: 0 6px 12px rgba(32, 43, 67, 0.12);
+
+    &.is-open {
+      display: block;
+    }
+
+    &__list {
+      flex-direction: column;
+    }
+
+    &__link {
+      width: 100%;
+      text-align: left;
+    }
+
+    // Submenu do Workspace sempre aberto dentro do painel
+    &__submenu {
+      display: block;
+      position: static;
+      padding: 0 0 0 16px;
+      box-shadow: none;
+    }
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .container-main {
+    grid-template-areas:
+      'nav'
+      'left'
+      'main';
+    grid-template-columns: 1fr;
+    grid-template-rows: 64px auto auto;
+    min-height: auto;
+    margin: 10px;
+  }
+
+  .left-content {
+    min-width: 0;
+  }
+
+  .main-content {
+    padding: 12px;
+  }
+
+  .hello-world__title {
+    font-size: 26px;
+  }
+
+  .week-date__title {
+    font-size: 22px;
+  }
+
+  .bottons {
+    gap: 8px;
+  }
+
+  // Pesquisa aberta cobre a barra inteira, em vez de empurrar os botões
+  .nav-search.is-open {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+
+    .nav-search__input {
+      flex: 1;
+      width: auto;
+    }
+  }
+
+  // Menus do sino e do avatar alinham pela barra, para não sair da tela
+  .nav-menu {
+    position: static;
+
+    &__dropdown {
+      top: calc(100% + 8px);
+      max-width: 100%;
+    }
+  }
+}
+
+@media (max-width: $bp-small) {
+  .logo-sys {
+    padding: 8px 10px;
+
+    &__name {
+      display: none; // só as estrelas, para caber os botões
+    }
+  }
+}
