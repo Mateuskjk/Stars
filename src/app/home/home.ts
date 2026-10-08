@@ -26,7 +26,7 @@ export class Home {
 }
 
 // Ex.: "Quarta-feira, 7 de outubro"
-function formatWeekDate(date: Date) {
+export function formatWeekDate(date: Date) {
   const text = date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

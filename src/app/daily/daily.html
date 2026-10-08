@@ -1,0 +1,176 @@
+@switch (step()) {
+  @case ('start') {
+    <button class="daily__start" type="button" (click)="step.set('meeting')">
+      <svg class="daily__start-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <path d="m10 8 6 4-6 4z" />
+      </svg>
+      <span class="daily__start-title">Clique aqui para iniciar uma Daily</span>
+      <span class="daily__start-subtitle">{{ weekDate }}</span>
+    </button>
+
+    <section class="daily__history" aria-label="Dailies anteriores">
+      <h2 class="daily__panel-title">Dailies anteriores</h2>
+      <ul class="daily__history-list">
+        @for (record of history.records(); track record.id) {
+          <li class="daily__history-row">
+            <button class="daily__history-item" type="button" (click)="open(record)">
+              <span class="daily__history-date">{{ recordDate(record) }}</span>
+              <span class="daily__panel-subtitle">{{ withNotes(record) }} de {{ record.participants.length }} com anotações</span>
+              <svg class="daily__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14" />
+                <path d="m13 6 6 6-6 6" />
+              </svg>
+            </button>
+            <button
+              class="daily__history-delete"
+              type="button"
+              [attr.aria-label]="'Excluir a daily de ' + recordDate(record)"
+              (click)="remove(record)"
+            >
+              <svg class="daily__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M6 6l1 14h10l1-14" />
+              </svg>
+            </button>
+          </li>
+        } @empty {
+          <li class="daily__empty">Nenhuma daily finalizada ainda. Os resumos aparecem aqui.</li>
+        }
+      </ul>
+    </section>
+  }
+
+  @case ('meeting') {
+    <!-- 1. Data (a mesma da Home) -->
+    <div class="week-date">
+      <p class="week-date__title">{{ weekDate }}</p>
+    </div>
+
+    <!-- 2. Participantes -->
+    <ul class="daily__people" aria-label="Participantes da daily">
+      @for (user of users; track user.name) {
+        <li>
+          <button
+            class="daily__person"
+            type="button"
+            [class.is-selected]="user.name === selected()"
+            [attr.aria-pressed]="user.name === selected()"
+            (click)="selected.set(user.name)"
+          >
+            <span class="daily__avatar" aria-hidden="true">
+              {{ initials(user.name) }}
+              @if (isSaved(user.name)) {
+                <span class="daily__check" title="Anotações salvas">✓</span>
+              }
+            </span>
+            <span class="daily__person-name">{{ user.name }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+
+    <!-- 3. Movimentações e anotações -->
+    <div class="daily__split">
+      <section class="daily__panel">
+        <h2 class="daily__panel-title">Movimentações desde a última daily</h2>
+        <p class="daily__panel-subtitle">Cartões de {{ selected() }}</p>
+        <ul class="daily__moves">
+          @for (move of movements(); track $index) {
+            <li class="daily__move">
+              <span class="daily__move-card">{{ move.card }}</span>
+              <time class="daily__move-time">{{ formatTime(move.time) }}</time>
+              <span class="daily__move-project">{{ move.project }}</span>
+              <span class="daily__move-path">
+                @if (move.from) {
+                  <span class="daily__tag">{{ move.from }}</span>
+                  <span aria-label="para">→</span>
+                } @else {
+                  <span class="daily__new">Criado em</span>
+                }
+                <span class="daily__tag daily__tag--to">{{ move.to }}</span>
+              </span>
+            </li>
+          } @empty {
+            <li class="daily__empty">Nenhuma movimentação desde a última daily.</li>
+          }
+        </ul>
+      </section>
+
+      <form class="daily__panel daily__notes" (submit)="save($event)">
+        <h2 class="daily__panel-title">Anotações de {{ selected() }}</h2>
+        @for (field of fields; track field.id) {
+          <label class="daily__field">
+            <span class="daily__field-label">{{ field.label }}</span>
+            <textarea
+              class="daily__textarea"
+              rows="3"
+              [placeholder]="field.placeholder"
+              [value]="current()[field.id]"
+              (input)="edit(field.id, $any($event.target).value)"
+            ></textarea>
+          </label>
+        }
+        <div class="daily__notes-footer">
+          <span class="daily__status" aria-live="polite">
+            {{ current().saved ? 'Anotações salvas ✓' : '' }}
+          </span>
+          <button class="daily__save" type="submit" aria-label="Salvar anotações">
+            <svg class="daily__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h14" />
+              <path d="m13 6 6 6-6 6" />
+            </svg>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="daily__actions">
+      <button class="daily__finish" type="button" (click)="finish()">Finalizar Daily</button>
+    </div>
+  }
+
+  @case ('summary') {
+    @let record = viewing()!;
+    <div class="week-date">
+      <p class="week-date__title">{{ recordDate(record) }}</p>
+    </div>
+
+    <header class="daily__summary-header">
+      <div>
+        <h2 class="daily__panel-title">Resumo da Daily</h2>
+        <p class="daily__panel-subtitle">
+          {{ withNotes(record) }} de {{ record.participants.length }} pessoas registraram anotações · salvo no histórico
+        </p>
+      </div>
+      <button class="daily__finish daily__finish--ghost" type="button" (click)="restart()">
+        {{ fromHistory() ? 'Voltar' : 'Nova Daily' }}
+      </button>
+    </header>
+
+    <ul class="daily__summary">
+      @for (row of record.participants; track row.name) {
+        <li class="daily__panel daily__summary-card" [class.is-missing]="!row.notes">
+          <div class="daily__summary-person">
+            <span class="daily__avatar daily__avatar--small" aria-hidden="true">{{ initials(row.name) }}</span>
+            <span>
+              <span class="daily__person-name">{{ row.name }}</span>
+              <span class="daily__panel-subtitle">{{ row.moves }} {{ row.moves === 1 ? 'movimentação' : 'movimentações' }} de cartões</span>
+            </span>
+          </div>
+          @if (row.notes; as notes) {
+            <dl class="daily__summary-notes">
+              @for (field of fields; track field.id) {
+                <dt>{{ field.label }}</dt>
+                <dd>{{ notes[field.id] || '—' }}</dd>
+              }
+            </dl>
+          } @else {
+            <p class="daily__empty">Sem anotações nesta daily.</p>
+          }
+        </li>
+      }
+    </ul>
+  }
+}

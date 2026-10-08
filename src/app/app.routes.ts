@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { Chat } from './chat/chat';
+import { Daily } from './daily/daily';
 import { Dashboard } from './dashboard/dashboard';
 import { Home } from './home/home';
 import { ProjectCreate } from './projects/project-create';
@@ -15,7 +16,7 @@ export const routes: Routes = [
   {
     path: 'workspace',
     children: [
-      { path: 'daily', children: [] },
+      { path: 'daily', component: Daily },
       { path: 'backlog', children: [] },
       { path: 'planning', children: [] },
       { path: 'notes', children: [] },
