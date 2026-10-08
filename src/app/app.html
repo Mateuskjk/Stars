@@ -87,7 +87,7 @@
                   {{ notification.text }}
                 </li>
               } @empty {
-                <li class="nav-menu__notification">Nenhuma notificação</li>
+                <li class="nav-menu__notification">{{ notificationsEnabled() ? 'Nenhuma notificação' : 'Notificações desativadas em Minha conta' }}</li>
               }
             </ul>
             <button class="center-options__link" type="button" [disabled]="!hasUnread()" (click)="markAllAsRead()">
@@ -128,10 +128,16 @@
           [attr.aria-expanded]="openMenu() === 'user'"
           (click)="toggleMenu('user')"
         >
-          <svg class="nav-button__icon" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 21a8 8 0 0 1 16 0" />
-          </svg>
+          @if (account.account().photo; as photo) {
+            <img class="nav-button__photo" [src]="photo" alt="" />
+          } @else if (account.account().fullName || account.account().displayName) {
+            <span class="nav-button__initials">{{ account.initials() }}</span>
+          } @else {
+            <svg class="nav-button__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21a8 8 0 0 1 16 0" />
+            </svg>
+          }
         </button>
         @if (openMenu() === 'user') {
           <ul class="nav-menu__dropdown nav-menu__list">
@@ -145,7 +151,7 @@
                   type="checkbox"
                   role="switch"
                   [checked]="notificationsEnabled()"
-                  (change)="notificationsEnabled.set($any($event.target).checked)"
+                  (change)="account.updateNotifications({ enabled: $any($event.target).checked })"
                 />
               </label>
             </li>
@@ -156,7 +162,7 @@
                   type="checkbox"
                   role="switch"
                   [checked]="soundEnabled()"
-                  (change)="soundEnabled.set($any($event.target).checked)"
+                  (change)="account.updateNotifications({ sound: $any($event.target).checked })"
                 />
               </label>
             </li>
@@ -256,4 +262,6 @@
 </div>
 
 <!-- Assistente de IA (botão flutuante em todas as telas) -->
-<app-assistant />
+@if (account.account().assistantEnabled) {
+  <app-assistant />
+}

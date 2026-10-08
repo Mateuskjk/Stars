@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AccountStore } from '../account/account-store';
 
 export interface CarouselItem {
   name: string;
@@ -33,6 +34,7 @@ export class Carousel {
   readonly items = input.required<CarouselItem[]>();
 
   protected readonly paused = signal(false);
+  private readonly account = inject(AccountStore);
   private readonly track = viewChild.required<ElementRef<HTMLElement>>('track');
 
   constructor() {
@@ -40,7 +42,7 @@ export class Carousel {
     // Só no navegador: no SSR não há rolagem nem timer
     afterNextRender(() => {
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      const id = setInterval(() => !this.paused() && this.move(1), 4000);
+      const id = setInterval(() => !this.paused() && !this.account.account().reduceMotion && this.move(1), 4000);
       destroyRef.onDestroy(() => clearInterval(id));
     });
   }

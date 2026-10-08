@@ -1,0 +1,120 @@
+@use '../variables' as *;
+
+$account-line: #e7e8ea;
+
+.account {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+
+  &__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+  }
+
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid $account-line;
+    border-radius: 15px;
+    background-color: $color-surface;
+
+    &--danger {
+      border-color: #f3c4c4;
+    }
+  }
+
+  &__title {
+    color: $color-title;
+    font-size: 16px;
+  }
+
+  &__photo-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  &__photo {
+    flex-shrink: 0;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+
+    &--empty {
+      display: grid;
+      place-items: center;
+      background-color: $color-title;
+      color: $color-surface;
+      font-size: 26px;
+      font-weight: 700;
+    }
+  }
+
+  &__photo-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+
+    .daily__status {
+      margin-right: auto;
+    }
+  }
+
+  &__types {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: none;
+
+    &:disabled {
+      opacity: 0.5;
+    }
+
+    legend {
+      margin-bottom: 6px;
+    }
+  }
+
+  &__type {
+    align-items: flex-start;
+    font-size: 13px;
+
+    input {
+      margin-top: 2px;
+    }
+  }
+
+  &__reset {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: $bp-tablet) {
+  .account__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

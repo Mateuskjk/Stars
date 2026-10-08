@@ -7,6 +7,7 @@ import {
 import express from 'express';
 import { join } from 'node:path';
 import { aiRouter } from './server/ai';
+import { integrationsRouter } from './server/integrations';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -17,6 +18,11 @@ const angularApp = new AngularNodeAppEngine();
  * API da integração com IA (as chaves ficam só no servidor).
  */
 app.use('/api/ai', aiRouter());
+
+/**
+ * Integrações: webhooks e bancos PostgreSQL externos (segredos e senhas ficam só no servidor).
+ */
+app.use('/api/integrations', integrationsRouter());
 
 /**
  * Serve static files from /browser

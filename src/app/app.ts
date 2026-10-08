@@ -1,6 +1,7 @@
 import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Assistant } from './ai/assistant';
+import { AccountStore, NotificationType, greetingFor, hourIn } from './account/account-store';
 
 type Menu = 'nav' | 'notifications' | 'user';
 
@@ -16,28 +17,37 @@ type Menu = 'nav' | 'notifications' | 'user';
 export class App {
   protected readonly openMenu = signal<Menu | null>(null);
   protected readonly searchOpen = signal(false);
-  protected readonly notificationsEnabled = signal(true);
-  protected readonly soundEnabled = signal(true);
+  // Conta do usuário (Minha conta): nome, foto, fuso e preferências valem para todo o app
+  protected readonly account = inject(AccountStore);
+  protected readonly notificationsEnabled = computed(() => this.account.account().notifications.enabled);
+  protected readonly soundEnabled = computed(() => this.account.account().notifications.sound);
+  protected readonly userName = this.account.name;
 
-  // ponytail: nome fixo até existir login; trocar pelo usuário autenticado
-  protected readonly userName = signal('Usuário');
-  protected readonly greeting = signal(greetingFor(new Date().getHours()));
+  // A saudação usa a hora no fuso escolhido na conta; "now" avança a cada minuto
+  private readonly now = signal(new Date());
+  protected readonly greeting = computed(() => greetingFor(hourIn(this.account.timeZone(), this.now())));
 
   constructor() {
-    // Confere a hora a cada minuto, para trocar Bom dia/Boa tarde/Boa noite sem recarregar
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
-      const id = setInterval(() => this.greeting.set(greetingFor(new Date().getHours())), 60_000);
+      this.account.load();
+      const id = setInterval(() => this.now.set(new Date()), 60_000);
       destroyRef.onDestroy(() => clearInterval(id));
     });
   }
 
   // ponytail: notificações fixas de exemplo; trocar por um service/API quando o backend existir
-  protected readonly notifications = signal([
-    { id: 1, text: 'Bem-vindo ao Stars!', read: false },
-    { id: 2, text: 'Seu Daily de hoje está pronto.', read: false },
-    { id: 3, text: 'Planning da semana atualizado.', read: true },
+  private readonly allNotifications = signal<{ id: number; text: string; read: boolean; type: NotificationType }[]>([
+    { id: 1, text: 'Bem-vindo ao Stars!', read: false, type: 'system' },
+    { id: 2, text: 'Seu Daily de hoje está pronto.', read: false, type: 'daily' },
+    { id: 3, text: 'Planning da semana atualizado.', read: true, type: 'planning' },
+    { id: 4, text: 'Ana Souza mencionou você em Conversas.', read: false, type: 'mentions' },
   ]);
+  // Só os tipos que a pessoa escolheu receber (e nada, se ela desligou as notificações)
+  protected readonly notifications = computed(() => {
+    const prefs = this.account.account().notifications;
+    return prefs.enabled ? this.allNotifications().filter((n) => prefs.types[n.type]) : [];
+  });
   // ponytail: acessos fixos de exemplo; registrar os acessos reais quando as telas existirem
   protected readonly recents = signal([
     { type: 'Nota', title: 'Ideias para o Q4', link: '/workspace/notes' },
@@ -93,7 +103,7 @@ export class App {
   }
 
   protected markAllAsRead() {
-    this.notifications.update((list) => list.map((n) => ({ ...n, read: true })));
+    this.allNotifications.update((list) => list.map((n) => ({ ...n, read: true })));
   }
 
   // No celular o menu do meio é um painel: fecha ao escolher uma página
@@ -108,10 +118,4 @@ export class App {
       this.openMenu.set(null);
     }
   }
-}
-
-function greetingFor(hour: number) {
-  if (hour >= 5 && hour < 12) return 'Bom dia';
-  if (hour >= 12 && hour < 18) return 'Boa tarde';
-  return 'Boa noite';
 }

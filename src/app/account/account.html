@@ -1,0 +1,163 @@
+<header class="backlog__header">
+  <div>
+    <h2 class="backlog__title">Minha conta</h2>
+    <p class="backlog__subtitle">Seu perfil e suas preferências pessoais. Valem só para você.</p>
+  </div>
+</header>
+
+<div class="account__layout">
+  <!-- Perfil -->
+  <form class="account__card" (submit)="saveProfile($event)">
+    <h3 class="account__title">Perfil</h3>
+    @let profile = draft();
+
+    <div class="account__photo-row">
+      @if (profile.photo) {
+        <img class="account__photo" [src]="profile.photo" alt="Sua foto de perfil" />
+      } @else {
+        <span class="account__photo account__photo--empty" aria-hidden="true">{{ initialsOf(profile.fullName || profile.displayName) }}</span>
+      }
+      <div class="account__photo-actions">
+        <label class="modal__upload">
+          <input type="file" accept="image/*" (change)="onPhoto($any($event.target))" />
+          <span>{{ profile.photo ? 'Trocar foto' : '+ Enviar foto' }}</span>
+        </label>
+        @if (profile.photo) {
+          <button class="attachment__link members__danger" type="button" (click)="patch({ photo: null })">Remover foto</button>
+        }
+        <span class="modal__hint">Aparece no botão de usuário, no topo.</span>
+      </div>
+    </div>
+    @if (photoError()) {
+      <p class="planning__error" role="alert">{{ photoError() }}</p>
+    }
+
+    <div class="members__row">
+      <label class="modal__field">
+        <span class="modal__label">Nome completo</span>
+        <input class="modal__input" autocomplete="name" [value]="profile.fullName" (input)="patch({ fullName: $any($event.target).value })" />
+      </label>
+      <label class="modal__field">
+        <span class="modal__label">Como quer ser chamado</span>
+        <input
+          class="modal__input"
+          autocomplete="nickname"
+          [placeholder]="profile.fullName.split(' ')[0] || 'Usuário'"
+          [value]="profile.displayName"
+          (input)="patch({ displayName: $any($event.target).value })"
+        />
+        <span class="modal__hint">Usado na saudação “{{ preview().greeting }}, …”.</span>
+      </label>
+    </div>
+    <div class="members__row">
+      <label class="modal__field">
+        <span class="modal__label">E-mail</span>
+        <input class="modal__input" type="email" autocomplete="email" [value]="profile.email" (input)="patch({ email: $any($event.target).value })" />
+      </label>
+      <label class="modal__field">
+        <span class="modal__label">Telefone</span>
+        <input class="modal__input" type="tel" autocomplete="tel" [value]="profile.phone" (input)="patch({ phone: $any($event.target).value })" />
+      </label>
+    </div>
+    <label class="modal__field">
+      <span class="modal__label">Cargo / função</span>
+      <input class="modal__input" autocomplete="organization-title" [value]="profile.jobTitle" (input)="patch({ jobTitle: $any($event.target).value })" />
+    </label>
+    <label class="modal__field">
+      <span class="modal__label">Sobre você</span>
+      <textarea class="modal__input modal__textarea" maxlength="280" [value]="profile.bio" (input)="patch({ bio: $any($event.target).value })"></textarea>
+      <span class="modal__hint">{{ profile.bio.length }}/280</span>
+    </label>
+
+    <div class="account__actions">
+      <span class="daily__status" aria-live="polite">{{ saved() && !dirty() ? 'Perfil salvo ✓' : '' }}</span>
+      @if (dirty()) {
+        <button class="modal__ghost" type="button" (click)="discard()">Descartar</button>
+      }
+      <button class="modal__primary" type="submit" [disabled]="!dirty()">Salvar perfil</button>
+    </div>
+  </form>
+
+  <div class="account__side">
+    <!-- Preferências -->
+    <section class="account__card">
+      <h3 class="account__title">Preferências</h3>
+      <p class="modal__hint">Salvam na hora.</p>
+
+      <label class="modal__field">
+        <span class="modal__label">Fuso horário</span>
+        <select class="modal__input" (change)="store.update({ timeZone: $any($event.target).value })">
+          <option value="" [selected]="!store.account().timeZone">Automático (navegador: {{ zoneLabel(browserZone) }})</option>
+          @for (zone of timeZones; track zone) {
+            <option [value]="zone" [selected]="zone === store.account().timeZone">{{ zoneLabel(zone) }}</option>
+          }
+        </select>
+        <span class="modal__hint">Agora: {{ preview().time }} · {{ preview().greeting }}. Vale para a saudação e a data do dia.</span>
+      </label>
+
+      <label class="modal__toggle">
+        <input type="checkbox" role="switch" [checked]="store.account().assistantEnabled" (change)="store.update({ assistantEnabled: $any($event.target).checked })" />
+        <span>Mostrar o assistente de IA (✨)</span>
+      </label>
+      <label class="modal__toggle">
+        <input type="checkbox" role="switch" [checked]="store.account().reduceMotion" (change)="store.update({ reduceMotion: $any($event.target).checked })" />
+        <span>Reduzir animações (carrosséis não andam sozinhos)</span>
+      </label>
+    </section>
+
+    <!-- Notificações -->
+    <section class="account__card">
+      <h3 class="account__title">Notificações</h3>
+      @let notif = store.account().notifications;
+      <label class="modal__toggle">
+        <input type="checkbox" role="switch" [checked]="notif.enabled" (change)="store.updateNotifications({ enabled: $any($event.target).checked })" />
+        <span>Receber notificações</span>
+      </label>
+      <label class="modal__toggle">
+        <input type="checkbox" role="switch" [checked]="notif.sound" [disabled]="!notif.enabled" (change)="store.updateNotifications({ sound: $any($event.target).checked })" />
+        <span>Tocar som</span>
+      </label>
+      <fieldset class="account__types" [disabled]="!notif.enabled">
+        <legend class="modal__label">O que quero receber</legend>
+        @for (type of notificationTypes; track type.id) {
+          <label class="modal__check account__type">
+            <input type="checkbox" [checked]="notif.types[type.id]" (change)="setType(type.id, $any($event.target).checked)" />
+            <span>
+              <strong>{{ type.label }}</strong>
+              <span class="members__email">{{ type.description }}</span>
+            </span>
+          </label>
+        }
+      </fieldset>
+    </section>
+
+    <!-- Restaurar -->
+    <section class="account__card account__card--danger">
+      <h3 class="account__title">Restaurar padrões</h3>
+      <p class="modal__hint">Volta perfil e preferências ao estado inicial neste navegador.</p>
+      <button class="modal__ghost modal__ghost--danger account__reset" type="button" (click)="askReset()">Restaurar padrões da conta</button>
+    </section>
+  </div>
+</div>
+
+<p class="ai__security account__note">
+  ℹ️ Enquanto o Stars não tem login, sua conta fica salva neste navegador. Senha, sessões e verificação em duas etapas chegam junto com o login.
+</p>
+
+<dialog #confirmDialog class="confirm-dialog" aria-labelledby="account-confirm-title" (click)="closeOnBackdrop($event, confirmDialog)">
+  <div class="confirm-dialog__box">
+    <span class="confirm-dialog__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v5" />
+        <path d="M12 16h.01" />
+      </svg>
+    </span>
+    <h2 id="account-confirm-title" class="confirm-dialog__title">Restaurar os padrões?</h2>
+    <p class="confirm-dialog__text">Nome, foto, contatos e preferências voltam ao estado inicial. Suas notas e outros dados não são afetados.</p>
+    <div class="confirm-dialog__actions">
+      <button class="confirm-dialog__button" type="button" autofocus (click)="cancelReset()">Cancelar</button>
+      <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmReset()">Restaurar</button>
+    </div>
+  </div>
+</dialog>

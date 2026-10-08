@@ -1,4 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { AccountStore } from '../account/account-store';
+import { eventData, eventFor } from '../integrations/webhook-events';
 
 export type AuditAction = 'create' | 'update' | 'move' | 'archive' | 'cancel' | 'close' | 'delete';
 
@@ -27,14 +29,12 @@ export interface AuditEntry {
 const KEY = 'stars.audit';
 const LIMIT = 2000; // guarda as 2.000 ações mais recentes
 
-// ponytail: quem fez é fixo até existir login
-export const CURRENT_USER = 'Usuário';
-
 // Registro de auditoria: só acrescenta (não há como editar nem apagar uma entrada pela tela).
 // ponytail: guardado no localStorage deste navegador; em produção, gravar no servidor (append-only),
 // senão o próprio usuário consegue apagar o histórico limpando os dados do navegador.
 @Injectable({ providedIn: 'root' })
 export class AuditStore {
+  private readonly account = inject(AccountStore);
   readonly entries = signal<AuditEntry[]>([]);
   private loaded = false;
 
@@ -55,7 +55,7 @@ export class AuditStore {
     const full: AuditEntry = {
       id: crypto.randomUUID(),
       at: new Date().toISOString(),
-      actor: entry.actor ?? CURRENT_USER,
+      actor: entry.actor ?? this.account.fullName(),
       ...entry,
     };
     this.entries.update((list) => [full, ...list].slice(0, LIMIT));
@@ -64,6 +64,18 @@ export class AuditStore {
     } catch {
       // sem armazenamento: o registro vale só nesta sessão
     }
+    this.dispatch(full);
+  }
+
+  // Avisa o servidor para entregar o evento aos webhooks inscritos (não espera e não trava a tela)
+  private dispatch(entry: AuditEntry) {
+    const event = eventFor(entry);
+    if (!event || typeof window === 'undefined') return;
+    fetch('/api/integrations/events', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ event, data: eventData(entry) }),
+    }).catch(() => undefined);
   }
 }
 

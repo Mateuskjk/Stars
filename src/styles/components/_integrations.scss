@@ -1,0 +1,152 @@
+@use '../variables' as *;
+
+$int-line: #e7e8ea;
+$int-muted: #898781;
+
+.integrations {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__logo {
+    background-color: $color-nav-hover;
+    font-size: 18px;
+  }
+
+  &__url {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__events {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  &__event code {
+    padding: 2px 8px;
+    border-radius: 8px;
+    background-color: #f0f2f3;
+    color: $color-title;
+    font-size: 11px;
+  }
+
+  &__muted {
+    color: $int-muted;
+    font-size: 12px;
+  }
+
+  // Exemplo de payload: requisição + verificação à esquerda, JSON à direita
+  &__example {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid $int-line;
+    border-radius: 15px;
+  }
+
+  &__example-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  &__code {
+    margin: 0;
+    overflow-x: auto;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background-color: #1e2433;
+    color: #e6e8ee;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre;
+
+    &--json {
+      flex: 1;
+    }
+  }
+
+  // Modal do webhook
+  &__picker {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    border: none;
+
+    legend {
+      margin-bottom: 6px;
+    }
+  }
+
+  &__all {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background-color: #f0f2f3;
+  }
+
+  &__groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+
+  &__group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+  }
+
+  &__group-title {
+    color: $color-title;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  &__row-3 {
+    display: grid;
+    grid-template-columns: 1fr 140px;
+    gap: 12px;
+
+    &--even {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .integrations__example {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .integrations__row-3,
+  .integrations__row-3--even {
+    grid-template-columns: 1fr;
+  }
+}

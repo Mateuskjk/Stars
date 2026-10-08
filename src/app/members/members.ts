@@ -16,9 +16,7 @@ import {
   inviteEmail,
 } from './members-store';
 import { CompanyStore } from '../companies/company-store';
-
-// ponytail: nome de quem convida fixo até existir login
-const CURRENT_USER = 'Usuário';
+import { AccountStore } from '../account/account-store';
 
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
@@ -35,6 +33,7 @@ export class Members {
   protected readonly levels = ACCESS_LEVELS;
   protected readonly initials = initials;
   private readonly companyStore = inject(CompanyStore);
+  private readonly account = inject(AccountStore); // quem convida assina o e-mail
   protected readonly activeCompanies = this.companyStore.activeNames;
   protected readonly allCompanies = this.companyStore.companies;
 
@@ -129,7 +128,7 @@ export class Members {
   // ponytail: aqui o servidor enviaria o e-mail (ex.: rota POST /api/convites no server.ts + provedor SMTP);
   // sem backend, a tela mostra a prévia do e-mail que seria enviado
   private showEmail(member: Member) {
-    this.sentEmail.set(inviteEmail(member, CURRENT_USER, this.inviteMessage, location.origin));
+    this.sentEmail.set(inviteEmail(member, this.account.fullName(), this.inviteMessage, location.origin));
     this.inviteStep.set('sent');
   }
 
