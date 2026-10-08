@@ -28,7 +28,7 @@ export const routes: Routes = [
       { path: 'perfis-empresas', loadComponent: () => import('./companies/companies').then((m) => m.Companies) },
       { path: 'membros', loadComponent: () => import('./members/members').then((m) => m.Members) },
       { path: 'equipes', loadComponent: () => import('./teams/teams').then((m) => m.Teams) },
-      { path: 'integracao-ia', children: [] },
+      { path: 'integracao-ia', loadComponent: () => import('./ai/ai-integration').then((m) => m.AiIntegration) },
       { path: 'relatorios', children: [] },
       { path: 'auditorias', children: [] },
       { path: 'integracoes', children: [] },

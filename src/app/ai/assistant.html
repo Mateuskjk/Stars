@@ -1,0 +1,72 @@
+@if (open()) {
+  <section class="assistant__panel" role="dialog" aria-label="Assistente de IA">
+    <header class="assistant__header">
+      <span class="assistant__spark" aria-hidden="true">✨</span>
+      <div class="assistant__title">
+        <strong>Assistente Stars</strong>
+        @if (store.assistant(); as model) {
+          <span>{{ vendorLabel() }} · {{ model.model }}</span>
+        }
+      </div>
+      @if (messages().length) {
+        <button class="attachment__link" type="button" (click)="clear()">Limpar</button>
+      }
+      <button class="modal__icon-button" type="button" aria-label="Fechar assistente" (click)="toggle()">✕</button>
+    </header>
+
+    @if (store.assistant()) {
+      <ol class="assistant__messages" aria-live="polite">
+        @if (!messages().length) {
+          <li class="assistant__welcome">
+            <p>Oi! Posso explicar como cada tela funciona, dar dicas e avisar se algo parece errado. Pergunte ou escolha:</p>
+            <div class="assistant__chips">
+              @for (suggestion of suggestions; track suggestion) {
+                <button class="assistant__chip" type="button" (click)="send(suggestion)">{{ suggestion }}</button>
+              }
+            </div>
+          </li>
+        }
+        @for (message of messages(); track $index) {
+          <li class="assistant__message" [class.is-user]="message.role === 'user'">
+            <p class="assistant__bubble">{{ message.content }}</p>
+          </li>
+        }
+        @if (thinking()) {
+          <li class="assistant__message">
+            <p class="assistant__bubble assistant__typing">Pensando…</p>
+          </li>
+        }
+      </ol>
+
+      @if (error()) {
+        <p class="assistant__error" role="alert">{{ error() }}</p>
+      }
+
+      <form class="assistant__composer" (submit)="$event.preventDefault(); send(input.value)">
+        <textarea
+          #input
+          class="assistant__input"
+          rows="1"
+          placeholder="Pergunte algo sobre o Stars…"
+          aria-label="Pergunta para o assistente"
+          (keydown)="onKeydown($event, input)"
+        ></textarea>
+        <button class="chat__send" type="submit" aria-label="Enviar pergunta" [disabled]="thinking()">
+          <svg class="chat__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14" />
+            <path d="m13 6 6 6-6 6" />
+          </svg>
+        </button>
+      </form>
+    } @else {
+      <div class="assistant__setup">
+        <p>O assistente ainda não está ligado a nenhuma IA.</p>
+        <a class="modal__primary assistant__setup-link" routerLink="/configuracoes/integracao-ia" (click)="toggle()">Configurar um modelo de IA</a>
+      </div>
+    }
+  </section>
+}
+
+<button class="assistant__fab" type="button" [attr.aria-expanded]="open()" aria-label="Abrir assistente de IA" (click)="toggle()">
+  {{ open() ? '✕' : '✨' }}
+</button>

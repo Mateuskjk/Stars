@@ -1,0 +1,197 @@
+<header class="backlog__header">
+  <div>
+    <h2 class="backlog__title">Integração com IA</h2>
+    <p class="backlog__subtitle">Modelos que alimentam o assistente (chatbot) de dicas do Stars.</p>
+  </div>
+  <button class="backlog__new" type="button" (click)="openNew()">+ Adicionar modelo</button>
+</header>
+
+<p class="ai__security">
+  🔒 As chaves de API ficam guardadas só no servidor do Stars. Esta tela mostra apenas o final de cada chave, e o navegador nunca fala direto com a IA.
+</p>
+
+<ul class="ai__grid">
+  @for (config of store.configs(); track config.id) {
+    @let vendor = provider(config.provider);
+    <li class="ai__card" [class.is-assistant]="config.id === store.assistantId()">
+      <header class="ai__card-header">
+        <span class="ai__logo" [style.background]="vendor.color">{{ vendor.label.charAt(0) }}</span>
+        <div class="ai__card-title">
+          <h3 class="ai__name">{{ config.name }}</h3>
+          <p class="ai__muted">{{ vendor.label }} · {{ vendor.vendor }}</p>
+        </div>
+        @if (config.id === store.assistantId()) {
+          <span class="status-chip" style="--status-color: #4a3aa7">Assistente</span>
+        }
+      </header>
+
+      <dl class="companies__facts">
+        <div>
+          <dt>Modelo</dt>
+          <dd><code>{{ config.model }}</code></dd>
+        </div>
+        <div>
+          <dt>Chave</dt>
+          <dd><code>••••{{ config.keyHint }}</code></dd>
+        </div>
+        <div>
+          <dt>Criatividade · limite</dt>
+          <dd>{{ config.temperature }} · {{ config.maxTokens }} tokens</dd>
+        </div>
+      </dl>
+
+      <p class="ai__status" [class.is-ok]="config.lastTest?.ok" [class.is-fail]="config.lastTest && !config.lastTest.ok" aria-live="polite">
+        @if (testing().has(config.id)) {
+          ⏳ Testando conexão…
+        } @else if (config.lastTest; as test) {
+          @if (test.ok) {
+            ✓ Conectado · respondeu em {{ test.latencyMs }} ms · {{ testedAt(config) }}
+          } @else {
+            ✕ {{ test.error }}
+          }
+        } @else {
+          Conexão ainda não testada
+        }
+      </p>
+
+      <div class="companies__actions">
+        <button class="modal__primary planning__small" type="button" [disabled]="testing().has(config.id)" (click)="test(config.id)">Testar conexão</button>
+        <button class="modal__ghost planning__small" type="button" (click)="openEdit(config)">Configurar</button>
+        @if (config.id !== store.assistantId()) {
+          <button class="modal__ghost planning__small" type="button" (click)="store.setAssistant(config.id)">Usar no assistente</button>
+        }
+        <button class="attachment__link members__danger ai__delete" type="button" (click)="askDelete(config)">Excluir</button>
+      </div>
+    </li>
+  } @empty {
+    <li class="favorites__empty teams__empty">
+      <span class="favorites__empty-star" aria-hidden="true">✨</span>
+      <p>Nenhum modelo de IA ainda.</p>
+      <p class="backlog__subtitle">Adicione um modelo (Claude, ChatGPT, Gemini ou DeepSeek) com a sua chave de API para ligar o assistente.</p>
+      <button class="backlog__new" type="button" (click)="openNew()">+ Adicionar modelo</button>
+    </li>
+  }
+</ul>
+
+<!-- Adicionar / configurar modelo -->
+<dialog #editor class="modal ai__dialog" aria-labelledby="ai-title" (click)="closeOnBackdrop($event, editor)">
+  @let config = draft();
+  <form class="modal__form" (submit)="save($event)">
+    <header class="modal__header">
+      <h2 id="ai-title" class="modal__title">{{ editingId() ? 'Configurar ' + config.name : 'Adicionar modelo de IA' }}</h2>
+      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeEditor()">✕</button>
+    </header>
+
+    <div class="modal__body ai__body">
+      <fieldset class="ai__providers">
+        <legend class="modal__label">Fornecedor</legend>
+        @for (vendor of providers; track vendor.id) {
+          <label class="ai__provider" [class.is-active]="config.provider === vendor.id">
+            <input type="radio" name="provider" [value]="vendor.id" [checked]="config.provider === vendor.id" (change)="chooseProvider(vendor.id)" />
+            <span class="ai__logo" [style.background]="vendor.color">{{ vendor.label.charAt(0) }}</span>
+            <span>
+              <strong>{{ vendor.label }}</strong>
+              <span class="ai__muted">{{ vendor.vendor }}</span>
+            </span>
+          </label>
+        }
+      </fieldset>
+
+      <div class="members__row">
+        <label class="modal__field">
+          <span class="modal__label">Nome *</span>
+          <input class="modal__input" placeholder="Ex.: Assistente rápido" [value]="config.name" (input)="patch({ name: $any($event.target).value })" />
+        </label>
+        <label class="modal__field">
+          <span class="modal__label">Modelo *</span>
+          <input class="modal__input" list="ai-models" autocomplete="off" [value]="config.model" (input)="patch({ model: $any($event.target).value })" />
+          <datalist id="ai-models">
+            @for (model of provider(config.provider).models; track model) {
+              <option [value]="model"></option>
+            }
+          </datalist>
+          <span class="modal__hint">Sugestões acima; confira os nomes atuais na documentação do fornecedor.</span>
+        </label>
+      </div>
+
+      <label class="modal__field">
+        <span class="modal__label">Chave de API {{ editingId() ? '' : '*' }}</span>
+        <input
+          class="modal__input"
+          type="password"
+          autocomplete="off"
+          spellcheck="false"
+          [placeholder]="editingConfig() ? '••••' + editingConfig()!.keyHint + ' (deixe em branco para manter)' : provider(config.provider).keyHint"
+          [value]="apiKey()"
+          (input)="apiKey.set($any($event.target).value)"
+        />
+        <span class="modal__hint">Enviada uma única vez para o servidor; depois disso, só o final dela aparece aqui.</span>
+      </label>
+
+      <div class="members__row">
+        <label class="modal__field">
+          <span class="modal__label">Criatividade (temperatura): {{ config.temperature }}</span>
+          <input
+            class="ai__range"
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            [value]="config.temperature"
+            (input)="patch({ temperature: +$any($event.target).value })"
+          />
+          <span class="modal__hint">0 = respostas mais precisas · 1 = mais criativas</span>
+        </label>
+        <label class="modal__field">
+          <span class="modal__label">Limite de resposta (tokens)</span>
+          <input
+            class="modal__input"
+            type="number"
+            min="16"
+            max="8000"
+            step="1"
+            [value]="config.maxTokens"
+            (input)="patch({ maxTokens: +$any($event.target).value })"
+          />
+        </label>
+      </div>
+
+      <details class="ai__prompt">
+        <summary class="modal__label">Instruções do assistente (prompt de sistema)</summary>
+        <textarea class="modal__input modal__textarea" [value]="config.systemPrompt" (input)="patch({ systemPrompt: $any($event.target).value })"></textarea>
+        <button class="attachment__link" type="button" (click)="patch({ systemPrompt: defaultPrompt })">Restaurar o padrão</button>
+      </details>
+
+      @if (error()) {
+        <p class="planning__error" role="alert">{{ error() }}</p>
+      }
+    </div>
+
+    <footer class="modal__footer">
+      <button class="modal__ghost" type="button" (click)="closeEditor()">Cancelar</button>
+      <button class="modal__ghost" type="button" [disabled]="saving()" (click)="save($event, true)">Salvar e testar</button>
+      <button class="modal__primary" type="submit" [disabled]="saving()">{{ saving() ? 'Salvando…' : 'Salvar' }}</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- Confirmação de exclusão -->
+<dialog #confirmDialog class="confirm-dialog" aria-labelledby="ai-confirm-title" (click)="closeOnBackdrop($event, confirmDialog)">
+  @if (deleting(); as config) {
+    <div class="confirm-dialog__box">
+      <span class="confirm-dialog__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 6h18" />
+          <path d="M8 6V4h8v2" />
+          <path d="M6 6l1 14h10l1-14" />
+        </svg>
+      </span>
+      <h2 id="ai-confirm-title" class="confirm-dialog__title">Excluir {{ config.name }}?</h2>
+      <p class="confirm-dialog__text">A chave de API é apagada do servidor. Se este for o modelo do assistente, outro modelo assume (se houver).</p>
+      <div class="confirm-dialog__actions">
+        <button class="confirm-dialog__button" type="button" autofocus (click)="cancelDelete()">Cancelar</button>
+        <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDelete()">Excluir</button>
+      </div>
+    </div>
+  }
+</dialog>

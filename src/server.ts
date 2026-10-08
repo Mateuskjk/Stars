@@ -6,11 +6,17 @@ import {
 } from '@angular/ssr/node';
 import express from 'express';
 import { join } from 'node:path';
+import { aiRouter } from './server/ai';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
 const angularApp = new AngularNodeAppEngine();
+
+/**
+ * API da integração com IA (as chaves ficam só no servidor).
+ */
+app.use('/api/ai', aiRouter());
 
 /**
  * Serve static files from /browser
