@@ -1,6 +1,6 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BACKLOG_COLUMNS, BacklogStore } from '../backlog/backlog-store';
+import { BacklogStatus, BacklogStore } from '../backlog/backlog-store';
 import { initials } from '../chat/chat';
 import { Member, MembersStore } from '../members/members-store';
 import { ProjectStore } from '../projects/project-store';
@@ -44,7 +44,7 @@ export class Teams {
   }
 
   protected statusLabel(status: string) {
-    return BACKLOG_COLUMNS.find((column) => column.id === status)?.label ?? status;
+    return this.backlog.label(status as BacklogStatus);
   }
 
   // Em quais outras equipes uma atividade já está (para mostrar no seletor)

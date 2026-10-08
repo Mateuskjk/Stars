@@ -22,6 +22,7 @@
         <th scope="col" class="project-table__money">Custo final</th>
         <th scope="col">Documentação</th>
         <th scope="col">Empresa</th>
+        <th scope="col">Setor</th>
         <th scope="col">Time responsável</th>
         <th class="project-table__sticky-end" scope="col"><span class="project-table__sr-only">Ações</span></th>
       </tr>
@@ -59,6 +60,7 @@
             }
           </td>
           <td>{{ project.company || '—' }}</td>
+          <td>{{ project.sector || '—' }}</td>
           <td>{{ project.team || '—' }}</td>
           <td class="project-table__sticky-end"></td>
         </tr>
@@ -91,7 +93,7 @@
               aria-label="Status"
               (change)="draftStatus.set($any($event.target).value)"
             >
-              @for (option of statuses; track option.id) {
+              @for (option of statuses(); track option.id) {
                 <option [value]="option.id" [selected]="option.id === draftStatus()">{{ option.label }}</option>
               }
             </select>
@@ -121,6 +123,15 @@
           </select>
         </td>
         <td>
+          <!-- Sugestões na lista, mas aceita qualquer setor digitado -->
+          <input class="project-table__input" form="new-project" name="sector" list="project-sectors" placeholder="Setor" aria-label="Setor onde o projeto vai ser aplicado" />
+          <datalist id="project-sectors">
+            @for (sector of sectors; track sector) {
+              <option [value]="sector"></option>
+            }
+          </datalist>
+        </td>
+        <td>
           <select class="project-table__input" form="new-project" name="team" aria-label="Time responsável">
             <option value="">Time</option>
             @for (team of teams; track team) {
@@ -138,6 +149,6 @@
 
 <p class="project-create__feedback" aria-live="polite">
   @if (created(); as name) {
-    “{{ name }}” foi criado e já aparece no carrossel. <a routerLink="/projetos">Ver no Dash de Projetos</a>
+    “{{ name }}” foi criado e já aparece no carrossel. <a routerLink="/projetos/visaoGeral">Ver na Visão Geral</a>
   }
 </p>

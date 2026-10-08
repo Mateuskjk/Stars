@@ -8,8 +8,14 @@ export const routes: Routes = [
   { path: '', component: Home },
   { path: 'dashboards', loadComponent: () => import('./dashboard/dashboard').then((m) => m.Dashboard) },
   { path: 'conversas', loadComponent: () => import('./chat/chat').then((m) => m.Chat) },
-  { path: 'projetos', loadComponent: () => import('./projects/projects').then((m) => m.Projects) },
-  { path: 'projetos/novo', loadComponent: () => import('./projects/project-create').then((m) => m.ProjectCreate) },
+  {
+    path: 'projetos',
+    children: [
+      { path: '', children: [] }, // ponytail: /projetos ficou vazia; a tela antiga agora está em visaoGeral
+      { path: 'visaoGeral', loadComponent: () => import('./projects/projects').then((m) => m.Projects) },
+      { path: 'novo', loadComponent: () => import('./projects/project-create').then((m) => m.ProjectCreate) },
+    ],
+  },
   {
     path: 'workspace',
     children: [

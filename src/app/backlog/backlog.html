@@ -18,7 +18,15 @@
     >
       <header class="backlog__column-header">
         <span class="backlog__dot" [style.background]="column.color"></span>
-        <h3 class="backlog__column-title">{{ column.label }}</h3>
+        <app-column-title
+          class="backlog__column-title"
+          [label]="column.label"
+          [custom]="isCustom(column.id)"
+          [count]="column.cards.length"
+          [fallback]="columns()[0].label"
+          (rename)="renameColumn(column.id, $event)"
+          (remove)="removeColumn(column.id)"
+        />
         <span class="backlog__count">{{ column.cards.length }}</span>
       </header>
 
@@ -77,6 +85,9 @@
 
       <button class="backlog__add" type="button" (click)="openNew(column.id)">+ Adicionar</button>
     </section>
+  }
+  @if (isAdmin()) {
+    <app-add-column (add)="addColumn($event)" />
   }
 </div>
 
@@ -201,7 +212,7 @@
         <label class="modal__field">
           <span class="modal__label">Status</span>
           <select class="modal__input" [disabled]="item.locked" (change)="patch({ status: $any($event.target).value })">
-            @for (column of columns; track column.id) {
+            @for (column of columns(); track column.id) {
               <option [value]="column.id" [selected]="column.id === item.status">{{ column.label }}</option>
             }
           </select>
@@ -209,7 +220,7 @@
 
         <div class="modal__steps">
           <button class="modal__ghost" type="button" [disabled]="item.locked || statusIndex() === 0" (click)="step(-1)">← Recuar</button>
-          <button class="modal__ghost" type="button" [disabled]="item.locked || statusIndex() === columns.length - 1" (click)="step(1)">Avançar →</button>
+          <button class="modal__ghost" type="button" [disabled]="item.locked || statusIndex() === columns().length - 1" (click)="step(1)">Avançar →</button>
         </div>
 
         <label class="modal__field">

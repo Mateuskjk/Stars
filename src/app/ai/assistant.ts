@@ -8,7 +8,7 @@ const PAGES: [RegExp, string][] = [
   [/^\/dashboards/, 'Dashboards'],
   [/^\/conversas/, 'Conversas'],
   [/^\/projetos\/novo/, 'Criar novo projeto (tabela de projetos)'],
-  [/^\/projetos/, 'Dash de Projetos (carrossel e kanban)'],
+  [/^\/projetos\/visaoGeral/, 'Projetos > Geral (carrossel e kanban)'],
   [/^\/workspace\/daily/, 'Daily'],
   [/^\/workspace\/backlog/, 'Backlog'],
   [/^\/workspace\/planning/, 'Planning'],

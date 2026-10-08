@@ -2,9 +2,11 @@ import { Component, ElementRef, afterNextRender, computed, inject, signal, viewC
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { USERS, formatTime, initials } from '../chat/chat';
+import { AddColumn } from '../kanban/add-column';
+import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
+import { MembersStore } from '../members/members-store';
 import {
   Attachment,
-  BACKLOG_COLUMNS,
   BacklogItem,
   BacklogStatus,
   BacklogStore,
@@ -16,6 +18,7 @@ import {
 const today = () => new Date().toISOString().slice(0, 10);
 
 @Component({
+  imports: [AddColumn, ColumnTitle],
   selector: 'app-backlog',
   templateUrl: './backlog.html',
   host: { class: 'backlog' },
@@ -34,17 +37,33 @@ export class Backlog {
     });
   }
 
-  protected readonly columns = BACKLOG_COLUMNS;
+  protected readonly columns = this.store.columns;
   protected readonly people = USERS.map((user) => user.name);
   protected readonly initials = initials;
   protected readonly formatTime = formatTime;
 
   protected readonly board = computed(() =>
-    BACKLOG_COLUMNS.map((column) => ({
+    this.columns().map((column) => ({
       ...column,
       cards: this.store.items().filter((item) => item.status === column.id),
     })),
   );
+
+  // Criar, renomear e excluir colunas: só admin
+  protected readonly isAdmin = inject(MembersStore).isAdmin;
+  protected readonly isCustom = (id: string) => this.isAdmin() && isCustomColumn(id);
+
+  protected addColumn(label: string) {
+    this.store.addColumn(label);
+  }
+
+  protected renameColumn(id: BacklogStatus, label: string) {
+    this.store.renameColumn(id, label);
+  }
+
+  protected removeColumn(id: BacklogStatus) {
+    this.store.removeColumn(id);
+  }
 
   // ---------- Arrastar e soltar (cartão bloqueado não se move) ----------
   protected readonly dragging = signal<number | null>(null);
@@ -73,7 +92,7 @@ export class Backlog {
   // Rascunho: as mudanças só valem ao clicar em "Salvar atividade"
   protected readonly draft = signal<BacklogItem>(emptyItem());
   protected readonly isNew = computed(() => !this.draft().id);
-  protected readonly statusIndex = computed(() => BACKLOG_COLUMNS.findIndex((c) => c.id === this.draft().status));
+  protected readonly statusIndex = computed(() => this.columns().findIndex((c) => c.id === this.draft().status));
 
   protected openNew(status: BacklogStatus = 'to-refine') {
     this.draft.set(emptyItem(status));
@@ -108,7 +127,7 @@ export class Backlog {
   }
 
   protected step(direction: 1 | -1) {
-    const next = BACKLOG_COLUMNS[this.statusIndex() + direction];
+    const next = this.columns()[this.statusIndex() + direction];
     if (next && !this.draft().locked) this.patch({ status: next.id });
   }
 

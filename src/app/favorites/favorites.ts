@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { initials } from '../chat/chat';
-import { BACKLOG_COLUMNS, BacklogItem, BacklogStore, tagColor } from '../backlog/backlog-store';
+import { BacklogItem, BacklogStore, tagColor } from '../backlog/backlog-store';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -25,7 +25,7 @@ export class Favorites {
   );
 
   protected column(item: BacklogItem) {
-    return BACKLOG_COLUMNS.find((column) => column.id === item.status)!;
+    return this.store.columns().find((column) => column.id === item.status)!;
   }
 
   protected unfavorite(item: BacklogItem) {

@@ -47,19 +47,23 @@ $backlog-column: #f0f2f3;
     }
   }
 
-  // 6 colunas: rola para o lado quando não cabem
+  // Colunas dividem a largura; quando não cabem, o quadro rola para o lado (barra invisível)
   &__board {
-    display: grid;
+    display: flex;
     flex: 1;
-    grid-template-columns: repeat(6, minmax(240px, 1fr));
     gap: 12px;
     overflow-x: auto;
-    padding-bottom: 6px;
     scroll-snap-type: x proximity;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   &__column {
     display: flex;
+    flex: 1 0 240px;
     flex-direction: column;
     gap: 8px;
     min-height: 0;
@@ -372,7 +376,10 @@ $backlog-column: #f0f2f3;
   }
 
   .backlog__board {
-    grid-template-columns: repeat(6, 85%);
     scroll-snap-type: x mandatory;
+  }
+
+  .backlog__column {
+    flex-basis: 85%;
   }
 }

@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { USERS } from '../chat/chat';
 import { CompanyStore } from '../companies/company-store';
-import { PROJECT_STATUSES, ProjectStatus, ProjectStore, TEAMS } from './project-store';
+import { ProjectStatus, ProjectStore, SECTORS, TEAMS } from './project-store';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -16,17 +16,18 @@ export class ProjectCreate {
   private readonly store = inject(ProjectStore);
 
   protected readonly projects = this.store.projects;
-  protected readonly statuses = PROJECT_STATUSES;
+  protected readonly statuses = this.store.statuses; // inclui as colunas criadas no kanban
   protected readonly people = USERS.map((user) => user.name);
   protected readonly companies = inject(CompanyStore).activeNames;
   protected readonly teams = TEAMS;
+  protected readonly sectors = SECTORS;
 
   // Status escolhido na linha de criação (para a bolinha de cor acompanhar o select)
   protected readonly draftStatus = signal<ProjectStatus>('idea');
   protected readonly created = signal<string | null>(null);
 
   protected status(id: ProjectStatus) {
-    return PROJECT_STATUSES.find((status) => status.id === id)!;
+    return this.statuses().find((status) => status.id === id)!;
   }
 
   protected money(value: number) {
@@ -60,6 +61,7 @@ export class ProjectCreate {
         .filter((file): file is File => file instanceof File && file.size > 0)
         .map((file) => file.name),
       company: text('company'),
+      sector: text('sector'),
       team: text('team'),
     });
 

@@ -1,4 +1,5 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { AccountStore } from '../account/account-store';
 import { AuditStore } from '../audit/audit-store';
 import { USERS } from '../chat/chat';
 
@@ -110,6 +111,18 @@ const SEED: Member[] = USERS.map((user, i) => {
 export class MembersStore {
   private readonly audit = inject(AuditStore);
   readonly members = signal<Member[]>(SEED);
+  private readonly account = inject(AccountStore);
+
+  // Quem está usando o sistema: o membro com o e-mail de Minha conta.
+  // ponytail: ainda não existe login; sem e-mail que bata, vale o dono do sistema (1º admin ativo).
+  // SEGURANÇA: isto só esconde botões. Com backend, a permissão tem de ser checada no servidor.
+  readonly current = computed(
+    () =>
+      this.findByEmail(this.account.account().email) ??
+      this.members().find((member) => member.role === 'admin' && member.status === 'active') ??
+      null,
+  );
+  readonly isAdmin = computed(() => this.current()?.role === 'admin');
 
   private byId(id: number) {
     return this.members().find((member) => member.id === id);

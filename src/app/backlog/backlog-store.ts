@@ -1,10 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { AuditAction, AuditStore, diff } from '../audit/audit-store';
+import { MembersStore } from '../members/members-store';
+import { CustomColumnId, KanbanColumn, customColumn } from '../kanban/add-column';
 
-export type BacklogStatus = 'to-refine' | 'refined' | 'waiting' | 'refinement-done' | 'archived' | 'canceled';
+export type BacklogStatus = 'to-refine' | 'refined' | 'waiting' | 'refinement-done' | 'archived' | 'canceled' | CustomColumnId;
 
 // Ordem das colunas = ordem de "Avançar" e "Recuar"
-export const BACKLOG_COLUMNS: { id: BacklogStatus; label: string; color: string }[] = [
+export const BACKLOG_COLUMNS: KanbanColumn<BacklogStatus>[] = [
   { id: 'to-refine', label: 'Para refinar', color: '#9b7be0' },
   { id: 'refined', label: 'Refinado', color: '#2a78d6' },
   { id: 'waiting', label: 'Aguardando', color: '#eda100' },
@@ -113,7 +115,38 @@ const SEED: Omit<BacklogItem, 'id'>[] = [
 @Injectable({ providedIn: 'root' })
 export class BacklogStore {
   private readonly audit = inject(AuditStore);
+  private readonly members = inject(MembersStore);
   readonly items = signal<BacklogItem[]>(SEED.map((item) => ({ ...item, id: newId() })));
+  // Colunas fixas + criadas pelo usuário (ponytail: só em memória, como as atividades)
+  readonly columns = signal(BACKLOG_COLUMNS);
+
+  label(status: BacklogStatus) {
+    return this.columns().find((column) => column.id === status)?.label ?? status;
+  }
+
+  renameColumn(id: BacklogStatus, label: string) {
+    if (!this.members.isAdmin()) return; // só admin mexe nas colunas
+    const before = this.label(id);
+    this.columns.update((list) => list.map((column) => (column.id === id ? { ...column, label } : column)));
+    this.audit.log({ action: 'update', entity: 'Coluna do backlog', name: label, from: before, to: label });
+  }
+
+  // As atividades da coluna excluída vão para a primeira coluna
+  removeColumn(id: BacklogStatus) {
+    if (!this.members.isAdmin()) return; // só admin mexe nas colunas
+    const fallback = this.columns()[0];
+    const moved = this.items().filter((item) => item.status === id).length;
+    const name = this.label(id);
+    this.items.update((list) => list.map((item) => (item.status === id ? { ...item, status: fallback.id } : item)));
+    this.columns.update((list) => list.filter((column) => column.id !== id));
+    this.audit.log({ action: 'delete', entity: 'Coluna do backlog', name, details: moved ? `${moved} atividade(s) movida(s) para ${fallback.label}` : undefined });
+  }
+
+  addColumn(label: string) {
+    if (!this.members.isAdmin()) return; // só admin mexe nas colunas
+    this.columns.update((list) => [...list, customColumn(label, list.length)]);
+    this.audit.log({ action: 'create', entity: 'Coluna do backlog', name: label });
+  }
 
   save(item: BacklogItem) {
     if (item.id) {
@@ -122,7 +155,7 @@ export class BacklogStore {
       if (before) this.logChanges(before, item);
     } else {
       this.items.update((list) => [...list, { ...item, id: newId() }]);
-      this.audit.log({ action: 'create', entity: 'Atividade', name: item.name, to: label(item.status) });
+      this.audit.log({ action: 'create', entity: 'Atividade', name: item.name, to: this.label(item.status) });
     }
   }
 
@@ -143,7 +176,7 @@ export class BacklogStore {
     const item = this.items().find((current) => current.id === id);
     item?.attachments.forEach((file) => URL.revokeObjectURL(file.url));
     this.items.update((list) => list.filter((current) => current.id !== id));
-    if (item) this.audit.log({ action: 'delete', entity: 'Atividade', name: item.name, from: label(item.status) });
+    if (item) this.audit.log({ action: 'delete', entity: 'Atividade', name: item.name, from: this.label(item.status) });
   }
 
   // Auditoria: mudança de coluna vira movimentação/arquivamento/cancelamento; o resto vira alteração
@@ -151,7 +184,7 @@ export class BacklogStore {
     const name = after.name;
     if (before.status !== after.status) {
       const action: AuditAction = after.status === 'archived' ? 'archive' : after.status === 'canceled' ? 'cancel' : 'move';
-      this.audit.log({ action, entity: 'Atividade', name, from: label(before.status), to: label(after.status) });
+      this.audit.log({ action, entity: 'Atividade', name, from: this.label(before.status), to: this.label(after.status) });
     }
     if (before.sprintId !== after.sprintId) {
       const sprint = (id?: number) => (id ? `Sprint ${id}` : 'Planning');
@@ -165,8 +198,6 @@ export class BacklogStore {
     if (details) this.audit.log({ action: 'update', entity: 'Atividade', name, details });
   }
 }
-
-const label = (status: BacklogStatus) => BACKLOG_COLUMNS.find((column) => column.id === status)?.label ?? status;
 
 // Campos acompanhados na auditoria (status e sprint têm registro próprio)
 const FIELD_LABELS: Record<string, string> = {

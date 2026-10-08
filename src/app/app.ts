@@ -54,7 +54,7 @@ export class App {
   // ponytail: acessos fixos de exemplo; registrar os acessos reais quando as telas existirem
   protected readonly recents = signal([
     { type: 'Nota', title: 'Ideias para o Q4', link: '/workspace/notes' },
-    { type: 'Projeto', title: 'Redesign do site', link: '/projetos' },
+    { type: 'Projeto', title: 'Redesign do site', link: '/projetos/visaoGeral' },
     { type: 'Dashboard', title: 'Métricas de vendas', link: '/dashboards' },
     { type: 'Cartão', title: 'Revisar backlog', link: '/workspace/backlog' },
     { type: 'Conversa', title: 'Time de produto', link: '/conversas' },
@@ -84,7 +84,7 @@ export class App {
     },
     {
       label: 'Projetos',
-      link: '/projetos',
+      link: '/projetos/visaoGeral',
       icon: ['M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z'],
     },
     {

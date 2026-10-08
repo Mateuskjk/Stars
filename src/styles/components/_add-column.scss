@@ -1,0 +1,153 @@
+@use '../variables' as *;
+
+// "+ Nova coluna" no fim dos kanbans (Visão Geral e Backlog)
+.add-column {
+  flex: 0 0 220px;
+  align-self: flex-start;
+
+  &__open {
+    width: 100%;
+    padding: 12px;
+    border: 2px dashed #d5d8db;
+    border-radius: 15px;
+    background: none;
+    color: #898781;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
+
+    &:hover {
+      border-color: $color-nav-hover;
+      color: $color-title;
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 15px;
+    background-color: #f0f2f3;
+  }
+
+  &__input {
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid #e1e0d9;
+    border-radius: 8px;
+    background-color: #fff;
+    color: $color-text;
+    font: inherit;
+    font-size: 14px;
+
+    &:focus {
+      outline: 2px solid $color-nav-hover;
+      outline-offset: -1px;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  &__save,
+  &__cancel {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 25px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  &__save {
+    background-color: $color-nav-hover;
+    color: $color-surface;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  }
+
+  &__cancel {
+    background: none;
+    color: $color-text;
+
+    &:hover {
+      background-color: #e6e9ee;
+    }
+  }
+}
+
+// Título da coluna; nas colunas criadas pelo usuário, botões de renomear e excluir
+.column-title {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+
+  &__text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font: inherit;
+    font-weight: 700;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__action {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: #898781;
+    cursor: pointer;
+    transition:
+      background-color 0.15s,
+      color 0.15s;
+
+    &:hover {
+      background-color: #e1e4e8;
+      color: $color-title;
+    }
+
+    svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  }
+
+  &__input {
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid #e1e0d9;
+    border-radius: 6px;
+    background-color: #fff;
+    color: $color-title;
+    font: inherit;
+
+    &:focus {
+      outline: 2px solid $color-nav-hover;
+      outline-offset: -1px;
+    }
+  }
+}

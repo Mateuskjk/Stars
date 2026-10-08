@@ -16,11 +16,12 @@ describe('ProjectCreate', () => {
     field('name').value = 'Portal B2B';
     field('status').value = 'review';
     field('costInitial').value = '1500.5';
+    field('sector').value = 'Financeiro';
     el.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     fixture.detectChanges();
 
     const created = store.projects().at(-1)!;
-    expect(created).toMatchObject({ name: 'Portal B2B', status: 'review', costInitial: 1500.5 });
+    expect(created).toMatchObject({ name: 'Portal B2B', status: 'review', costInitial: 1500.5, sector: 'Financeiro' });
     expect(store.carouselItems()).toHaveLength(before + 1);
     expect(el.querySelectorAll('tbody tr')).toHaveLength(before + 1);
     expect(field('name').value).toBe(''); // linha de criação limpa para o próximo

@@ -1,7 +1,7 @@
 <app-carousel title="Projetos" [items]="projects()" />
 
-<section class="kanban" aria-label="Kanban de atividades de todos os projetos">
-  <h2 class="kanban__title">Atividades de todos os projetos</h2>
+<section class="kanban" aria-label="Kanban de todos os projetos">
+  <h2 class="kanban__title">Todos os projetos</h2>
 
   <div class="kanban__board">
     @for (column of board(); track column.id) {
@@ -12,8 +12,16 @@
         (drop)="onDrop($event, column.id)"
       >
         <header class="kanban__column-header">
-          <span class="kanban__status" [class]="'kanban__status kanban__status--' + column.id"></span>
-          <h3 class="kanban__column-title">{{ column.label }}</h3>
+          <span class="kanban__status" [style.background]="column.color"></span>
+          <app-column-title
+            class="kanban__column-title"
+            [label]="column.label"
+            [custom]="isCustom(column.id)"
+            [count]="column.cards.length"
+            [fallback]="columns()[0].label"
+            (rename)="renameColumn(column.id, $event)"
+            (remove)="removeColumn(column.id)"
+          />
           <span class="kanban__count">{{ column.cards.length }}</span>
         </header>
 
@@ -27,28 +35,39 @@
               (dragend)="endDrag()"
             >
               <div class="kanban__card-header">
-                <span class="kanban__project">{{ card.project }}</span>
+                <span class="kanban__cover" [style.background]="card.cover" aria-hidden="true"></span>
+                @if (card.company) {
+                  <span class="kanban__project">{{ card.company }}</span>
+                }
                 <select
                   class="kanban__move"
-                  [attr.aria-label]="'Mover ' + card.title + ' para'"
+                  [attr.aria-label]="'Mover ' + card.name + ' para'"
                   (change)="move(card.id, $any($event.target).value)"
                 >
-                  @for (option of columns; track option.id) {
+                  @for (option of columns(); track option.id) {
                     <option [value]="option.id" [selected]="option.id === card.status">{{ option.label }}</option>
                   }
                 </select>
               </div>
-              <p class="kanban__card-title">{{ card.title }}</p>
-              <div class="kanban__card-footer">
-                <span class="kanban__avatar" aria-hidden="true">{{ initials(card.assignee) }}</span>
-                <span class="kanban__assignee">{{ card.assignee }}</span>
-              </div>
+              <p class="kanban__card-title">{{ card.name }}</p>
+              @if (card.description) {
+                <p class="kanban__description">{{ card.description }}</p>
+              }
+              @if (card.owner) {
+                <div class="kanban__card-footer">
+                  <span class="kanban__avatar" aria-hidden="true">{{ initials(card.owner) }}</span>
+                  <span class="kanban__assignee">{{ card.owner }}</span>
+                </div>
+              }
             </li>
           } @empty {
-            <li class="kanban__empty">Nenhuma atividade</li>
+            <li class="kanban__empty">Nenhum projeto</li>
           }
         </ul>
       </div>
+    }
+    @if (isAdmin()) {
+      <app-add-column (add)="addColumn($event)" />
     }
   </div>
 </section>
