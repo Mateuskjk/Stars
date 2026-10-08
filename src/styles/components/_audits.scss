@@ -1,0 +1,105 @@
+@use '../variables' as *;
+
+.audits {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+
+  &__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__search {
+    flex: 1 1 260px;
+    min-width: 0;
+  }
+
+  &__select {
+    width: auto;
+    min-width: 170px;
+  }
+
+  &__date {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #898781;
+    font-size: 13px;
+
+    input {
+      width: auto;
+      min-width: 0;
+    }
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid #e7e8ea;
+    border-radius: 16px;
+    background: #fff;
+    color: $color-title;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--status-color);
+    }
+
+    &.is-active {
+      border-color: var(--status-color);
+      background-color: color-mix(in srgb, var(--status-color) 14%, transparent);
+    }
+  }
+
+  &__table {
+    min-width: 980px;
+  }
+
+  &__when {
+    white-space: nowrap;
+
+    span {
+      display: block;
+    }
+  }
+
+  &__path {
+    white-space: nowrap;
+
+    .daily__tag {
+      font-size: 12px;
+    }
+  }
+
+  &__details {
+    max-width: 360px;
+    color: $color-text;
+    font-size: 12px;
+  }
+
+  &__more {
+    align-self: center;
+  }
+}

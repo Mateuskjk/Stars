@@ -1,4 +1,5 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { AuditStore, diff } from '../audit/audit-store';
 
 export type Provider = 'openai' | 'anthropic' | 'gemini' | 'deepseek';
 
@@ -50,6 +51,7 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
 // a chave de API vai uma única vez para o servidor (/api/ai) ao salvar.
 @Injectable({ providedIn: 'root' })
 export class AiStore {
+  private readonly audit = inject(AuditStore);
   readonly configs = signal<AiModelConfig[]>([]);
   readonly assistantId = signal<string | null>(null);
   readonly assistant = computed(() => this.configs().find((c) => c.id === this.assistantId()) ?? null);
@@ -90,10 +92,24 @@ export class AiStore {
     this.configs.update((list) => (existing ? list.map((c) => (c.id === configId ? config : c)) : [...list, config]));
     if (!this.assistantId()) this.assistantId.set(configId); // o primeiro modelo vira o assistente
     this.persist();
+    if (!existing) {
+      this.audit.log({ action: 'create', entity: 'Modelo de IA', name: draft.name, details: `${draft.provider} · ${draft.model}` });
+    } else {
+      const details = [
+        diff(existing, config, { name: 'Nome', provider: 'Fornecedor', model: 'Modelo', temperature: 'Criatividade', maxTokens: 'Limite de tokens' }),
+        existing.systemPrompt !== config.systemPrompt ? 'Instruções do assistente alteradas' : '',
+        apiKey ? 'Chave de API trocada' : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      if (details) this.audit.log({ action: 'update', entity: 'Modelo de IA', name: draft.name, details });
+    }
     return configId;
   }
 
   async remove(id: string) {
+    const config = this.configs().find((c) => c.id === id);
+    if (config) this.audit.log({ action: 'delete', entity: 'Modelo de IA', name: config.name });
     await request(`/api/ai/configs/${id}`, { method: 'DELETE' }).catch(() => null);
     this.configs.update((list) => list.filter((c) => c.id !== id));
     if (this.assistantId() === id) this.assistantId.set(this.configs()[0]?.id ?? null);

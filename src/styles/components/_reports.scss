@@ -1,0 +1,85 @@
+@use '../variables' as *;
+
+.reports {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  &__vs-average {
+    color: #898781;
+    font-size: 12px;
+
+    &.is-good {
+      color: #006300;
+    }
+  }
+
+  &__insights ul {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    padding-left: 18px;
+    color: $color-text;
+    font-size: 14px;
+  }
+
+  &__table {
+    min-width: 760px;
+  }
+
+  &__best {
+    color: $color-title;
+    font-weight: 700;
+
+    span {
+      color: #eda100;
+    }
+  }
+
+  &__average {
+    background-color: #f5f6f7;
+    font-weight: 600;
+  }
+}
+
+// Variação sem mudança: cor neutra (nem boa nem ruim)
+.stat__delta.is-neutral {
+  color: #898781;
+}
+
+// Impressão / salvar como PDF: só o conteúdo da página
+@media print {
+  .navigation-top,
+  .left-content,
+  .assistant,
+  .reports__actions {
+    display: none !important;
+  }
+
+  .container-main {
+    display: block;
+    margin: 0;
+  }
+
+  .main-content {
+    box-shadow: none;
+  }
+
+  body {
+    background: #fff;
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .reports .backlog__header {
+    gap: 12px;
+  }
+}

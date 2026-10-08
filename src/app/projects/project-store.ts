@@ -1,4 +1,5 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { AuditStore } from '../audit/audit-store';
 import { CarouselItem } from '../carousel/carousel';
 
 export type ProjectStatus =
@@ -77,8 +78,17 @@ export class ProjectStore {
     this.projects().map((project) => ({ name: project.name, cover: project.cover, link: '/projetos' })),
   );
 
+  private readonly audit = inject(AuditStore);
+
   add(project: NewProject) {
     this.projects.update((list) => [...list, this.build(project)]);
+    this.audit.log({
+      action: 'create',
+      entity: 'Projeto',
+      name: project.name,
+      to: PROJECT_STATUSES.find((s) => s.id === project.status)?.label,
+      details: project.company ? `Empresa: ${project.company}` : undefined,
+    });
   }
 
   private build(project: NewProject): Project {

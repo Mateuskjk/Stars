@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Carousel } from '../carousel/carousel';
 import { ProjectStore } from './project-store';
+import { AuditStore } from '../audit/audit-store';
 
 export type Status = 'active' | 'paused' | 'archived' | 'canceled';
 
@@ -65,8 +66,15 @@ export class Projects {
     })),
   );
 
+  private readonly audit = inject(AuditStore);
+
   protected move(id: number, status: Status) {
+    const before = this.activities().find((activity) => activity.id === id);
+    if (!before || before.status === status) return;
     this.activities.update((list) => list.map((activity) => (activity.id === id ? { ...activity, status } : activity)));
+    const label = (s: Status) => COLUMNS.find((column) => column.id === s)!.label;
+    const action = status === 'archived' ? 'archive' : status === 'canceled' ? 'cancel' : 'move';
+    this.audit.log({ action, entity: 'Atividade de projeto', name: before.title, from: label(before.status), to: label(status), details: `Projeto: ${before.project}` });
   }
 
   // Arrastar e soltar (mouse). No toque e no teclado, o seletor "Mover para" do card faz o mesmo.

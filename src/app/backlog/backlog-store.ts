@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { AuditAction, AuditStore, diff } from '../audit/audit-store';
 
 export type BacklogStatus = 'to-refine' | 'refined' | 'waiting' | 'refinement-done' | 'archived' | 'canceled';
 
@@ -111,27 +112,73 @@ const SEED: Omit<BacklogItem, 'id'>[] = [
 // Atividades gerais do backlog (não são atividades de projeto)
 @Injectable({ providedIn: 'root' })
 export class BacklogStore {
+  private readonly audit = inject(AuditStore);
   readonly items = signal<BacklogItem[]>(SEED.map((item) => ({ ...item, id: newId() })));
 
   save(item: BacklogItem) {
     if (item.id) {
+      const before = this.items().find((current) => current.id === item.id);
       this.items.update((list) => list.map((current) => (current.id === item.id ? item : current)));
+      if (before) this.logChanges(before, item);
     } else {
       this.items.update((list) => [...list, { ...item, id: newId() }]);
+      this.audit.log({ action: 'create', entity: 'Atividade', name: item.name, to: label(item.status) });
     }
   }
 
   patch(id: number, changes: Partial<BacklogItem>) {
+    const before = this.items().find((item) => item.id === id);
     this.items.update((list) => list.map((item) => (item.id === id ? { ...item, ...changes } : item)));
+    if (before) this.logChanges(before, { ...before, ...changes });
   }
 
   move(id: number, status: BacklogStatus) {
-    this.items.update((list) => list.map((item) => (item.id === id && !item.locked ? { ...item, status } : item)));
+    const before = this.items().find((item) => item.id === id);
+    if (!before || before.locked || before.status === status) return;
+    this.items.update((list) => list.map((item) => (item.id === id ? { ...item, status } : item)));
+    this.logChanges(before, { ...before, status });
   }
 
   remove(id: number) {
     const item = this.items().find((current) => current.id === id);
     item?.attachments.forEach((file) => URL.revokeObjectURL(file.url));
     this.items.update((list) => list.filter((current) => current.id !== id));
+    if (item) this.audit.log({ action: 'delete', entity: 'Atividade', name: item.name, from: label(item.status) });
+  }
+
+  // Auditoria: mudança de coluna vira movimentação/arquivamento/cancelamento; o resto vira alteração
+  private logChanges(before: BacklogItem, after: BacklogItem) {
+    const name = after.name;
+    if (before.status !== after.status) {
+      const action: AuditAction = after.status === 'archived' ? 'archive' : after.status === 'canceled' ? 'cancel' : 'move';
+      this.audit.log({ action, entity: 'Atividade', name, from: label(before.status), to: label(after.status) });
+    }
+    if (before.sprintId !== after.sprintId) {
+      const sprint = (id?: number) => (id ? `Sprint ${id}` : 'Planning');
+      this.audit.log({ action: 'move', entity: 'Atividade', name, from: sprint(before.sprintId), to: sprint(after.sprintId) });
+    }
+    const details = diff(
+      { ...before, attachments: before.attachments.map((a) => a.name), subtasks: before.subtasks.length, comments: before.comments.length },
+      { ...after, attachments: after.attachments.map((a) => a.name), subtasks: after.subtasks.length, comments: after.comments.length },
+      FIELD_LABELS,
+    );
+    if (details) this.audit.log({ action: 'update', entity: 'Atividade', name, details });
   }
 }
+
+const label = (status: BacklogStatus) => BACKLOG_COLUMNS.find((column) => column.id === status)?.label ?? status;
+
+// Campos acompanhados na auditoria (status e sprint têm registro próprio)
+const FIELD_LABELS: Record<string, string> = {
+  name: 'Nome',
+  description: 'Descrição',
+  due: 'Prazo',
+  tags: 'Tags',
+  assignee: 'Responsável',
+  locked: 'Bloqueado',
+  favorite: 'Favorito',
+  planning: 'Categoria na planning',
+  subtasks: 'Sub atividades',
+  comments: 'Comentários',
+  attachments: 'Anexos',
+};

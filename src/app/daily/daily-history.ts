@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { AuditStore } from '../audit/audit-store';
 
 export interface DailyParticipant {
   name: string;
@@ -19,6 +20,7 @@ const KEY = 'stars.daily-history';
 // trocar read/write por chamadas à API — o resto do app usa só records/load/add.
 @Injectable({ providedIn: 'root' })
 export class DailyHistory {
+  private readonly audit = inject(AuditStore);
   readonly records = signal<DailyRecord[]>([]);
 
   // Chamado no navegador depois da primeira renderização (no SSR não existe localStorage)
@@ -29,11 +31,14 @@ export class DailyHistory {
   add(record: DailyRecord) {
     this.records.update((list) => [record, ...list]);
     write(this.records());
+    this.audit.log({ action: 'close', entity: 'Daily', name: dailyName(record), details: `${record.participants.filter((p) => p.notes).length} pessoas com anotações` });
   }
 
   remove(id: number) {
-    this.records.update((list) => list.filter((record) => record.id !== id));
+    const record = this.records().find((r) => r.id === id);
+    this.records.update((list) => list.filter((r) => r.id !== id));
     write(this.records());
+    if (record) this.audit.log({ action: 'delete', entity: 'Daily', name: dailyName(record) });
   }
 }
 
@@ -53,3 +58,5 @@ function write(records: DailyRecord[]) {
     // armazenamento cheio ou bloqueado (ex.: janela anônima): o histórico fica só nesta sessão
   }
 }
+
+const dailyName = (record: DailyRecord) => `Daily de ${new Date(record.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`;

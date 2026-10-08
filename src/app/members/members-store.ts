@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { AuditStore } from '../audit/audit-store';
 import { USERS } from '../chat/chat';
 
 export type Role = 'admin' | 'supervisor' | 'member';
@@ -107,7 +108,12 @@ const SEED: Member[] = USERS.map((user, i) => {
 // e enviar o e-mail TÊM de acontecer no servidor — no navegador qualquer um consegue ler o código.
 @Injectable({ providedIn: 'root' })
 export class MembersStore {
+  private readonly audit = inject(AuditStore);
   readonly members = signal<Member[]>(SEED);
+
+  private byId(id: number) {
+    return this.members().find((member) => member.id === id);
+  }
 
   private nextId() {
     return Math.max(0, ...this.members().map((m) => m.id)) + 1;
@@ -128,6 +134,7 @@ export class MembersStore {
     const invite: Invite = { code: generateCode(), expiresAt: now + CODE_TTL, attempts: 0, sentAt: now };
     const member: Member = { ...data, email: data.email.trim().toLowerCase(), id: this.nextId(), status: 'pending', tokenHint: null, invite };
     this.members.update((list) => [...list, member]);
+    this.audit.log({ action: 'create', entity: 'Membro', name: member.name, to: 'Convite pendente', details: `Convite enviado para ${member.email} · ${roleLabel(member.role)} · ${member.company}` });
     return member;
   }
 
@@ -135,6 +142,8 @@ export class MembersStore {
   resend(id: number, now = Date.now()) {
     const invite: Invite = { code: generateCode(), expiresAt: now + CODE_TTL, attempts: 0, sentAt: now };
     this.patch(id, { invite });
+    const member = this.byId(id);
+    if (member) this.audit.log({ action: 'update', entity: 'Membro', name: member.name, details: 'Convite reenviado (código anterior invalidado)' });
     return invite;
   }
 
@@ -146,29 +155,59 @@ export class MembersStore {
     if (invite.attempts >= MAX_ATTEMPTS) return 'blocked';
     if (code.trim() !== invite.code) {
       this.patch(member.id, { invite: { ...invite, attempts: invite.attempts + 1 } });
-      return invite.attempts + 1 >= MAX_ATTEMPTS ? 'blocked' : 'wrong-code';
+      if (invite.attempts + 1 >= MAX_ATTEMPTS) {
+        this.audit.log({ action: 'update', entity: 'Membro', name: member.name, actor: member.name, details: `Convite bloqueado após ${MAX_ATTEMPTS} códigos errados` });
+        return 'blocked';
+      }
+      return 'wrong-code';
     }
     this.patch(member.id, { status: 'active', invite: null });
+    // quem valida é a própria pessoa convidada
+    this.audit.log({ action: 'update', entity: 'Membro', name: member.name, actor: member.name, from: 'Convite pendente', to: 'Ativo', details: 'Conta ativada com o código do convite' });
     return 'ok';
   }
 
   // Gera um token novo (o anterior deixa de valer). Devolve o token inteiro só desta vez.
   issueToken(id: number) {
     const token = generateToken();
+    const replaced = !!this.byId(id)?.tokenHint;
     this.patch(id, { tokenHint: token.slice(-4) });
+    const member = this.byId(id);
+    // o token nunca entra no registro; só o fato de ter sido gerado
+    if (member) this.audit.log({ action: 'update', entity: 'Membro', name: member.name, details: replaced ? 'Token de API gerado de novo (o anterior foi invalidado)' : 'Token de API gerado' });
     return token;
   }
 
   revokeToken(id: number) {
     this.patch(id, { tokenHint: null });
+    const member = this.byId(id);
+    if (member) this.audit.log({ action: 'update', entity: 'Membro', name: member.name, details: 'Token de API revogado' });
   }
 
   patch(id: number, changes: Partial<Member>) {
+    const before = this.byId(id);
     this.members.update((list) => list.map((member) => (member.id === id ? { ...member, ...changes } : member)));
+    if (!before) return;
+    // Cargo, empresa e permissões são auditados aqui (convite, token e status têm registro próprio)
+    if (changes.role && changes.role !== before.role) {
+      this.audit.log({ action: 'update', entity: 'Membro', name: before.name, from: roleLabel(before.role), to: roleLabel(changes.role), details: 'Cargo alterado' });
+    }
+    if ('company' in changes && changes.company !== before.company) {
+      this.audit.log({ action: 'move', entity: 'Membro', name: before.name, from: before.company ?? 'Sem empresa', to: changes.company ?? 'Sem empresa', details: 'Perfil de empresa alterado' });
+    }
+    if (changes.permissions) {
+      const label = (access: Access) => ACCESS_LEVELS.find((a) => a.id === access)!.label;
+      const details = FEATURES.filter((f) => before.permissions[f.id] !== changes.permissions![f.id])
+        .map((f) => `${f.label}: ${label(before.permissions[f.id])} → ${label(changes.permissions![f.id])}`)
+        .join(' · ');
+      if (details) this.audit.log({ action: 'update', entity: 'Membro', name: before.name, details: `Permissões — ${details}` });
+    }
   }
 
   remove(id: number) {
-    this.members.update((list) => list.filter((member) => member.id !== id));
+    const member = this.byId(id);
+    this.members.update((list) => list.filter((current) => current.id !== id));
+    if (member) this.audit.log({ action: 'delete', entity: 'Membro', name: member.name, from: member.status === 'pending' ? 'Convite pendente' : 'Ativo' });
   }
 }
 
@@ -196,3 +235,5 @@ export function inviteEmail(member: Member, invitedBy: string, message: string, 
     ].join('\n'),
   };
 }
+
+const roleLabel = (role: Role) => ROLES.find((r) => r.id === role)!.label;

@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { MembersStore } from '../members/members-store';
+import { AuditStore, diff } from '../audit/audit-store';
 
 export interface Team {
   id: number;
@@ -29,19 +30,34 @@ export class TeamsStore {
     return [...new Set(memberIds)].filter((id) => eligible.has(id));
   }
 
+  private readonly audit = inject(AuditStore);
+
   create(data: TeamData) {
     const id = Math.max(0, ...this.teams().map((team) => team.id)) + 1;
-    this.teams.update((list) => [...list, { ...data, name: data.name.trim(), id, memberIds: this.onlyEligible(data.memberIds) }]);
+    const team = { ...data, name: data.name.trim(), id, memberIds: this.onlyEligible(data.memberIds) };
+    this.teams.update((list) => [...list, team]);
+    this.audit.log({
+      action: 'create',
+      entity: 'Equipe',
+      name: team.name,
+      details: `${team.memberIds.length} membros · ${team.projectIds.length} projetos · ${team.activityIds.length} atividades`,
+    });
     return id;
   }
 
   update(id: number, data: TeamData) {
-    this.teams.update((list) =>
-      list.map((team) => (team.id === id ? { ...data, name: data.name.trim(), id, memberIds: this.onlyEligible(data.memberIds) } : team)),
-    );
+    const before = this.teams().find((team) => team.id === id);
+    const after = { ...data, name: data.name.trim(), id, memberIds: this.onlyEligible(data.memberIds) };
+    this.teams.update((list) => list.map((team) => (team.id === id ? after : team)));
+    if (!before) return;
+    const count = (t: Team) => ({ ...t, memberIds: t.memberIds.length, projectIds: t.projectIds.length, activityIds: t.activityIds.length });
+    const details = diff(count(before), count(after), { name: 'Nome', focus: 'Foco', memberIds: 'Membros', projectIds: 'Projetos', activityIds: 'Atividades' });
+    if (details) this.audit.log({ action: 'update', entity: 'Equipe', name: after.name, details });
   }
 
   remove(id: number) {
-    this.teams.update((list) => list.filter((team) => team.id !== id));
+    const team = this.teams().find((current) => current.id === id);
+    this.teams.update((list) => list.filter((current) => current.id !== id));
+    if (team) this.audit.log({ action: 'delete', entity: 'Equipe', name: team.name });
   }
 }
