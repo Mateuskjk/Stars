@@ -16,7 +16,10 @@ export class Audits {
   protected readonly actionInfo = AUDIT_ACTIONS;
 
   constructor() {
-    afterNextRender(() => this.store.load());
+    afterNextRender(() => {
+      this.store.load();
+      this.store.refreshRemote();
+    });
   }
 
   // ---------- Filtros ----------

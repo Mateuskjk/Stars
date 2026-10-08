@@ -1,0 +1,101 @@
+@use '../variables' as *;
+
+.browser-errors {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    list-style: none;
+  }
+
+  // Faixa colorida à esquerda com a cor do tipo (o tipo também vem escrito no selo)
+  &__item {
+    overflow: hidden;
+    border: 1px solid #e7e8ea;
+    border-left: 4px solid var(--status-color);
+    border-radius: 10px;
+    background-color: $color-surface;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #f5f6f7;
+    }
+  }
+
+  &__count {
+    flex-shrink: 0;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background-color: #f0f2f3;
+    color: $color-title;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  &__message {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: $color-title;
+    font-size: 13px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__when {
+    flex-shrink: 0;
+    color: #898781;
+    font-size: 12px;
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px 14px;
+    border-top: 1px solid #e7e8ea;
+
+    .integrations__code {
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    dd code {
+      word-break: break-all;
+    }
+  }
+
+  &__copy {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .browser-errors__header {
+    flex-wrap: wrap;
+  }
+
+  .browser-errors__message {
+    flex-basis: 100%;
+    white-space: normal;
+  }
+}

@@ -167,10 +167,19 @@ export class MembersStore {
     return 'ok';
   }
 
-  // Gera um token novo (o anterior deixa de valer). Devolve o token inteiro só desta vez.
-  issueToken(id: number) {
+  // Gera um token novo (o anterior deixa de valer) e registra no servidor da API pública.
+  // Devolve o token inteiro só desta vez. Falha (lança erro) se o servidor não registrar.
+  async issueToken(id: number) {
     const token = generateToken();
-    const replaced = !!this.byId(id)?.tokenHint;
+    const owner = this.byId(id);
+    if (!owner) throw new Error('Membro não encontrado.');
+    const response = await fetch(`/api/internal/tokens/${id}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token, name: owner.name, role: owner.role, permissions: owner.permissions }),
+    });
+    if (!response.ok) throw new Error('O servidor não registrou o token. Tente de novo.');
+    const replaced = !!owner.tokenHint;
     this.patch(id, { tokenHint: token.slice(-4) });
     const member = this.byId(id);
     // o token nunca entra no registro; só o fato de ter sido gerado
@@ -179,6 +188,7 @@ export class MembersStore {
   }
 
   revokeToken(id: number) {
+    this.syncToken(id, 'DELETE');
     this.patch(id, { tokenHint: null });
     const member = this.byId(id);
     if (member) this.audit.log({ action: 'update', entity: 'Membro', name: member.name, details: 'Token de API revogado' });
@@ -188,6 +198,8 @@ export class MembersStore {
     const before = this.byId(id);
     this.members.update((list) => list.map((member) => (member.id === id ? { ...member, ...changes } : member)));
     if (!before) return;
+    // Cargo/permissões mudaram: o token da pessoa passa a valer com as permissões novas
+    if (before.tokenHint && (changes.role || changes.permissions || changes.name)) this.syncToken(id, 'PATCH');
     // Cargo, empresa e permissões são auditados aqui (convite, token e status têm registro próprio)
     if (changes.role && changes.role !== before.role) {
       this.audit.log({ action: 'update', entity: 'Membro', name: before.name, from: roleLabel(before.role), to: roleLabel(changes.role), details: 'Cargo alterado' });
@@ -204,7 +216,19 @@ export class MembersStore {
     }
   }
 
+  // Avisa o servidor da API pública (revogar ou atualizar permissões); não trava a tela
+  private syncToken(id: number, method: 'DELETE' | 'PATCH') {
+    if (typeof window === 'undefined') return;
+    const member = this.byId(id);
+    fetch(`/api/internal/tokens/${id}`, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: method === 'PATCH' && member ? JSON.stringify({ name: member.name, role: member.role, permissions: member.permissions }) : undefined,
+    }).catch(() => undefined);
+  }
+
   remove(id: number) {
+    this.syncToken(id, 'DELETE'); // quem sai do sistema perde o acesso à API
     const member = this.byId(id);
     this.members.update((list) => list.filter((current) => current.id !== id));
     if (member) this.audit.log({ action: 'delete', entity: 'Membro', name: member.name, from: member.status === 'pending' ? 'Convite pendente' : 'Ativo' });

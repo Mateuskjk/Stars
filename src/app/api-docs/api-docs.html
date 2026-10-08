@@ -1,0 +1,137 @@
+<header class="backlog__header">
+  <div>
+    <h2 class="backlog__title">API pública <span class="api-docs__version">v1 · OpenAPI 3</span></h2>
+    <p class="backlog__subtitle">Integre outros sistemas ao Stars usando o seu token pessoal. Somente leitura.</p>
+  </div>
+  <a class="modal__ghost members__link" href="/api/v1/openapi.json" target="_blank" rel="noopener">openapi.json ↗</a>
+</header>
+
+@if (error()) {
+  <p class="planning__error" role="alert">{{ error() }}</p>
+}
+
+<!-- Conexão e autenticação -->
+<section class="api-docs__intro">
+  <div class="api-docs__intro-col">
+    <h3 class="account__title">Como conectar</h3>
+    <ol class="api-docs__steps">
+      <li>Gere seu token em <a routerLink="/configuracoes/membros">Configurações › Membros</a> (botão “Gerar token”).</li>
+      <li>Envie o token no cabeçalho de toda requisição: <code>Authorization: Bearer stars_…</code></li>
+      <li>Use a URL base abaixo. Respostas em JSON, até 60 requisições por minuto por token.</li>
+    </ol>
+    <p class="modal__label">URL base</p>
+    <code class="api-docs__base">{{ baseUrl() }}</code>
+    <p class="modal__hint">
+      O token respeita as <strong>permissões do dono</strong> (ex.: sem acesso a Projetos → HTTP 403 em /projects).
+      Cada chamada fica registrada em <a routerLink="/configuracoes/auditorias">Auditorias</a>.
+    </p>
+  </div>
+
+  <div class="api-docs__intro-col api-docs__auth">
+    <h3 class="account__title">🔑 Autorizar (para testar aqui)</h3>
+    <label class="modal__field">
+      <span class="modal__label">Seu token</span>
+      <input
+        class="modal__input"
+        type="password"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="stars_…"
+        [value]="token()"
+        (input)="token.set($any($event.target).value)"
+      />
+    </label>
+    <p class="api-docs__auth-status" [class.is-ok]="tokenValid()">
+      {{ tokenValid() ? '✓ Token no formato certo — use “Experimentar” nos endpoints' : 'Cole o token para liberar o “Experimentar”' }}
+    </p>
+    <p class="modal__hint">O token fica só nesta página e some ao sair dela.</p>
+  </div>
+</section>
+
+<!-- Endpoints -->
+@for (group of groups(); track group.tag) {
+  <section class="api-docs__group">
+    <h3 class="planning__group-title">{{ group.tag }}</h3>
+    <ul class="api-docs__ops">
+      @for (op of group.operations; track op.path) {
+        @let isOpen = open().has(op.path);
+        <li class="api-docs__op" [class.is-open]="isOpen">
+          <button class="api-docs__op-header" type="button" [attr.aria-expanded]="isOpen" (click)="toggle(op.path)">
+            <span class="api-docs__method">GET</span>
+            <code class="api-docs__path">{{ op.path }}</code>
+            <span class="api-docs__summary">{{ op.summary }}</span>
+            <span class="api-docs__chevron" aria-hidden="true">{{ isOpen ? '▾' : '▸' }}</span>
+          </button>
+
+          @if (isOpen) {
+            <div class="api-docs__body">
+              <p class="api-docs__description">{{ op.description }}</p>
+
+              @if (op.parameters.length) {
+                <p class="modal__label">Parâmetros</p>
+                <div class="api-docs__params">
+                  @for (param of op.parameters; track param.name) {
+                    <label class="api-docs__param">
+                      <span>
+                        <code>{{ param.name }}</code>{{ param.required ? ' *' : '' }}
+                        <span class="members__email">{{ param.in }} · {{ param.description }}</span>
+                      </span>
+                      @if (param.schema.enum) {
+                        <select class="modal__input" (change)="setValue(op.path + ':' + param.name, $any($event.target).value)">
+                          <option value="">(qualquer)</option>
+                          @for (option of param.schema.enum; track option) {
+                            <option [value]="option">{{ option }}</option>
+                          }
+                        </select>
+                      } @else {
+                        <input class="modal__input" [placeholder]="param.schema.type" (input)="setValue(op.path + ':' + param.name, $any($event.target).value)" />
+                      }
+                    </label>
+                  }
+                </div>
+              }
+
+              <p class="modal__label">Requisição</p>
+              <pre class="integrations__code">{{ curl(op) }}</pre>
+
+              <div class="api-docs__try">
+                <button
+                  class="modal__primary"
+                  type="button"
+                  [disabled]="!tokenValid() || missingRequired(op) || results()[op.path] === 'loading'"
+                  [attr.title]="!tokenValid() ? 'Cole seu token em Autorizar' : missingRequired(op) ? 'Preencha os parâmetros obrigatórios' : null"
+                  (click)="run(op)"
+                >
+                  {{ results()[op.path] === 'loading' ? 'Chamando…' : 'Experimentar' }}
+                </button>
+                @if (result(op.path); as r) {
+                  <span class="api-docs__status" [class.is-ok]="r.status >= 200 && r.status < 300">
+                    HTTP {{ r.status || '—' }} · {{ r.ms }} ms
+                  </span>
+                }
+              </div>
+              @if (result(op.path); as r) {
+                <p class="modal__label">Resposta</p>
+                <pre class="integrations__code integrations__code--json api-docs__response">{{ r.body }}</pre>
+              }
+
+              <p class="modal__label">Respostas possíveis</p>
+              <ul class="api-docs__responses">
+                @for (code of ['200', '401', '403', '404', '429']; track code) {
+                  @if (op.responses[code]; as response) {
+                    <li>
+                      <span class="api-docs__code" [class.is-ok]="code === '200'">{{ code }}</span>
+                      {{ response.description }}
+                    </li>
+                  }
+                }
+              </ul>
+              <p class="modal__label">Exemplo de resposta 200</p>
+              <pre class="integrations__code integrations__code--json">{{ example(op) }}</pre>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  </section>
+}

@@ -8,6 +8,7 @@ import express from 'express';
 import { join } from 'node:path';
 import { aiRouter } from './server/ai';
 import { integrationsRouter } from './server/integrations';
+import { publicApiInternalRouter, publicApiRouter } from './server/public-api';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -23,6 +24,12 @@ app.use('/api/ai', aiRouter());
  * Integrações: webhooks e bancos PostgreSQL externos (segredos e senhas ficam só no servidor).
  */
 app.use('/api/integrations', integrationsRouter());
+
+/**
+ * API pública v1 (com token) e as rotas internas que o app usa para registrar tokens e enviar o retrato dos dados.
+ */
+app.use('/api/v1', publicApiRouter());
+app.use('/api/internal', publicApiInternalRouter());
 
 /**
  * Serve static files from /browser

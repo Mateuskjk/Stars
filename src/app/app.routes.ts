@@ -36,6 +36,6 @@ export const routes: Routes = [
   },
   { path: 'conta', loadComponent: () => import('./account/account').then((m) => m.Account) },
   { path: 'perfis', children: [] },
-  { path: 'api-publica', children: [] },
-  { path: 'erros-navegador', children: [] },
+  { path: 'api-publica', loadComponent: () => import('./api-docs/api-docs').then((m) => m.ApiDocs) },
+  { path: 'erros-navegador', loadComponent: () => import('./browser-errors/browser-errors-page').then((m) => m.BrowserErrorsPage) },
 ];

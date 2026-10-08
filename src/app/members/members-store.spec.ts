@@ -37,11 +37,14 @@ describe('MembersStore', () => {
     expect(store.validate(member.email, fresh.code, 11)).toBe('ok');
   });
 
-  it('shows a token once and keeps only its last 4 characters', () => {
+  it('shows a token once and keeps only its last 4 characters', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"ok":true}'));
     const store = TestBed.inject(MembersStore);
-    const token = store.issueToken(1);
+    const token = await store.issueToken(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/internal/tokens/1'); // registrado no servidor (que guarda só o hash)
     expect(store.members()[0].tokenHint).toBe(token.slice(-4));
     store.revokeToken(1);
     expect(store.members()[0].tokenHint).toBeNull();
+    fetchMock.mockRestore();
   });
 });

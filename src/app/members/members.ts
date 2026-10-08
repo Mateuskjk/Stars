@@ -161,10 +161,17 @@ export class Members {
   protected readonly newToken = signal<{ member: Member; token: string } | null>(null);
   protected readonly copied = signal(false);
 
-  protected generateToken(member: Member) {
-    this.newToken.set({ member, token: this.store.issueToken(member.id) });
-    this.copied.set(false);
-    this.tokenDialog().nativeElement.showModal();
+  protected readonly tokenError = signal('');
+
+  protected async generateToken(member: Member) {
+    this.tokenError.set('');
+    try {
+      this.newToken.set({ member, token: await this.store.issueToken(member.id) });
+      this.copied.set(false);
+      this.tokenDialog().nativeElement.showModal();
+    } catch (error) {
+      this.tokenError.set(error instanceof Error ? error.message : 'Não foi possível gerar o token.');
+    }
   }
 
   protected async copyToken() {

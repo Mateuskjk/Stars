@@ -1,8 +1,8 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { AccountStore } from '../account/account-store';
 import { eventData, eventFor } from '../integrations/webhook-events';
 
-export type AuditAction = 'create' | 'update' | 'move' | 'archive' | 'cancel' | 'close' | 'delete';
+export type AuditAction = 'create' | 'update' | 'move' | 'archive' | 'cancel' | 'close' | 'delete' | 'access';
 
 export const AUDIT_ACTIONS: Record<AuditAction, { label: string; color: string }> = {
   create: { label: 'Criação', color: '#0ca30c' },
@@ -12,6 +12,7 @@ export const AUDIT_ACTIONS: Record<AuditAction, { label: string; color: string }
   cancel: { label: 'Cancelamento', color: '#eb6834' },
   close: { label: 'Encerramento', color: '#1baf7a' },
   delete: { label: 'Exclusão', color: '#d03b3b' },
+  access: { label: 'Acesso à API', color: '#4a3aa7' },
 };
 
 export interface AuditEntry {
@@ -35,8 +36,30 @@ const LIMIT = 2000; // guarda as 2.000 ações mais recentes
 @Injectable({ providedIn: 'root' })
 export class AuditStore {
   private readonly account = inject(AccountStore);
-  readonly entries = signal<AuditEntry[]>([]);
+  private readonly local = signal<AuditEntry[]>([]); // ações feitas no app
+  private readonly remote = signal<AuditEntry[]>([]); // acessos à API pública (trilha guardada no servidor)
+  readonly entries = computed(() => [...this.local(), ...this.remote()].sort((a, b) => b.at.localeCompare(a.at)));
   private loaded = false;
+
+  // Busca no servidor a trilha de acessos à API pública
+  async refreshRemote() {
+    try {
+      const log: { id: string; at: string; actor: string; method: string; path: string; status: number }[] = await (await fetch('/api/internal/api-access')).json();
+      this.remote.set(
+        log.map((a) => ({
+          id: a.id,
+          at: a.at,
+          actor: a.actor,
+          action: 'access',
+          entity: 'API pública',
+          name: `${a.method} ${a.path}`,
+          details: `HTTP ${a.status}${a.status === 401 ? ' · recusado (token inválido ou ausente)' : a.status === 403 ? ' · recusado (sem permissão)' : a.status === 429 ? ' · recusado (limite por minuto)' : ''}`,
+        })),
+      );
+    } catch {
+      // servidor indisponível: mostra só as ações locais
+    }
+  }
 
   // No navegador lê o que já foi registrado; no SSR não faz nada (não existe localStorage)
   load() {
@@ -44,7 +67,7 @@ export class AuditStore {
     this.loaded = true;
     try {
       const data = JSON.parse(localStorage.getItem(KEY) ?? '[]');
-      if (Array.isArray(data)) this.entries.set([...data, ...this.entries()].slice(0, LIMIT));
+      if (Array.isArray(data)) this.local.set([...data, ...this.local()].slice(0, LIMIT));
     } catch {
       // armazenamento bloqueado ou dado corrompido: começa vazio
     }
@@ -58,9 +81,9 @@ export class AuditStore {
       actor: entry.actor ?? this.account.fullName(),
       ...entry,
     };
-    this.entries.update((list) => [full, ...list].slice(0, LIMIT));
+    this.local.update((list) => [full, ...list].slice(0, LIMIT));
     try {
-      localStorage.setItem(KEY, JSON.stringify(this.entries()));
+      localStorage.setItem(KEY, JSON.stringify(this.local()));
     } catch {
       // sem armazenamento: o registro vale só nesta sessão
     }

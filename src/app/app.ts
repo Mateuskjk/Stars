@@ -1,6 +1,7 @@
 import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Assistant } from './ai/assistant';
+import { ApiSnapshot } from './api-docs/api-snapshot';
 import { AccountStore, NotificationType, greetingFor, hourIn } from './account/account-store';
 
 type Menu = 'nav' | 'notifications' | 'user';
@@ -29,8 +30,10 @@ export class App {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
+    const snapshot = inject(ApiSnapshot);
     afterNextRender(() => {
       this.account.load();
+      snapshot.start(); // mantém a API pública com os dados atuais
       const id = setInterval(() => this.now.set(new Date()), 60_000);
       destroyRef.onDestroy(() => clearInterval(id));
     });

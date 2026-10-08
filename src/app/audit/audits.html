@@ -3,7 +3,10 @@
     <h2 class="backlog__title">Auditorias</h2>
     <p class="backlog__subtitle">Tudo o que foi criado, alterado, movido, arquivado, cancelado ou excluído — quem fez, de onde para onde, data e hora.</p>
   </div>
-  <button class="backlog__new" type="button" [disabled]="!filtered().length" (click)="exportCsv()">Exportar CSV</button>
+  <div class="reports__actions">
+    <button class="modal__ghost" type="button" (click)="store.refreshRemote()">Atualizar acessos da API</button>
+    <button class="backlog__new" type="button" [disabled]="!filtered().length" (click)="exportCsv()">Exportar CSV</button>
+  </div>
 </header>
 
 <!-- Filtros -->
