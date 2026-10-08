@@ -1,9 +1,12 @@
 import { Routes } from '@angular/router';
+import { Backlog } from './backlog/backlog';
 import { Chat } from './chat/chat';
 import { Daily } from './daily/daily';
 import { Dashboard } from './dashboard/dashboard';
 import { Home } from './home/home';
 import { ProjectCreate } from './projects/project-create';
+import { Notes } from './notes/notes';
+import { Planning } from './planning/planning';
 import { Projects } from './projects/projects';
 
 // ponytail: rotas sem página (children: []); trocar por component/loadComponent quando cada tela existir
@@ -17,9 +20,9 @@ export const routes: Routes = [
     path: 'workspace',
     children: [
       { path: 'daily', component: Daily },
-      { path: 'backlog', children: [] },
-      { path: 'planning', children: [] },
-      { path: 'notes', children: [] },
+      { path: 'backlog', component: Backlog },
+      { path: 'planning', component: Planning },
+      { path: 'notes', component: Notes },
       { path: 'favorites', children: [] },
       { path: 'brain', children: [] },
     ],

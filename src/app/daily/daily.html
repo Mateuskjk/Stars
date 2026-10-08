@@ -174,3 +174,32 @@
     </ul>
   }
 }
+
+<!-- Confirmação de exclusão do histórico -->
+<dialog
+  #confirmDialog
+  class="confirm-dialog"
+  aria-labelledby="confirm-title"
+  aria-describedby="confirm-text"
+  (click)="onDialogClick($event)"
+>
+  <div class="confirm-dialog__box">
+    <span class="confirm-dialog__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M6 6l1 14h10l1-14" />
+      </svg>
+    </span>
+    <h2 id="confirm-title" class="confirm-dialog__title">Excluir esta daily?</h2>
+    <p id="confirm-text" class="confirm-dialog__text">
+      @if (pendingDelete(); as record) {
+        A daily de <strong>{{ recordDate(record) }}</strong> será removida do histórico. Essa ação não pode ser desfeita.
+      }
+    </p>
+    <div class="confirm-dialog__actions">
+      <button class="confirm-dialog__button" type="button" autofocus (click)="cancelDelete()">Cancelar</button>
+      <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDelete()">Excluir</button>
+    </div>
+  </div>
+</dialog>

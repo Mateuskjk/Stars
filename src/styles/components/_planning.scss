@@ -1,0 +1,186 @@
+@use '../variables' as *;
+
+$planning-line: #e7e8ea;
+$planning-muted: #898781;
+
+.planning {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+
+  // Mesma div de data da Home: sprint ativa à esquerda, dia da semana à direita
+  &__date {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-bottom: 0;
+  }
+
+  &__sprint-label {
+    color: $color-title;
+    font-size: 18px;
+
+    strong {
+      font-weight: 700;
+    }
+  }
+
+  &__sprint {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px 20px;
+    border: 1px solid $planning-line;
+    border-radius: 15px;
+  }
+
+  &__sprint-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  &__sprint-name {
+    color: $color-title;
+    font-size: 18px;
+  }
+
+  &__goal {
+    color: $color-text;
+    font-size: 14px;
+  }
+
+  &__sprint-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  &__muted {
+    color: $planning-muted;
+    font-size: 13px;
+  }
+
+  &__group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__group-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 4px;
+    color: $color-title;
+    font-size: 16px;
+  }
+
+  // Tabela no estilo da criação de projetos; cabe na largura (só rola no celular)
+  &__table {
+    min-width: 820px;
+  }
+
+  &__activity {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__person {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  &__category {
+    min-width: 150px;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap; // sem espaço, os botões quebram linha em vez de cobrir outras colunas
+    gap: 6px;
+  }
+
+  &__small {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  &__empty {
+    padding: 20px 12px;
+    color: $planning-muted;
+    text-align: center;
+  }
+
+  &__history {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    list-style: none;
+  }
+
+  &__history-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid $planning-line;
+    border-radius: 12px;
+    color: $color-title;
+    font-size: 14px;
+  }
+
+  &__history-action {
+    margin-left: auto;
+  }
+
+  &__dialog {
+    width: min(520px, calc(100vw - 32px));
+  }
+
+  &__dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  &__error {
+    color: #d03b3b;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .planning__sprint-label {
+    font-size: 16px;
+  }
+
+  .planning__sprint-actions {
+    width: 100%;
+
+    > * {
+      flex: 1;
+    }
+  }
+
+  .planning__dates {
+    grid-template-columns: 1fr;
+  }
+}

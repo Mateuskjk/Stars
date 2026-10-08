@@ -1,0 +1,319 @@
+<header class="backlog__header">
+  <div>
+    <h2 class="backlog__title">Backlog</h2>
+    <p class="backlog__subtitle">Atividades gerais do time (não vinculadas a projetos)</p>
+  </div>
+  <button class="backlog__new" type="button" (click)="openNew()">+ Nova atividade</button>
+</header>
+
+<!-- Quadro -->
+<div class="backlog__board">
+  @for (column of board(); track column.id) {
+    <section
+      class="backlog__column"
+      [class.is-drop-target]="dropTarget() === column.id"
+      [attr.aria-label]="column.label"
+      (dragover)="onDragOver($event, column.id)"
+      (drop)="onDrop($event, column.id)"
+    >
+      <header class="backlog__column-header">
+        <span class="backlog__dot" [style.background]="column.color"></span>
+        <h3 class="backlog__column-title">{{ column.label }}</h3>
+        <span class="backlog__count">{{ column.cards.length }}</span>
+      </header>
+
+      <ul class="backlog__cards">
+        @for (card of column.cards; track card.id) {
+          <li
+            class="backlog-card"
+            [class.is-locked]="card.locked"
+            [class.is-dragging]="dragging() === card.id"
+            [attr.draggable]="!card.locked"
+            (dragstart)="dragging.set(card.id)"
+            (dragend)="endDrag()"
+          >
+            <button class="backlog-card__open" type="button" (click)="openEdit(card)">
+              @if (card.tags.length) {
+                <span class="backlog-card__tags">
+                  @for (tag of card.tags; track tag) {
+                    <span class="tag" [style.--tag-color]="tagColor(tag)">{{ tag }}</span>
+                  }
+                </span>
+              }
+              <span class="backlog-card__name">{{ card.name }}</span>
+              <span class="backlog-card__meta">
+                @if (card.due) {
+                  <span class="backlog-card__due" [class.is-overdue]="isOverdue(card)">
+                    {{ isOverdue(card) ? 'Atrasado · ' : '' }}{{ formatDue(card.due) }}
+                  </span>
+                }
+                @if (card.subtasks.length) {
+                  <span title="Sub atividades">☑ {{ doneSubtasks(card) }}/{{ card.subtasks.length }}</span>
+                }
+                @if (card.comments.length) {
+                  <span title="Comentários">💬 {{ card.comments.length }}</span>
+                }
+                @if (card.attachments.length) {
+                  <span title="Anexos">📎 {{ card.attachments.length }}</span>
+                }
+                <span class="backlog-card__flags">
+                  @if (card.locked) {
+                    <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
+                  }
+                  @if (card.favorite) {
+                    <span class="backlog-card__star" title="Favorito" aria-label="Favorito">★</span>
+                  }
+                  @if (card.assignee) {
+                    <span class="backlog-card__avatar" [attr.title]="card.assignee">{{ initials(card.assignee) }}</span>
+                  }
+                </span>
+              </span>
+            </button>
+          </li>
+        } @empty {
+          <li class="backlog__empty">Nenhuma atividade</li>
+        }
+      </ul>
+
+      <button class="backlog__add" type="button" (click)="openNew(column.id)">+ Adicionar</button>
+    </section>
+  }
+</div>
+
+<!-- Modal de criação / edição -->
+<dialog #editor class="modal" aria-labelledby="editor-title" (click)="closeOnBackdrop($event, editor)">
+  @let item = draft();
+  <form class="modal__form" (submit)="save($event)">
+    <header class="modal__header">
+      <h2 id="editor-title" class="modal__title">{{ isNew() ? 'Nova atividade' : 'Editar atividade' }}</h2>
+      <button
+        class="modal__icon-button modal__favorite"
+        type="button"
+        [class.is-active]="item.favorite"
+        [attr.aria-pressed]="item.favorite"
+        [attr.aria-label]="item.favorite ? 'Remover dos favoritos' : 'Favoritar'"
+        (click)="patch({ favorite: !item.favorite })"
+      >
+        {{ item.favorite ? '★' : '☆' }}
+      </button>
+      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeEditor()">✕</button>
+    </header>
+
+    <div class="modal__body">
+      <!-- Coluna principal -->
+      <div class="modal__main">
+        <label class="modal__field">
+          <span class="modal__label">Nome *</span>
+          <input class="modal__input" required [value]="item.name" (input)="patch({ name: $any($event.target).value })" />
+        </label>
+
+        <label class="modal__field">
+          <span class="modal__label">Descrição</span>
+          <textarea
+            class="modal__input modal__textarea"
+            [value]="item.description"
+            (input)="patch({ description: $any($event.target).value })"
+          ></textarea>
+        </label>
+
+        <!-- Sub atividades -->
+        <section class="modal__section">
+          <h3 class="modal__label">
+            Sub atividades <span class="modal__optional">(opcional)</span>
+            @if (item.subtasks.length) {
+              <span class="modal__optional">· {{ doneSubtasks(item) }}/{{ item.subtasks.length }}</span>
+            }
+          </h3>
+          <ul class="modal__list">
+            @for (subtask of item.subtasks; track subtask.id) {
+              <li class="modal__subtask">
+                <label class="modal__check">
+                  <input type="checkbox" [checked]="subtask.done" (change)="toggleSubtask(subtask.id)" />
+                  <span [class.is-done]="subtask.done">{{ subtask.title }}</span>
+                </label>
+                <button class="modal__remove" type="button" [attr.aria-label]="'Remover ' + subtask.title" (click)="removeSubtask(subtask.id)">✕</button>
+              </li>
+            }
+          </ul>
+          <div class="modal__inline">
+            <input
+              #subtaskInput
+              class="modal__input"
+              placeholder="Nova sub atividade"
+              aria-label="Nova sub atividade"
+              (keydown.enter)="addSubtask(subtaskInput, $event)"
+            />
+            <button class="modal__ghost" type="button" (click)="addSubtask(subtaskInput)">Adicionar</button>
+          </div>
+        </section>
+
+        <!-- Anexos -->
+        <section class="modal__section">
+          <h3 class="modal__label">Anexos <span class="modal__optional">(imagens e PDF)</span></h3>
+          <ul class="modal__attachments">
+            @for (file of item.attachments; track file.id) {
+              <li class="attachment">
+                <button class="attachment__preview" type="button" [attr.aria-label]="'Visualizar ' + file.name" (click)="view(file)">
+                  @if (file.type === 'application/pdf') {
+                    <span class="attachment__pdf">PDF</span>
+                  } @else {
+                    <img class="attachment__thumb" [src]="file.url" alt="" />
+                  }
+                </button>
+                <span class="attachment__name" [attr.title]="file.name">{{ file.name }}</span>
+                <span class="attachment__size">{{ fileSize(file.size) }}</span>
+                <span class="attachment__actions">
+                  <a class="attachment__link" [href]="file.url" [attr.download]="file.name">Baixar</a>
+                  <button class="attachment__link" type="button" (click)="removeAttachment(file)">Remover</button>
+                </span>
+              </li>
+            }
+          </ul>
+          <label class="modal__upload">
+            <input type="file" accept="image/*,application/pdf" multiple (change)="addFiles($any($event.target))" />
+            <span>+ Adicionar anexos</span>
+          </label>
+        </section>
+
+        <!-- Comentários -->
+        <section class="modal__section">
+          <h3 class="modal__label">Comentários</h3>
+          <ul class="modal__list">
+            @for (comment of item.comments; track comment.id) {
+              <li class="comment">
+                <span class="backlog-card__avatar">{{ comment.author === 'Você' ? 'EU' : initials(comment.author) }}</span>
+                <div>
+                  <p class="comment__meta"><strong>{{ comment.author }}</strong> · {{ formatTime(comment.time) }}</p>
+                  <p class="comment__text">{{ comment.text }}</p>
+                </div>
+              </li>
+            }
+          </ul>
+          <div class="modal__inline">
+            <textarea #commentInput class="modal__input modal__textarea" placeholder="Escreva um comentário" aria-label="Novo comentário"></textarea>
+            <button class="modal__ghost" type="button" (click)="addComment(commentInput)">Comentar</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- Lateral -->
+      <aside class="modal__side">
+        <label class="modal__field">
+          <span class="modal__label">Status</span>
+          <select class="modal__input" [disabled]="item.locked" (change)="patch({ status: $any($event.target).value })">
+            @for (column of columns; track column.id) {
+              <option [value]="column.id" [selected]="column.id === item.status">{{ column.label }}</option>
+            }
+          </select>
+        </label>
+
+        <div class="modal__steps">
+          <button class="modal__ghost" type="button" [disabled]="item.locked || statusIndex() === 0" (click)="step(-1)">← Recuar</button>
+          <button class="modal__ghost" type="button" [disabled]="item.locked || statusIndex() === columns.length - 1" (click)="step(1)">Avançar →</button>
+        </div>
+
+        <label class="modal__field">
+          <span class="modal__label">Data de prazo</span>
+          <input class="modal__input" type="date" [value]="item.due" (input)="patch({ due: $any($event.target).value })" />
+        </label>
+
+        <label class="modal__field">
+          <span class="modal__label">Responsável</span>
+          <select class="modal__input" (change)="patch({ assignee: $any($event.target).value })">
+            <option value="">Sem responsável</option>
+            @for (person of people; track person) {
+              <option [value]="person" [selected]="person === item.assignee">{{ person }}</option>
+            }
+          </select>
+        </label>
+
+        <div class="modal__field">
+          <span class="modal__label">Tags</span>
+          @if (item.tags.length) {
+            <span class="backlog-card__tags">
+              @for (tag of item.tags; track tag) {
+                <span class="tag" [style.--tag-color]="tagColor(tag)">
+                  {{ tag }}
+                  <button class="tag__remove" type="button" [attr.aria-label]="'Remover tag ' + tag" (click)="removeTag(tag)">✕</button>
+                </span>
+              }
+            </span>
+          }
+          <input
+            #tagInput
+            class="modal__input"
+            placeholder="Digite e aperte Enter"
+            aria-label="Nova tag"
+            (keydown.enter)="addTag(tagInput, $event)"
+          />
+        </div>
+
+        <label class="modal__toggle">
+          <input type="checkbox" role="switch" [checked]="item.locked" (change)="patch({ locked: $any($event.target).checked })" />
+          <span>🔒 Bloquear cartão</span>
+        </label>
+        @if (item.locked) {
+          <p class="modal__hint">Cartão bloqueado não muda de coluna.</p>
+        }
+
+        @if (!isNew()) {
+          <div class="modal__danger-zone">
+            <button class="modal__ghost" type="button" [disabled]="item.locked || item.status === 'archived'" (click)="archive()">
+              Arquivar
+            </button>
+            <button class="modal__ghost modal__ghost--danger" type="button" (click)="askDelete()">Excluir</button>
+          </div>
+        }
+      </aside>
+    </div>
+
+    <footer class="modal__footer">
+      <button class="modal__ghost" type="button" (click)="closeEditor()">Cancelar</button>
+      <button class="modal__primary" type="submit">Salvar atividade</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- Visualizador de anexos -->
+<dialog #viewer class="modal modal--viewer" aria-label="Visualizar anexo" (click)="closeOnBackdrop($event, viewer)">
+  @if (viewing(); as file) {
+    <header class="modal__header">
+      <h2 class="modal__title modal__title--file">{{ file.name }}</h2>
+      <a class="modal__primary modal__download" [href]="file.url" [attr.download]="file.name">Baixar</a>
+      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeViewer()">✕</button>
+    </header>
+    <div class="viewer">
+      @if (file.type === 'application/pdf') {
+        <iframe class="viewer__pdf" [src]="viewingUrl()" [title]="file.name"></iframe>
+      } @else {
+        <img class="viewer__image" [src]="file.url" [alt]="file.name" />
+      }
+    </div>
+  }
+</dialog>
+
+<!-- Confirmação de exclusão -->
+<dialog
+  #confirmDelete
+  class="confirm-dialog"
+  aria-labelledby="backlog-confirm-title"
+  (click)="closeOnBackdrop($event, confirmDelete)"
+>
+  <div class="confirm-dialog__box">
+    <span class="confirm-dialog__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M6 6l1 14h10l1-14" />
+      </svg>
+    </span>
+    <h2 id="backlog-confirm-title" class="confirm-dialog__title">Excluir esta atividade?</h2>
+    <p class="confirm-dialog__text">
+      <strong>{{ draft().name }}</strong> será removida do backlog. Essa ação não pode ser desfeita.
+    </p>
+    <div class="confirm-dialog__actions">
+      <button class="confirm-dialog__button" type="button" autofocus (click)="cancelDelete()">Cancelar</button>
+      <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDeletion()">Excluir</button>
+    </div>
+  </div>
+</dialog>

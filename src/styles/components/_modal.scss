@@ -1,0 +1,408 @@
+@use '../variables' as *;
+
+// Modal grande (criação/edição de atividades e visualizador de anexos)
+$modal-line: #e7e8ea;
+$modal-muted: #898781;
+$modal-soft: #f0f2f3;
+
+.modal {
+  width: min(920px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: none;
+  border-radius: 15px;
+  background-color: $color-surface;
+  box-shadow: 0 16px 40px rgba(32, 43, 67, 0.25);
+  color: $color-text;
+
+  &::backdrop {
+    background-color: rgba(34, 43, 68, 0.35);
+    backdrop-filter: blur(2px);
+  }
+
+  &[open] {
+    display: flex;
+    flex-direction: column;
+    animation: confirm-in 0.15s ease-out;
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 20px;
+    border-bottom: 1px solid $modal-line;
+  }
+
+  &__title {
+    flex: 1;
+    color: $color-title;
+    font-size: 18px;
+
+    &--file {
+      overflow: hidden;
+      font-size: 15px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+
+  &__icon-button {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: $modal-muted;
+    font-size: 16px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $modal-soft;
+      color: $color-title;
+    }
+  }
+
+  &__favorite {
+    font-size: 22px;
+
+    &.is-active {
+      color: #eda100;
+    }
+  }
+
+  // O corpo rola; cabeçalho e rodapé ficam fixos
+  &__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 24px;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  &__main,
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__label {
+    color: $color-title;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  &__optional {
+    color: $modal-muted;
+    font-weight: 400;
+  }
+
+  &__input {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid $modal-line;
+    border-radius: 10px;
+    background-color: #fff;
+    color: $color-text;
+    font: inherit;
+    font-size: 14px;
+
+    &:focus {
+      outline: 2px solid $color-nav-hover;
+      outline-offset: -1px;
+    }
+
+    &:disabled {
+      background-color: $modal-soft;
+      cursor: not-allowed;
+    }
+  }
+
+  &__textarea {
+    field-sizing: content; // cresce com o texto
+    min-height: 72px;
+    resize: none;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: none;
+  }
+
+  &__inline {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  &__subtask {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    cursor: pointer;
+
+    input {
+      width: 16px;
+      height: 16px;
+      accent-color: $color-nav-hover;
+    }
+
+    .is-done {
+      color: $modal-muted;
+      text-decoration: line-through;
+    }
+  }
+
+  &__remove {
+    border: none;
+    background: none;
+    color: $modal-muted;
+    cursor: pointer;
+
+    &:hover {
+      color: #d03b3b;
+    }
+  }
+
+  &__attachments {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    list-style: none;
+  }
+
+  &__upload {
+    position: relative;
+    align-self: flex-start;
+    padding: 8px 14px;
+    border: 1px dashed $modal-line;
+    border-radius: 10px;
+    color: $color-title;
+    font-size: 13px;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-within {
+      border-color: $color-nav-hover;
+      background-color: $modal-soft;
+    }
+
+    // input invisível, mas ainda acessível pelo teclado
+    input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+  }
+
+  &__steps,
+  &__danger-zone {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  &__danger-zone {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid $modal-line;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    cursor: pointer;
+
+    input {
+      appearance: none;
+      position: relative;
+      flex-shrink: 0;
+      width: 36px;
+      height: 20px;
+      border-radius: 20px;
+      background-color: #c3c2b7;
+      cursor: pointer;
+      transition: background-color 0.2s;
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background-color: #fff;
+        transition: transform 0.2s;
+      }
+
+      &:checked {
+        background-color: $color-nav-hover;
+
+        &::after {
+          transform: translateX(16px);
+        }
+      }
+
+      &:focus-visible {
+        outline: 2px solid $color-nav-hover;
+        outline-offset: 2px;
+      }
+    }
+  }
+
+  &__hint {
+    color: $modal-muted;
+    font-size: 12px;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 20px;
+    border-top: 1px solid $modal-line;
+  }
+
+  &__ghost,
+  &__primary {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 25px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 0.2s,
+      opacity 0.2s;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  &__ghost {
+    border: 1px solid $modal-line;
+    background-color: #fff;
+    color: $color-title;
+
+    &:hover:not(:disabled) {
+      background-color: $modal-soft;
+    }
+
+    &--danger {
+      border-color: #f3c4c4;
+      color: #d03b3b;
+
+      &:hover:not(:disabled) {
+        background-color: #fdf0f0;
+      }
+    }
+  }
+
+  &__primary {
+    display: inline-grid;
+    place-items: center;
+    border: none;
+    background-color: $color-nav-hover;
+    color: $color-surface;
+    text-decoration: none;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  }
+
+  // Visualizador: ocupa quase a tela toda
+  &--viewer {
+    width: min(1100px, calc(100vw - 32px));
+    height: calc(100dvh - 32px);
+  }
+}
+
+.viewer {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 0;
+  padding: 12px;
+  border-radius: 0 0 15px 15px;
+  background-color: $modal-soft;
+
+  &__pdf {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 8px;
+    background-color: #fff;
+  }
+
+  &__image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal[open] {
+    animation: none;
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+
+    &__body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    &__side {
+      order: -1; // no celular, status/prazo/responsável vêm primeiro
+    }
+  }
+}

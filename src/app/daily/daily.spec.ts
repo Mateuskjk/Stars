@@ -62,7 +62,16 @@ describe('Daily', () => {
     expect(items[0].textContent).toContain('0 de 7 com anotações');
   });
 
-  it('deletes a daily from the history only after confirming', async () => {
+  it('deletes a daily from the history only after confirming in the dialog', async () => {
+    // jsdom não implementa showModal/close do <dialog>
+    HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
+      this.open = false;
+      this.dispatchEvent(new Event('close'));
+    };
+
     localStorage.setItem('stars.daily-history', JSON.stringify([{ id: 1, date: new Date().toISOString(), participants: [] }]));
     await TestBed.configureTestingModule({ imports: [Daily] }).compileComponents();
     const history = TestBed.inject(DailyHistory);
@@ -70,17 +79,22 @@ describe('Daily', () => {
     fixture.detectChanges();
     await fixture.whenStable(); // carrega o histórico do localStorage
     fixture.detectChanges();
-    const del = () => {
-      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.daily__history-delete')!.click();
+    const el = fixture.nativeElement as HTMLElement;
+    const click = (selector: string) => {
+      el.querySelector<HTMLElement>(selector)!.click();
       fixture.detectChanges();
     };
+    const dialog = el.querySelector('dialog')!;
 
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
-    del();
+    click('.daily__history-delete');
+    expect(dialog.open).toBe(true);
+    click('.confirm-dialog__button'); // Cancelar
+    expect(dialog.open).toBe(false);
     expect(history.records()).toHaveLength(1);
 
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
-    del();
+    click('.daily__history-delete');
+    click('.confirm-dialog__button--danger'); // Excluir
+    expect(dialog.open).toBe(false);
     expect(history.records()).toHaveLength(0);
     expect(JSON.parse(localStorage.getItem('stars.daily-history')!)).toEqual([]);
   });

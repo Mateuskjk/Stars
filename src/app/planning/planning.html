@@ -1,0 +1,243 @@
+<!-- 1. Sprint ativa (esquerda) e dia da semana (direita) -->
+<div class="week-date planning__date">
+  <p class="planning__sprint-label">
+    @if (active(); as sprint) {
+      <strong>{{ sprint.name }}</strong> · {{ period(sprint) }}
+    } @else {
+      Nenhuma sprint ativa
+    }
+  </p>
+  <p class="week-date__title">{{ weekDate }}</p>
+</div>
+
+<!-- 2. Sprint ativa -->
+<section class="planning__sprint">
+  @if (active(); as sprint) {
+    <div class="planning__sprint-info">
+      <span class="status-chip" [style.--status-color]="sprintStatus.active.color">{{ sprintStatus.active.label }}</span>
+      <h2 class="planning__sprint-name">{{ sprint.name }}</h2>
+      <p class="planning__muted">
+        {{ period(sprint) }} · {{ daysLeft() }} {{ daysLeft() === 1 ? 'dia restante' : 'dias restantes' }} ·
+        {{ inSprint().length }} {{ inSprint().length === 1 ? 'atividade' : 'atividades' }}
+      </p>
+      @if (sprint.goal) {
+        <p class="planning__goal">🎯 {{ sprint.goal }}</p>
+      }
+    </div>
+    <div class="planning__sprint-actions">
+      <button class="modal__ghost" type="button" (click)="askCancel(sprint)">Cancelar sprint</button>
+      <button class="modal__primary" type="button" (click)="askClose(sprint)">Fechar sprint</button>
+    </div>
+  } @else {
+    <div class="planning__sprint-info">
+      <h2 class="planning__sprint-name">Nenhuma sprint ativa</h2>
+      <p class="planning__muted">Crie uma sprint para começar a enviar atividades para ela.</p>
+    </div>
+    <div class="planning__sprint-actions">
+      <button class="modal__primary" type="button" (click)="openCreate()">+ Criar sprint</button>
+    </div>
+  }
+</section>
+
+<!-- 3. Atividades -->
+<ng-template #activityTable let-items let-mode="mode">
+  <div class="project-table">
+    <table class="project-table__table planning__table">
+      <thead>
+        <tr>
+          <th class="project-table__sticky" scope="col">Atividade</th>
+          <th scope="col">Responsável</th>
+          <th scope="col">Tags</th>
+          <th scope="col">Prazo</th>
+          <th scope="col">Sub atividades</th>
+          @if (mode !== 'sprint') {
+            <th scope="col">Categoria</th>
+          }
+          <th scope="col">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items; track item.id) {
+          <tr>
+            <th class="project-table__sticky" scope="row">
+              <span class="planning__activity">
+                {{ item.name }}
+                @if (item.locked) {
+                  <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
+                }
+                @if (item.favorite) {
+                  <span class="backlog-card__star" aria-label="Favorito">★</span>
+                }
+              </span>
+            </th>
+            <td>
+              @if (item.assignee) {
+                <span class="planning__person">
+                  <span class="backlog-card__avatar">{{ initials(item.assignee) }}</span>
+                  {{ item.assignee }}
+                </span>
+              } @else {
+                —
+              }
+            </td>
+            <td>
+              <span class="backlog-card__tags">
+                @for (tag of item.tags; track tag) {
+                  <span class="tag" [style.--tag-color]="tagColor(tag)">{{ tag }}</span>
+                } @empty {
+                  —
+                }
+              </span>
+            </td>
+            <td>{{ formatDay(item.due) }}</td>
+            <td>{{ item.subtasks.length ? doneSubtasks(item) + '/' + item.subtasks.length : '—' }}</td>
+            @if (mode !== 'sprint') {
+              <td>
+                <select
+                  class="project-table__input planning__category"
+                  [attr.aria-label]="'Categoria de ' + item.name"
+                  (change)="setCategory(item, $any($event.target).value)"
+                >
+                  <option value="ready" [selected]="mode === 'ready'">Pronta para sprint</option>
+                  <option value="waiting" [selected]="mode === 'waiting'">Aguardando</option>
+                </select>
+              </td>
+            }
+            <td>
+              <span class="planning__actions">
+                @if (mode === 'sprint') {
+                  <button class="modal__ghost planning__small" type="button" (click)="removeFromSprint(item)">← Tirar da sprint</button>
+                } @else {
+                  <button
+                    class="modal__primary planning__small"
+                    type="button"
+                    [disabled]="!active()"
+                    [attr.title]="active() ? 'Enviar para a ' + active()!.name : 'Crie uma sprint primeiro'"
+                    (click)="sendToSprint(item)"
+                  >
+                    Enviar para sprint →
+                  </button>
+                }
+                <button class="modal__ghost planning__small" type="button" (click)="archive(item)">Arquivar</button>
+                <button class="modal__ghost modal__ghost--danger planning__small" type="button" (click)="askDelete(item)">Excluir</button>
+              </span>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td class="planning__empty" colspan="7">Nenhuma atividade aqui.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</ng-template>
+
+<section class="planning__group">
+  <h2 class="planning__group-title">
+    Prontas para sprint <span class="project-create__count">{{ ready().length }}</span>
+  </h2>
+  <p class="planning__muted">Vindas de “Finalizado refinamento” no backlog. Entram aqui por padrão.</p>
+  <ng-container *ngTemplateOutlet="activityTable; context: { $implicit: ready(), mode: 'ready' }" />
+</section>
+
+<section class="planning__group">
+  <h2 class="planning__group-title">
+    Aguardando próxima sprint <span class="project-create__count">{{ waiting().length }}</span>
+  </h2>
+  <ng-container *ngTemplateOutlet="activityTable; context: { $implicit: waiting(), mode: 'waiting' }" />
+</section>
+
+@if (active(); as sprint) {
+  <section class="planning__group">
+    <h2 class="planning__group-title">
+      Na {{ sprint.name }} <span class="project-create__count">{{ inSprint().length }}</span>
+    </h2>
+    <ng-container *ngTemplateOutlet="activityTable; context: { $implicit: inSprint(), mode: 'sprint' }" />
+  </section>
+}
+
+<!-- 4. Histórico de sprints -->
+<section class="planning__group">
+  <h2 class="planning__group-title">Histórico de sprints</h2>
+  <ul class="planning__history">
+    @for (sprint of history(); track sprint.id) {
+      <li class="planning__history-item">
+        <span class="status-chip" [style.--status-color]="sprintStatus[sprint.status].color">{{ sprintStatus[sprint.status].label }}</span>
+        <strong>{{ sprint.name }}</strong>
+        <span class="planning__muted">{{ period(sprint) }}</span>
+        @if (sprint.status === 'closed') {
+          <button class="modal__ghost planning__small planning__history-action" type="button" (click)="archiveSprint(sprint)">Arquivar</button>
+        }
+      </li>
+    } @empty {
+      <li class="planning__muted">Nenhuma sprint encerrada ainda.</li>
+    }
+  </ul>
+</section>
+
+<!-- Modal: criar sprint -->
+<dialog #sprintDialog class="modal planning__dialog" aria-labelledby="sprint-title" (click)="closeOnBackdrop($event, sprintDialog)">
+  <form class="modal__form" (submit)="createSprint($event)">
+    <header class="modal__header">
+      <h2 id="sprint-title" class="modal__title">Criar sprint</h2>
+      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeCreate()">✕</button>
+    </header>
+    <div class="modal__body planning__dialog-body">
+      <label class="modal__field">
+        <span class="modal__label">Nome</span>
+        <input class="modal__input" name="name" [placeholder]="'Sprint ' + sprints.nextNumber()" />
+      </label>
+      <div class="planning__dates">
+        <label class="modal__field">
+          <span class="modal__label">Início *</span>
+          <input class="modal__input" name="start" type="date" required [value]="defaultStart" />
+        </label>
+        <label class="modal__field">
+          <span class="modal__label">Fim *</span>
+          <input class="modal__input" name="end" type="date" required [value]="defaultEnd" />
+        </label>
+      </div>
+      <label class="modal__field">
+        <span class="modal__label">Objetivo da sprint</span>
+        <textarea class="modal__input modal__textarea" name="goal" placeholder="O que o time quer entregar nesta sprint?"></textarea>
+      </label>
+      @if (sprintError()) {
+        <p class="planning__error" role="alert">{{ sprintError() }}</p>
+      }
+    </div>
+    <footer class="modal__footer">
+      <button class="modal__ghost" type="button" (click)="closeCreate()">Cancelar</button>
+      <button class="modal__primary" type="submit">Criar sprint</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- Confirmação -->
+<dialog #confirmDialog class="confirm-dialog" aria-labelledby="planning-confirm-title" (click)="closeOnBackdrop($event, confirmDialog)">
+  @if (pending(); as action) {
+    <div class="confirm-dialog__box">
+      <span class="confirm-dialog__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8v5" />
+          <path d="M12 16h.01" />
+        </svg>
+      </span>
+      <h2 id="planning-confirm-title" class="confirm-dialog__title">{{ action.title }}</h2>
+      <p class="confirm-dialog__text">{{ action.text }}</p>
+      <div class="confirm-dialog__actions">
+        <button class="confirm-dialog__button" type="button" autofocus (click)="cancelConfirm()">Voltar</button>
+        <button
+          class="confirm-dialog__button"
+          [class.confirm-dialog__button--danger]="action.danger"
+          [class.confirm-dialog__button--primary]="!action.danger"
+          type="button"
+          (click)="confirm()"
+        >
+          {{ action.label }}
+        </button>
+      </div>
+    </div>
+  }
+</dialog>

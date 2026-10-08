@@ -1,0 +1,378 @@
+@use '../variables' as *;
+
+$backlog-line: #e7e8ea;
+$backlog-muted: #898781;
+$backlog-column: #f0f2f3;
+
+.backlog {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 0 4px;
+  }
+
+  &__title {
+    color: $color-title;
+    font-size: 20px;
+  }
+
+  &__subtitle {
+    color: $backlog-muted;
+    font-size: 13px;
+  }
+
+  &__new {
+    flex-shrink: 0;
+    height: 40px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 25px;
+    background-color: $color-nav-hover;
+    color: $color-surface;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  }
+
+  // 6 colunas: rola para o lado quando não cabem
+  &__board {
+    display: grid;
+    flex: 1;
+    grid-template-columns: repeat(6, minmax(240px, 1fr));
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
+  }
+
+  &__column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    padding: 10px;
+    border: 2px dashed transparent;
+    border-radius: 15px;
+    background-color: $backlog-column;
+    scroll-snap-align: start;
+    transition:
+      border-color 0.15s,
+      background-color 0.15s;
+
+    &.is-drop-target {
+      border-color: $color-nav-hover;
+      background-color: #e6e9ee;
+    }
+  }
+
+  &__column-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px;
+  }
+
+  &__dot {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  &__column-title {
+    flex: 1;
+    color: $color-title;
+    font-size: 14px;
+  }
+
+  &__count {
+    min-width: 24px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background-color: $color-surface;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  &__cards {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    list-style: none;
+  }
+
+  &__empty {
+    padding: 12px 4px;
+    color: $backlog-muted;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  &__add {
+    padding: 8px;
+    border: none;
+    border-radius: 10px;
+    background: none;
+    color: $backlog-muted;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #e6e9ee;
+      color: $color-title;
+    }
+  }
+}
+
+.backlog-card {
+  border-radius: 10px;
+  background-color: $color-surface;
+  box-shadow: 0 1px 4px rgba(32, 43, 67, 0.1);
+  transition:
+    box-shadow 0.15s,
+    opacity 0.15s;
+
+  &[draggable='true'] {
+    cursor: grab;
+  }
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(32, 43, 67, 0.16);
+  }
+
+  &.is-dragging {
+    opacity: 0.4;
+  }
+
+  // Bloqueado: faixa cinza à esquerda + cadeado (não depende só da cor)
+  &.is-locked {
+    background-color: #f7f7f5;
+    box-shadow:
+      inset 3px 0 0 $backlog-muted,
+      0 1px 4px rgba(32, 43, 67, 0.1);
+  }
+
+  &__open {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: inherit;
+  }
+
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  &__name {
+    color: $color-title;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    color: $backlog-muted;
+    font-size: 12px;
+  }
+
+  &__due {
+    padding: 1px 6px;
+    border-radius: 6px;
+    background-color: $backlog-column;
+    color: $color-text;
+
+    &.is-overdue {
+      background-color: #fdf0f0;
+      color: #d03b3b;
+      font-weight: 600;
+    }
+  }
+
+  &__flags {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  &__star {
+    color: #eda100;
+    font-size: 14px;
+  }
+
+  &__avatar {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: $color-title;
+    color: $color-surface;
+    font-size: 10px;
+    font-weight: 600;
+  }
+}
+
+// Tag com a cor dela (fundo claro + bolinha); o texto fica sempre escuro
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: color-mix(in srgb, var(--tag-color) 14%, transparent);
+  color: $color-title;
+  font-size: 11px;
+  font-weight: 600;
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--tag-color);
+  }
+
+  &__remove {
+    border: none;
+    background: none;
+    color: $backlog-muted;
+    font-size: 10px;
+    cursor: pointer;
+
+    &:hover {
+      color: #d03b3b;
+    }
+  }
+}
+
+.attachment {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid $backlog-line;
+  border-radius: 10px;
+
+  &__preview {
+    display: grid;
+    place-items: center;
+    height: 90px;
+    overflow: hidden;
+    border: none;
+    border-radius: 8px;
+    background-color: $backlog-column;
+    cursor: zoom-in;
+  }
+
+  &__thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__pdf {
+    padding: 6px 10px;
+    border-radius: 6px;
+    background-color: #d03b3b;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  &__name {
+    overflow: hidden;
+    color: $color-text;
+    font-size: 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__size {
+    color: $backlog-muted;
+    font-size: 11px;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  &__link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: $color-title;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.comment {
+  display: flex;
+  gap: 10px;
+
+  &__meta {
+    color: $backlog-muted;
+    font-size: 12px;
+
+    strong {
+      color: $color-title;
+    }
+  }
+
+  &__text {
+    font-size: 14px;
+    white-space: pre-line;
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .backlog__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .backlog__board {
+    grid-template-columns: repeat(6, 85%);
+    scroll-snap-type: x mandatory;
+  }
+}

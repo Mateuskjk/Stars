@@ -1,0 +1,133 @@
+@use '../variables' as *;
+
+// Janelas (<dialog>) compartilhadas: confirmação e modais
+$dialog-line: #e7e8ea;
+$dialog-muted: #898781;
+$dialog-soft: #f0f2f3;
+
+// Janela de confirmação no estilo do site
+.confirm-dialog {
+  width: min(400px, calc(100vw - 32px));
+  margin: auto;
+  padding: 0;
+  border: none;
+  border-radius: 15px;
+  background-color: $color-surface;
+  box-shadow: 0 16px 40px rgba(32, 43, 67, 0.25);
+  color: $color-text;
+
+  &::backdrop {
+    background-color: rgba(34, 43, 68, 0.35);
+    backdrop-filter: blur(2px);
+  }
+
+  &[open] {
+    animation: confirm-in 0.15s ease-out;
+  }
+
+  &__box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  &__icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 4px;
+    border-radius: 50%;
+    background-color: #fdf0f0;
+    color: #d03b3b;
+
+    svg {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  }
+
+  &__title {
+    color: $color-title;
+    font-size: 18px;
+  }
+
+  &__text {
+    color: $dialog-muted;
+    font-size: 14px;
+    line-height: 1.5;
+
+    strong {
+      color: $color-text;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  &__button {
+    flex: 1;
+    height: 44px;
+    border: 1px solid $dialog-line;
+    border-radius: 25px;
+    background-color: #fff;
+    color: $color-title;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background-color 0.2s,
+      opacity 0.2s;
+
+    &:hover {
+      background-color: $dialog-soft;
+    }
+
+    &--primary {
+      border-color: $color-nav-hover;
+      background-color: $color-nav-hover;
+      color: #fff;
+
+      &:hover {
+        background-color: $color-nav-hover;
+        opacity: 0.85;
+      }
+    }
+
+    &--danger {
+      border-color: #d03b3b;
+      background-color: #d03b3b;
+      color: #fff;
+
+      &:hover {
+        background-color: #d03b3b;
+        opacity: 0.85;
+      }
+    }
+  }
+}
+
+@keyframes confirm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog[open] {
+    animation: none;
+  }
+}

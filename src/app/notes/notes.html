@@ -1,0 +1,171 @@
+<div class="week-date notes__date">
+  <p class="notes__private">🔒 Notas pessoais · só você vê</p>
+  <p class="week-date__title">{{ weekDate }}</p>
+</div>
+
+<div class="notes__layout">
+  <!-- Lista de notas -->
+  <aside class="notes__sidebar">
+    <div class="notes__toolbar">
+      <label class="chat__search notes__search">
+        <svg class="chat__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-4-4" />
+        </svg>
+        <input
+          type="search"
+          placeholder="Buscar nas notas"
+          aria-label="Buscar nas notas"
+          [value]="search()"
+          (input)="search.set($any($event.target).value)"
+        />
+      </label>
+      <button class="chat__icon-button chat__icon-button--primary" type="button" aria-label="Nova nota" (click)="newNote()">
+        <svg class="chat__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5v14" />
+          <path d="M5 12h14" />
+        </svg>
+      </button>
+    </div>
+    <button class="notes__today" type="button" (click)="openToday()">📅 Nota de hoje</button>
+
+    <ul class="notes__list">
+      @for (note of list(); track note.id) {
+        <li>
+          <button class="notes__item" type="button" [class.is-active]="note.id === selectedId()" (click)="open(note)">
+            <span class="notes__item-title">{{ note.title }}</span>
+            <span class="notes__item-preview">{{ preview(note) || 'Nota vazia' }}</span>
+            <span class="notes__item-meta">
+              {{ formatTime(toDate(note.updated)) }}
+              @if (linkCount(note)) {
+                · 🔗 {{ linkCount(note) }}
+              }
+            </span>
+          </button>
+        </li>
+      } @empty {
+        <li class="notes__empty">{{ search() ? 'Nenhuma nota encontrada.' : 'Nenhuma nota ainda.' }}</li>
+      }
+    </ul>
+  </aside>
+
+  <!-- Nota aberta -->
+  <section class="notes__editor">
+    @if (selected(); as note) {
+      <header class="notes__header">
+        <button class="chat__icon-button notes__back" type="button" aria-label="Voltar para a lista" (click)="selectedId.set(null)">
+          <svg class="chat__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
+        </button>
+        <input
+          class="notes__title"
+          aria-label="Título da nota"
+          [value]="note.title"
+          (input)="edit('title', $any($event.target).value)"
+          (change)="commitTitle()"
+          (keydown.enter)="$any($event.target).blur()"
+        />
+        <div class="notes__modes" role="group" aria-label="Modo">
+          <button type="button" [class.is-active]="mode() === 'edit'" [attr.aria-pressed]="mode() === 'edit'" (click)="mode.set('edit')">Editar</button>
+          <button type="button" [class.is-active]="mode() === 'read'" [attr.aria-pressed]="mode() === 'read'" (click)="mode.set('read')">Ler</button>
+        </div>
+        <button class="chat__icon-button notes__delete" type="button" aria-label="Excluir nota" (click)="askDelete()">
+          <svg class="chat__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 6h18" />
+            <path d="M8 6V4h8v2" />
+            <path d="M6 6l1 14h10l1-14" />
+          </svg>
+        </button>
+      </header>
+      @if (duplicateTitle()) {
+        <p class="notes__warning" role="status">Já existe outra nota com esse título: os links [[...]] vão para a primeira delas.</p>
+      }
+
+      @if (mode() === 'edit') {
+        <div class="notes__link-bar">
+          <span class="notes__hint">Escreva <code>[[Título]]</code> para linkar, ou escolha:</span>
+          <select class="notes__link-select" aria-label="Inserir link para outra nota" (change)="insertLink($any($event.target))">
+            <option value="">+ Linkar nota…</option>
+            @for (other of others(); track other.id) {
+              <option [value]="other.title">{{ other.title }}</option>
+            }
+          </select>
+        </div>
+        <textarea
+          #editor
+          class="notes__content"
+          aria-label="Conteúdo da nota"
+          placeholder="Comece a escrever…"
+          [value]="note.content"
+          (input)="edit('content', $any($event.target).value)"
+        ></textarea>
+      } @else {
+        <article class="notes__reader" (dblclick)="mode.set('edit')">
+          @for (part of segments(); track $index) {
+            @if (isLink(part)) {
+              <button
+                class="notes__link"
+                type="button"
+                [class.is-missing]="!part.exists"
+                [attr.title]="part.exists ? 'Abrir ' + part.link : 'Criar a nota ' + part.link"
+                (click)="openLink(part.link)"
+              >
+                {{ part.link }}
+              </button>
+            } @else {
+              <span>{{ part.text }}</span>
+            }
+          } @empty {
+            <p class="notes__empty">Nota vazia. Clique em Editar (ou dê dois cliques aqui) para escrever.</p>
+          }
+        </article>
+      }
+
+      <footer class="notes__footer">
+        <section>
+          <h3 class="notes__footer-title">Mencionada em ({{ backlinks().length }})</h3>
+          @if (backlinks().length) {
+            <ul class="notes__backlinks">
+              @for (other of backlinks(); track other.id) {
+                <li>
+                  <button class="notes__link" type="button" (click)="open(other)">{{ other.title }}</button>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="notes__hint">Nenhuma nota aponta para esta ainda.</p>
+          }
+        </section>
+        <p class="notes__hint">🔗 {{ outgoing() }} {{ outgoing() === 1 ? 'link' : 'links' }} saindo · editada {{ formatTime(toDate(note.updated)) }}</p>
+      </footer>
+    } @else {
+      <button class="chat__placeholder" type="button" (click)="newNote()">
+        <svg class="chat__placeholder-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+        </svg>
+        Escolha uma nota ou crie uma nova
+      </button>
+    }
+  </section>
+</div>
+
+<!-- Confirmação de exclusão -->
+<dialog #confirmDialog class="confirm-dialog" aria-labelledby="notes-confirm-title" (click)="closeOnBackdrop($event, confirmDialog)">
+  <div class="confirm-dialog__box">
+    <span class="confirm-dialog__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M6 6l1 14h10l1-14" />
+      </svg>
+    </span>
+    <h2 id="notes-confirm-title" class="confirm-dialog__title">Excluir esta nota?</h2>
+    <p class="confirm-dialog__text">
+      <strong>{{ selected()?.title }}</strong> será apagada. Os links para ela nas outras notas continuam no texto, mas passam a apontar para uma nota que não existe.
+    </p>
+    <div class="confirm-dialog__actions">
+      <button class="confirm-dialog__button" type="button" autofocus (click)="cancelDelete()">Cancelar</button>
+      <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDelete()">Excluir</button>
+    </div>
+  </div>
+</dialog>

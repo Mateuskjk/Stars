@@ -1,4 +1,4 @@
-import { Component, afterNextRender, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { USERS, formatTime, initials } from '../chat/chat';
 import { formatWeekDate } from '../home/home';
 import { DailyHistory, DailyRecord } from './daily-history';
@@ -116,11 +116,30 @@ export class Daily {
     this.open(record, false);
   }
 
-  // Excluir não tem volta, então pede confirmação
+  // Excluir não tem volta, então pede confirmação numa janela no estilo do site (<dialog> nativo:
+  // fundo escurecido, foco preso na janela e Esc para cancelar já vêm do navegador)
+  private readonly confirmDialog = viewChild.required<ElementRef<HTMLDialogElement>>('confirmDialog');
+  // Não é limpo ao fechar: o evento "close" chega depois e apagaria o registro de uma janela já reaberta
+  protected readonly pendingDelete = signal<DailyRecord | null>(null);
+
   protected remove(record: DailyRecord) {
-    if (confirm(`Excluir a daily de ${this.recordDate(record)}? Essa ação não pode ser desfeita.`)) {
-      this.history.remove(record.id);
-    }
+    this.pendingDelete.set(record);
+    this.confirmDialog().nativeElement.showModal();
+  }
+
+  protected confirmDelete() {
+    const record = this.pendingDelete();
+    if (record) this.history.remove(record.id);
+    this.confirmDialog().nativeElement.close();
+  }
+
+  protected cancelDelete() {
+    this.confirmDialog().nativeElement.close();
+  }
+
+  // Clique no fundo escurecido (fora da caixa) também cancela
+  protected onDialogClick(event: MouseEvent) {
+    if (event.target === this.confirmDialog().nativeElement) this.cancelDelete();
   }
 
   protected open(record: DailyRecord, fromHistory = true) {
