@@ -115,7 +115,7 @@
         <td>
           <select class="project-table__input" form="new-project" name="company" aria-label="Empresa associada">
             <option value="">Empresa</option>
-            @for (company of companies; track company) {
+            @for (company of companies(); track company) {
               <option [value]="company">{{ company }}</option>
             }
           </select>

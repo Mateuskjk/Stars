@@ -1,0 +1,302 @@
+@use '../variables' as *;
+
+$members-line: #e7e8ea;
+$members-muted: #898781;
+$members-soft: #f0f2f3;
+
+.members {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+
+  &__search {
+    flex: none;
+    max-width: 420px;
+  }
+
+  &__person {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  &__name {
+    display: block;
+    color: $color-title;
+    font-weight: 600;
+  }
+
+  &__email {
+    display: block;
+    color: $members-muted;
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  &__role {
+    min-width: 130px;
+  }
+
+  // Sem empresa: destaca, porque a pessoa não pode entrar em equipes
+  &__missing {
+    border-color: #eda100;
+    background-color: #fff6e0;
+  }
+
+  &__table {
+    min-width: 1040px;
+  }
+
+  &__perm-button {
+    padding: 4px 10px;
+    border: 1px solid $members-line;
+    border-radius: 8px;
+    background: #fff;
+    color: $color-title;
+    font: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $members-soft;
+    }
+  }
+
+  &__token {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+
+    code {
+      color: $color-text;
+      font-size: 12px;
+    }
+  }
+
+  &__danger {
+    color: #d03b3b;
+  }
+
+  &__link {
+    display: inline-grid;
+    place-items: center;
+    text-decoration: none;
+  }
+
+  // Janelas
+  &__dialog {
+    width: min(640px, calc(100vw - 32px));
+
+    &--small {
+      width: min(480px, calc(100vw - 32px));
+    }
+  }
+
+  &__dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  &__roles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: none;
+
+    legend {
+      margin-bottom: 8px;
+    }
+  }
+
+  &__role-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid $members-line;
+    border-radius: 10px;
+    cursor: pointer;
+
+    &.is-active {
+      border-color: $color-nav-hover;
+      background-color: $members-soft;
+    }
+
+    input {
+      accent-color: $color-nav-hover;
+    }
+  }
+
+  &__matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+
+    th,
+    td {
+      padding: 8px;
+      border-bottom: 1px solid $members-line;
+      text-align: center;
+    }
+
+    thead th {
+      color: $members-muted;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    tbody th {
+      color: $color-title;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    input {
+      width: 16px;
+      height: 16px;
+      accent-color: $color-nav-hover;
+      cursor: pointer;
+    }
+  }
+
+  &__defaults {
+    align-self: flex-start;
+  }
+
+  &__notice {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background-color: #fff6e0;
+    color: #6b4c00;
+    font-size: 13px;
+  }
+
+  &__email-preview {
+    overflow: hidden;
+    border: 1px solid $members-line;
+    border-radius: 12px;
+    background-color: #fff;
+  }
+
+  &__email-meta {
+    padding: 8px 14px;
+    border-bottom: 1px solid $members-line;
+    font-size: 13px;
+
+    span {
+      color: $members-muted;
+    }
+  }
+
+  &__email-body {
+    margin: 0;
+    padding: 14px;
+    color: $color-text;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  &__token-full {
+    display: block;
+    padding: 12px;
+    border-radius: 10px;
+    background-color: $members-soft;
+    color: $color-title;
+    font-size: 13px;
+    word-break: break-all;
+    user-select: all; // um clique seleciona o token inteiro
+  }
+}
+
+// Tela de validação do convite (/convite)
+.invite {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: 24px 0;
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: min(420px, 100%);
+    padding: 32px 24px;
+    border: 1px solid $members-line;
+    border-radius: 15px;
+    text-align: center;
+  }
+
+  &__icon {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: $members-soft;
+    font-size: 26px;
+
+    &--ok {
+      background-color: #e7f6e7;
+      color: #0ca30c;
+      font-weight: 700;
+    }
+  }
+
+  &__title {
+    color: $color-title;
+    font-size: 20px;
+  }
+
+  &__text {
+    color: $members-muted;
+    font-size: 14px;
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    margin-top: 8px;
+    text-align: left;
+  }
+
+  &__code {
+    font-size: 24px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.4em;
+    text-align: center;
+  }
+
+  &__button {
+    width: 100%;
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .members__row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,159 @@
+@use '../variables' as *;
+
+$companies-line: #e7e8ea;
+$companies-muted: #898781;
+
+.companies {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+
+  &__filter {
+    align-self: flex-start;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    list-style: none;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid $companies-line;
+    border-radius: 15px;
+    background-color: $color-surface;
+
+    &.is-inactive {
+      opacity: 0.65;
+    }
+  }
+
+  // Mesma proporção da imagem do card no carrossel
+  &__image {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 150px;
+  }
+
+  &__initial {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 48px;
+    font-weight: 700;
+  }
+
+  &__badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background-color: rgba(250, 249, 246, 0.92);
+    color: $color-title;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  &__info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px 16px;
+  }
+
+  &__title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__name {
+    color: $color-title;
+    font-size: 17px;
+  }
+
+  &__muted {
+    color: $companies-muted;
+    font-size: 13px;
+  }
+
+  &__facts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 4px 0;
+    font-size: 13px;
+
+    div {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    dt {
+      color: $companies-muted;
+    }
+
+    dd {
+      margin: 0;
+      color: $color-text;
+      text-align: right;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  // Modal
+  &__body {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+
+  &__upload-preview {
+    display: grid;
+    place-items: center;
+    height: 160px;
+    border-radius: 12px;
+  }
+
+  &__upload-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  &__view {
+    padding-top: 14px;
+    border-top: 1px solid $companies-line;
+  }
+
+  &__preview {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background-color: #f0f2f3;
+    color: $color-title;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .companies__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .companies__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

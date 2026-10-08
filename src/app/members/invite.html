@@ -1,0 +1,37 @@
+<section class="invite__card">
+  @if (welcome(); as name) {
+    <span class="invite__icon invite__icon--ok" aria-hidden="true">✓</span>
+    <h2 class="invite__title">Conta ativada! Bem-vindo(a), {{ name }}.</h2>
+    <p class="invite__text">Seu acesso ao Stars já está liberado.</p>
+    <a class="modal__primary invite__button" routerLink="/">Ir para o início</a>
+  } @else {
+    <span class="invite__icon" aria-hidden="true">✉️</span>
+    <h2 class="invite__title">Validar convite</h2>
+    <p class="invite__text">Informe o e-mail que recebeu o convite e o código de 6 números enviado para ele.</p>
+
+    <form class="invite__form" (submit)="submit($event)">
+      <label class="modal__field">
+        <span class="modal__label">E-mail</span>
+        <input class="modal__input" name="email" type="email" required autocomplete="email" [value]="email" />
+      </label>
+      <label class="modal__field">
+        <span class="modal__label">Código de verificação</span>
+        <input
+          #code
+          class="modal__input invite__code"
+          name="code"
+          required
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+          pattern="\d{6}"
+          placeholder="000000"
+          aria-describedby="invite-error"
+          (input)="onlyDigits(code)"
+        />
+      </label>
+      <p id="invite-error" class="planning__error" role="alert">{{ error() }}</p>
+      <button class="modal__primary invite__button" type="submit">Validar e ativar conta</button>
+    </form>
+  }
+</section>

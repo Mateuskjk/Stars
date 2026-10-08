@@ -1,7 +1,8 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { USERS } from '../chat/chat';
-import { COMPANIES, PROJECT_STATUSES, ProjectStatus, ProjectStore, TEAMS } from './project-store';
+import { CompanyStore } from '../companies/company-store';
+import { PROJECT_STATUSES, ProjectStatus, ProjectStore, TEAMS } from './project-store';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -17,7 +18,7 @@ export class ProjectCreate {
   protected readonly projects = this.store.projects;
   protected readonly statuses = PROJECT_STATUSES;
   protected readonly people = USERS.map((user) => user.name);
-  protected readonly companies = COMPANIES.map((company) => company.name);
+  protected readonly companies = inject(CompanyStore).activeNames;
   protected readonly teams = TEAMS;
 
   // Status escolhido na linha de criação (para a bolinha de cor acompanhar o select)

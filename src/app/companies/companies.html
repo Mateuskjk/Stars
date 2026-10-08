@@ -1,0 +1,192 @@
+<header class="backlog__header">
+  <div>
+    <h2 class="backlog__title">Perfis de empresas</h2>
+    <p class="backlog__subtitle">A imagem de cada perfil ativo aparece no carrossel de Empresas da Home.</p>
+  </div>
+  <button class="backlog__new" type="button" (click)="openNew()">+ Novo perfil</button>
+</header>
+
+<div class="notes__modes companies__filter" role="group" aria-label="Filtrar perfis">
+  <button type="button" [class.is-active]="filter() === 'active'" [attr.aria-pressed]="filter() === 'active'" (click)="filter.set('active')">
+    Ativos ({{ counts().active }})
+  </button>
+  <button type="button" [class.is-active]="filter() === 'inactive'" [attr.aria-pressed]="filter() === 'inactive'" (click)="filter.set('inactive')">
+    Inativos ({{ counts().inactive }})
+  </button>
+  <button type="button" [class.is-active]="filter() === 'all'" [attr.aria-pressed]="filter() === 'all'" (click)="filter.set('all')">
+    Todos ({{ counts().all }})
+  </button>
+</div>
+
+<ul class="companies__grid">
+  @for (company of list(); track company.id) {
+    <li class="companies__card" [class.is-inactive]="!company.active">
+      <div class="companies__image" [style.background]="company.image ? 'center / cover no-repeat url(' + company.image + ')' : company.cover">
+        @if (!company.image) {
+          <span class="companies__initial">{{ company.name.charAt(0) }}</span>
+        }
+        @if (company.active && !company.view.showInCarousel) {
+          <span class="companies__badge">Fora do carrossel</span>
+        }
+      </div>
+      <div class="companies__info">
+        <div class="companies__title-row">
+          <h3 class="companies__name">{{ company.name }}</h3>
+          @if (company.active) {
+            <span class="status-chip" style="--status-color: #0ca30c">Ativo</span>
+          } @else {
+            <span class="status-chip" style="--status-color: #898781">Inativo</span>
+          }
+        </div>
+        @if (company.description) {
+          <p class="companies__muted">{{ company.description }}</p>
+        }
+        <dl class="companies__facts">
+          <div>
+            <dt>Fuso</dt>
+            <dd>{{ zoneLabel(company.timeZone) }} · agora {{ localTime(company.timeZone) }}</dd>
+          </div>
+          <div>
+            <dt>Visualização</dt>
+            <dd>{{ preview(company.view) }}</dd>
+          </div>
+          <div>
+            <dt>Membros</dt>
+            <dd>{{ memberCount(company) }}</dd>
+          </div>
+        </dl>
+        <div class="companies__actions">
+          <button class="modal__ghost planning__small" type="button" (click)="openEdit(company)">Editar e configurar</button>
+          <button class="modal__ghost planning__small" type="button" (click)="toggleActive(company)">
+            {{ company.active ? 'Desativar' : 'Reativar' }}
+          </button>
+        </div>
+      </div>
+    </li>
+  } @empty {
+    <li class="favorites__empty teams__empty">
+      <p>Nenhum perfil {{ filter() === 'inactive' ? 'inativo' : filter() === 'active' ? 'ativo' : '' }}.</p>
+    </li>
+  }
+</ul>
+
+<!-- Criar / editar perfil -->
+<dialog #editor class="modal" aria-labelledby="company-title" (click)="closeOnBackdrop($event, editor)">
+  @let company = draft();
+  <form class="modal__form" (submit)="save($event)">
+    <header class="modal__header">
+      <h2 id="company-title" class="modal__title">{{ editingId() === null ? 'Novo perfil de empresa' : 'Editar ' + company.name }}</h2>
+      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeEditor()">✕</button>
+    </header>
+
+    <div class="modal__body companies__body">
+      <div class="modal__main">
+        <!-- Imagem -->
+        <section class="modal__section">
+          <h3 class="modal__label">Imagem da empresa <span class="modal__optional">(aparece no carrossel)</span></h3>
+          <div class="companies__upload-preview" [style.background]="company.image ? 'center / cover no-repeat url(' + company.image + ')' : 'linear-gradient(135deg, #222b44, #8a93b8)'">
+            @if (!company.image) {
+              <span class="companies__initial">{{ company.name.charAt(0) || '?' }}</span>
+            }
+          </div>
+          <div class="companies__upload-actions">
+            <label class="modal__upload">
+              <input type="file" accept="image/*" (change)="onImage($any($event.target))" />
+              <span>{{ company.image ? 'Trocar imagem' : '+ Enviar imagem' }}</span>
+            </label>
+            @if (company.image) {
+              <button class="attachment__link members__danger" type="button" (click)="patch({ image: null })">Remover imagem</button>
+            }
+          </div>
+          @if (imageError()) {
+            <p class="planning__error" role="alert">{{ imageError() }}</p>
+          }
+        </section>
+
+        <label class="modal__field">
+          <span class="modal__label">Nome *</span>
+          <input class="modal__input" required [value]="company.name" (input)="patch({ name: $any($event.target).value })" />
+        </label>
+        <label class="modal__field">
+          <span class="modal__label">Descrição</span>
+          <textarea class="modal__input modal__textarea" [value]="company.description" (input)="patch({ description: $any($event.target).value })"></textarea>
+        </label>
+        <label class="modal__field">
+          <span class="modal__label">Site</span>
+          <input class="modal__input" type="url" placeholder="https://" [value]="company.site" (input)="patch({ site: $any($event.target).value })" />
+        </label>
+      </div>
+
+      <aside class="modal__side">
+        <label class="modal__toggle">
+          <input type="checkbox" role="switch" [checked]="company.active" (change)="patch({ active: $any($event.target).checked })" />
+          <span>Perfil ativo</span>
+        </label>
+        <p class="modal__hint">Perfis inativos não aparecem no carrossel nem para novos convites e projetos.</p>
+
+        <label class="modal__field">
+          <span class="modal__label">Fuso horário</span>
+          <select class="modal__input" (change)="patch({ timeZone: $any($event.target).value })">
+            @for (zone of timeZones; track zone) {
+              <option [value]="zone" [selected]="zone === company.timeZone">{{ zoneLabel(zone) }}</option>
+            }
+          </select>
+          <span class="modal__hint">Agora lá: {{ localTime(company.timeZone) }}</span>
+        </label>
+
+        <section class="modal__section companies__view">
+          <h3 class="modal__label">Configurações de visualização</h3>
+          <label class="modal__field">
+            <span class="modal__hint">Idioma</span>
+            <select class="modal__input" (change)="patchView({ locale: $any($event.target).value })">
+              @for (locale of locales; track locale.id) {
+                <option [value]="locale.id" [selected]="locale.id === company.view.locale">{{ locale.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="modal__field">
+            <span class="modal__hint">Formato de data</span>
+            <select class="modal__input" (change)="patchView({ dateFormat: $any($event.target).value })">
+              @for (format of dateFormats; track format) {
+                <option [value]="format" [selected]="format === company.view.dateFormat">{{ format }}</option>
+              }
+            </select>
+          </label>
+          <label class="modal__field">
+            <span class="modal__hint">Moeda</span>
+            <select class="modal__input" (change)="patchView({ currency: $any($event.target).value })">
+              @for (currency of currencies; track currency.id) {
+                <option [value]="currency.id" [selected]="currency.id === company.view.currency">{{ currency.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="modal__field">
+            <span class="modal__hint">Semana começa no</span>
+            <select class="modal__input" (change)="patchView({ weekStart: $any($event.target).value })">
+              <option value="sunday" [selected]="company.view.weekStart === 'sunday'">Domingo</option>
+              <option value="monday" [selected]="company.view.weekStart === 'monday'">Segunda-feira</option>
+            </select>
+          </label>
+          <label class="modal__toggle">
+            <input
+              type="checkbox"
+              role="switch"
+              [checked]="company.view.showInCarousel"
+              (change)="patchView({ showInCarousel: $any($event.target).checked })"
+            />
+            <span>Mostrar no carrossel da Home</span>
+          </label>
+          <p class="companies__preview">Exemplo: {{ preview(company.view) }}</p>
+        </section>
+      </aside>
+    </div>
+
+    @if (error()) {
+      <p class="planning__error teams__error" role="alert">{{ error() }}</p>
+    }
+    <footer class="modal__footer">
+      <button class="modal__ghost" type="button" (click)="closeEditor()">Cancelar</button>
+      <button class="modal__primary" type="submit">Salvar perfil</button>
+    </footer>
+  </form>
+</dialog>

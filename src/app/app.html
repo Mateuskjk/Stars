@@ -48,7 +48,18 @@
             <li><a class="center-options__link" routerLink="/workspace/brain">Brain</a></li>
           </ul>
         </li>
-        <li><a class="center-options__link" routerLink="/configuracoes" routerLinkActive="is-active">Configurações</a></li>
+        <li class="center-options__dropdown" routerLinkActive="is-active">
+          <button class="center-options__link" type="button" aria-haspopup="true">Configurações</button>
+          <ul class="center-options__submenu">
+            <li><a class="center-options__link" routerLink="/configuracoes/perfis-empresas">Perfis Empresas</a></li>
+            <li><a class="center-options__link" routerLink="/configuracoes/membros">Membros</a></li>
+            <li><a class="center-options__link" routerLink="/configuracoes/equipes">Equipes</a></li>
+            <li><a class="center-options__link" routerLink="/configuracoes/integracao-ia">Integração com IA</a></li>
+            <li><a class="center-options__link" routerLink="/configuracoes/relatorios">Relatórios</a></li>
+            <li><a class="center-options__link" routerLink="/configuracoes/auditorias">Auditorias</a></li>
+            <li><a class="center-options__link" routerLink="/configuracoes/integracoes">Integrações</a></li>
+          </ul>
+        </li>
       </ul>
     </nav>
     <div class="bottons">

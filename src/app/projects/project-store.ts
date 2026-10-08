@@ -27,16 +27,6 @@ export const PROJECT_STATUSES: { id: ProjectStatus; label: string; color: string
 
 export const TEAMS = ['Produto', 'Engenharia', 'Design', 'Dados', 'Marketing', 'QA'];
 
-// ponytail: empresas fixas de exemplo; trocar por um service/API quando o backend existir
-export const COMPANIES: CarouselItem[] = [
-  { name: 'Acme Ltda', cover: 'linear-gradient(135deg, #222b44, #8a93b8)', link: '/perfis' },
-  { name: 'Nova Tech', cover: 'linear-gradient(135deg, #1f4e79, #a7c4e0)', link: '/perfis' },
-  { name: 'Grupo Horizonte', cover: 'linear-gradient(135deg, #8a4b3c, #f0c9a8)', link: '/perfis' },
-  { name: 'Verde Alimentos', cover: 'linear-gradient(135deg, #2f5d3a, #b5d6a7)', link: '/perfis' },
-  { name: 'Lumen Saúde', cover: 'linear-gradient(135deg, #2f5d62, #bfe0dc)', link: '/perfis' },
-  { name: 'Órbita Logística', cover: 'linear-gradient(135deg, #5c3d6e, #d9c2e6)', link: '/perfis' },
-];
-
 export interface Project {
   id: number;
   name: string;

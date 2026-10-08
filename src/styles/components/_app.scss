@@ -214,6 +214,11 @@
     }
   }
 
+  &__dropdown:last-child &__submenu {
+    right: 0;
+    left: auto;
+  }
+
   &__submenu {
     display: none;
     position: absolute;

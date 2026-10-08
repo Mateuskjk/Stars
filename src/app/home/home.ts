@@ -1,6 +1,7 @@
 import { Component, DestroyRef, afterNextRender, inject, signal } from '@angular/core';
 import { Carousel } from '../carousel/carousel';
-import { COMPANIES, ProjectStore } from '../projects/project-store';
+import { CompanyStore } from '../companies/company-store';
+import { ProjectStore } from '../projects/project-store';
 
 @Component({
   imports: [Carousel],
@@ -22,7 +23,7 @@ export class Home {
 
   protected readonly projects = inject(ProjectStore).carouselItems;
 
-  protected readonly companies = COMPANIES;
+  protected readonly companies = inject(CompanyStore).carouselItems;
 }
 
 // Ex.: "Quarta-feira, 7 de outubro"

@@ -1,0 +1,300 @@
+<header class="backlog__header">
+  <div>
+    <h2 class="backlog__title">Membros</h2>
+    <p class="backlog__subtitle">
+      {{ store.members().length }} membros
+      @if (pendingCount()) {
+        · {{ pendingCount() }} {{ pendingCount() === 1 ? 'convite pendente' : 'convites pendentes' }}
+      }
+    </p>
+  </div>
+  <button class="backlog__new" type="button" (click)="openInvite()">+ Convidar membro</button>
+</header>
+
+<label class="chat__search members__search">
+  <svg class="chat__icon" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-4-4" />
+  </svg>
+  <input type="search" placeholder="Buscar por nome ou e-mail" aria-label="Buscar membros" [value]="search()" (input)="search.set($any($event.target).value)" />
+</label>
+
+<div class="project-table">
+  <table class="project-table__table members__table">
+    <thead>
+      <tr>
+        <th class="project-table__sticky" scope="col">Membro</th>
+        <th scope="col">Empresa</th>
+        <th scope="col">Cargo</th>
+        <th scope="col">Status</th>
+        <th scope="col">Permissões</th>
+        <th scope="col">Token</th>
+        <th scope="col">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (member of list(); track member.id) {
+        <tr>
+          <th class="project-table__sticky" scope="row">
+            <span class="members__person">
+              <span class="backlog-card__avatar members__avatar">{{ initials(member.name) }}</span>
+              <span>
+                <span class="members__name">{{ member.name }}</span>
+                <span class="members__email">{{ member.email }}</span>
+              </span>
+            </span>
+          </th>
+          <td>
+            <select
+              class="project-table__input members__role"
+              [class.members__missing]="!member.company"
+              [attr.aria-label]="'Empresa de ' + member.name"
+              (change)="store.patch(member.id, { company: $any($event.target).value || null })"
+            >
+              <option value="" [selected]="!member.company">Sem empresa</option>
+              @for (company of allCompanies(); track company.id) {
+                <option [value]="company.name" [selected]="company.name === member.company" [disabled]="!company.active && company.name !== member.company">
+                  {{ company.name }}{{ company.active ? '' : ' (inativa)' }}
+                </option>
+              }
+            </select>
+          </td>
+          <td>
+            <select
+              class="project-table__input members__role"
+              [attr.aria-label]="'Cargo de ' + member.name"
+              [attr.title]="isLastAdmin(member) ? 'É o único admin: não pode deixar de ser admin' : null"
+              (change)="changeRole(member, $any($event.target).value)"
+            >
+              @for (role of roles; track role.id) {
+                <option [value]="role.id" [selected]="role.id === member.role" [disabled]="isLastAdmin(member) && role.id !== 'admin'">{{ role.label }}</option>
+              }
+            </select>
+          </td>
+          <td>
+            @if (member.status === 'active') {
+              <span class="status-chip" style="--status-color: #0ca30c">Ativo</span>
+            } @else {
+              <span class="status-chip" style="--status-color: #eda100">Convite pendente</span>
+            }
+          </td>
+          <td>
+            <button class="members__perm-button" type="button" (click)="openPermissions(member)">
+              {{ summary(member.permissions) }} <span aria-hidden="true">›</span>
+            </button>
+          </td>
+          <td>
+            @if (member.tokenHint) {
+              <span class="members__token">
+                <code>stars_••••{{ member.tokenHint }}</code>
+                <button class="attachment__link" type="button" (click)="generateToken(member)">Gerar novo</button>
+                <button class="attachment__link members__danger" type="button" (click)="askRevoke(member)">Revogar</button>
+              </span>
+            } @else {
+              <button class="modal__ghost planning__small" type="button" [disabled]="member.status !== 'active'" (click)="generateToken(member)">
+                Gerar token
+              </button>
+            }
+          </td>
+          <td>
+            <span class="planning__actions">
+              @if (member.status === 'pending') {
+                <button class="modal__ghost planning__small" type="button" (click)="resend(member)">Reenviar convite</button>
+                <a class="modal__ghost planning__small members__link" routerLink="/convite" [queryParams]="{ email: member.email }">Validar código</a>
+              }
+              <button
+                class="modal__ghost modal__ghost--danger planning__small"
+                type="button"
+                [disabled]="isLastAdmin(member)"
+                [attr.title]="isLastAdmin(member) ? 'É o único admin ativo' : null"
+                (click)="askRemove(member)"
+              >
+                Remover
+              </button>
+            </span>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td class="planning__empty" colspan="7">Nenhum membro encontrado.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<!-- Matriz de permissões (convite e edição) -->
+<ng-template #permissionMatrix>
+  <table class="members__matrix">
+    <thead>
+      <tr>
+        <th scope="col">Funcionalidade</th>
+        @for (level of levels; track level.id) {
+          <th scope="col">{{ level.label }}</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (feature of features; track feature.id) {
+        <tr>
+          <th scope="row">{{ feature.label }}</th>
+          @for (level of levels; track level.id) {
+            <td>
+              <input
+                type="radio"
+                [name]="'perm-' + feature.id"
+                [attr.aria-label]="feature.label + ': ' + level.label"
+                [checked]="permDraft()[feature.id] === level.id"
+                (change)="setPermission(feature.id, level.id)"
+              />
+            </td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
+</ng-template>
+
+<!-- Convite -->
+<dialog #inviteDialog class="modal members__dialog" aria-labelledby="invite-title" (click)="closeOnBackdrop($event, inviteDialog)">
+  @if (inviteStep() === 'form') {
+    <form class="modal__form" (submit)="sendInvite($event)">
+      <header class="modal__header">
+        <h2 id="invite-title" class="modal__title">Convidar membro</h2>
+        <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeInvite()">✕</button>
+      </header>
+      <div class="modal__body members__dialog-body">
+        <div class="members__row">
+          <label class="modal__field">
+            <span class="modal__label">Nome *</span>
+            <input class="modal__input" name="name" required autocomplete="off" />
+          </label>
+          <label class="modal__field">
+            <span class="modal__label">E-mail *</span>
+            <input class="modal__input" name="email" type="email" required autocomplete="off" />
+          </label>
+        </div>
+
+        <label class="modal__field">
+          <span class="modal__label">Perfil de empresa *</span>
+          <select class="modal__input" name="company" required>
+            <option value="">Escolha a empresa</option>
+            @for (company of activeCompanies(); track company) {
+              <option [value]="company">{{ company }}</option>
+            }
+          </select>
+        </label>
+
+        <fieldset class="members__roles">
+          <legend class="modal__label">Cargo</legend>
+          @for (role of roles; track role.id) {
+            <label class="members__role-option" [class.is-active]="inviteRole() === role.id">
+              <input type="radio" name="role" [value]="role.id" [checked]="inviteRole() === role.id" (change)="onInviteRole(role.id)" />
+              <span>
+                <strong>{{ role.label }}</strong>
+                <span class="members__email">{{ role.description }}</span>
+              </span>
+            </label>
+          }
+        </fieldset>
+
+        <div class="modal__field">
+          <span class="modal__label">Permissões por funcionalidade <span class="modal__optional">(padrão do cargo; ajuste se precisar)</span></span>
+          <ng-container *ngTemplateOutlet="permissionMatrix" />
+        </div>
+
+        <label class="modal__field">
+          <span class="modal__label">Mensagem personalizada <span class="modal__optional">(opcional, vai no e-mail)</span></span>
+          <textarea class="modal__input modal__textarea" name="message" placeholder="Ex.: Bem-vinda ao time de produto!"></textarea>
+        </label>
+
+        @if (inviteError()) {
+          <p class="planning__error" role="alert">{{ inviteError() }}</p>
+        }
+      </div>
+      <footer class="modal__footer">
+        <button class="modal__ghost" type="button" (click)="closeInvite()">Cancelar</button>
+        <button class="modal__primary" type="submit">Enviar convite</button>
+      </footer>
+    </form>
+  } @else if (sentEmail(); as email) {
+    <header class="modal__header">
+      <h2 id="invite-title" class="modal__title">Convite criado ✓</h2>
+      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeInvite()">✕</button>
+    </header>
+    <div class="modal__body members__dialog-body">
+      <p class="members__notice">
+        ⚠️ O envio real de e-mail ainda não está ligado (falta o servidor de e-mail). Esta é a prévia do e-mail que
+        <strong>{{ email.to }}</strong> vai receber.
+      </p>
+      <article class="members__email-preview">
+        <p class="members__email-meta"><span>Para:</span> {{ email.to }}</p>
+        <p class="members__email-meta"><span>Assunto:</span> {{ email.subject }}</p>
+        <pre class="members__email-body">{{ email.body }}</pre>
+      </article>
+    </div>
+    <footer class="modal__footer">
+      <a class="modal__ghost members__link" routerLink="/convite" [queryParams]="{ email: email.to }" (click)="closeInvite()">Abrir tela de validação</a>
+      <button class="modal__primary" type="button" (click)="closeInvite()">Concluir</button>
+    </footer>
+  }
+</dialog>
+
+<!-- Permissões -->
+<dialog #permDialog class="modal members__dialog" aria-labelledby="perm-title" (click)="closeOnBackdrop($event, permDialog)">
+  @if (editing(); as member) {
+    <header class="modal__header">
+      <h2 id="perm-title" class="modal__title">Permissões de {{ member.name }}</h2>
+      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closePermissions()">✕</button>
+    </header>
+    <div class="modal__body members__dialog-body">
+      <ng-container *ngTemplateOutlet="permissionMatrix" />
+      <button class="modal__ghost members__defaults" type="button" (click)="applyRoleDefaults(member.role)">
+        Voltar ao padrão de {{ roleLabel(member.role) }}
+      </button>
+    </div>
+    <footer class="modal__footer">
+      <button class="modal__ghost" type="button" (click)="closePermissions()">Cancelar</button>
+      <button class="modal__primary" type="button" (click)="savePermissions()">Salvar permissões</button>
+    </footer>
+  }
+</dialog>
+
+<!-- Token gerado (aparece uma vez só) -->
+<dialog #tokenDialog class="modal members__dialog members__dialog--small" aria-labelledby="token-title" (close)="newToken.set(null)">
+  @if (newToken(); as issued) {
+    <header class="modal__header">
+      <h2 id="token-title" class="modal__title">Token de {{ issued.member.name }}</h2>
+    </header>
+    <div class="modal__body members__dialog-body">
+      <p class="members__notice">🔑 Copie agora: por segurança, o token inteiro <strong>não aparece de novo</strong>. Se perder, gere outro.</p>
+      <code class="members__token-full">{{ issued.token }}</code>
+      <p class="members__email">Gerar um token novo faz o anterior parar de funcionar.</p>
+    </div>
+    <footer class="modal__footer">
+      <button class="modal__ghost" type="button" (click)="copyToken()">{{ copied() ? 'Copiado ✓' : 'Copiar' }}</button>
+      <button class="modal__primary" type="button" (click)="closeToken()">Já copiei</button>
+    </footer>
+  }
+</dialog>
+
+<!-- Confirmação -->
+<dialog #confirmDialog class="confirm-dialog" aria-labelledby="members-confirm-title" (click)="closeOnBackdrop($event, confirmDialog)">
+  @if (pending(); as action) {
+    <div class="confirm-dialog__box">
+      <span class="confirm-dialog__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8v5" />
+          <path d="M12 16h.01" />
+        </svg>
+      </span>
+      <h2 id="members-confirm-title" class="confirm-dialog__title">{{ action.title }}</h2>
+      <p class="confirm-dialog__text">{{ action.text }}</p>
+      <div class="confirm-dialog__actions">
+        <button class="confirm-dialog__button" type="button" autofocus (click)="cancelConfirm()">Cancelar</button>
+        <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirm()">{{ action.label }}</button>
+      </div>
+    </div>
+  }
+</dialog>

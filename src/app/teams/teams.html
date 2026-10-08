@@ -1,0 +1,205 @@
+<header class="backlog__header">
+  <div>
+    <h2 class="backlog__title">Equipes</h2>
+    <p class="backlog__subtitle">{{ store.teams().length }} {{ store.teams().length === 1 ? 'equipe' : 'equipes' }} · {{ eligible().length }} membros disponíveis</p>
+  </div>
+  <button class="backlog__new" type="button" (click)="openNew()">+ Nova equipe</button>
+</header>
+
+@if (ineligibleCount()) {
+  <p class="members__notice">
+    {{ ineligibleCount() }} {{ ineligibleCount() === 1 ? 'pessoa não pode' : 'pessoas não podem' }} entrar em equipes ainda: só
+    membros <strong>ativos</strong> e ligados a um <strong>perfil de empresa</strong>.
+    <a routerLink="/configuracoes/membros">Ajustar em Membros</a>
+  </p>
+}
+
+<ul class="teams__grid">
+  @for (team of store.teams(); track team.id) {
+    <li class="teams__card">
+      <header class="teams__card-header">
+        <h3 class="teams__name">{{ team.name }}</h3>
+        <span class="teams__actions">
+          <button class="attachment__link" type="button" (click)="openEdit(team)">Editar</button>
+          <button class="attachment__link members__danger" type="button" (click)="askDelete(team)">Excluir</button>
+        </span>
+      </header>
+      @if (team.focus) {
+        <p class="teams__focus">🎯 {{ team.focus }}</p>
+      }
+
+      <section class="teams__section">
+        <h4 class="teams__label">Membros · {{ membersOf(team).length }}</h4>
+        <ul class="teams__people">
+          @for (member of membersOf(team); track member.id) {
+            <li class="teams__person" [attr.title]="member.name + (member.company ? ' · ' + member.company : '')">
+              <span class="backlog-card__avatar">{{ initials(member.name) }}</span>
+              {{ member.name }}
+            </li>
+          } @empty {
+            <li class="teams__muted">Ninguém ainda</li>
+          }
+        </ul>
+      </section>
+
+      <section class="teams__section">
+        <h4 class="teams__label">Projetos · {{ projectsOf(team).length }}</h4>
+        <span class="teams__chips">
+          @for (project of projectsOf(team); track project.id) {
+            <span class="teams__chip">
+              <span class="project-table__cover teams__cover" [style.background]="project.cover"></span>
+              {{ project.name }}
+            </span>
+          } @empty {
+            <span class="teams__muted">Nenhum projeto</span>
+          }
+        </span>
+      </section>
+
+      <section class="teams__section">
+        <h4 class="teams__label">Atividades gerais · {{ activitiesOf(team).length }}</h4>
+        <ul class="teams__activities">
+          @for (activity of activitiesOf(team); track activity.id) {
+            <li>
+              <a class="teams__activity" routerLink="/workspace/backlog" [queryParams]="{ cartao: activity.id }">{{ activity.name }}</a>
+              <span class="teams__muted">{{ statusLabel(activity.status) }}</span>
+            </li>
+          } @empty {
+            <li class="teams__muted">Nenhuma atividade delegada</li>
+          }
+        </ul>
+      </section>
+    </li>
+  } @empty {
+    <li class="favorites__empty teams__empty">
+      <p>Nenhuma equipe ainda.</p>
+      <button class="backlog__new" type="button" (click)="openNew()">+ Criar a primeira equipe</button>
+    </li>
+  }
+</ul>
+
+<!-- Criar / editar equipe -->
+<dialog #editor class="modal" aria-labelledby="team-title" (click)="closeOnBackdrop($event, editor)">
+  @let team = draft();
+  <form class="modal__form" (submit)="save($event)">
+    <header class="modal__header">
+      <h2 id="team-title" class="modal__title">{{ editingId() === null ? 'Nova equipe' : 'Editar equipe' }}</h2>
+      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeEditor()">✕</button>
+    </header>
+
+    <div class="modal__body teams__body">
+      <div class="modal__main">
+        <label class="modal__field">
+          <span class="modal__label">Nome *</span>
+          <input class="modal__input" required [value]="team.name" (input)="patch({ name: $any($event.target).value })" />
+        </label>
+        <label class="modal__field">
+          <span class="modal__label">Foco da equipe</span>
+          <textarea
+            class="modal__input modal__textarea"
+            placeholder="Ex.: experiência do cliente no app"
+            [value]="team.focus"
+            (input)="patch({ focus: $any($event.target).value })"
+          ></textarea>
+        </label>
+
+        <!-- Membros -->
+        <fieldset class="teams__picker">
+          <legend class="modal__label">Membros · {{ team.memberIds.length }} selecionados</legend>
+          <p class="modal__hint">Só aparecem membros ativos e ligados a um perfil de empresa.</p>
+          <input
+            class="modal__input"
+            type="search"
+            placeholder="Buscar por nome ou empresa"
+            aria-label="Buscar membros"
+            [value]="memberSearch()"
+            (input)="memberSearch.set($any($event.target).value)"
+          />
+          <ul class="teams__options">
+            @for (member of filteredEligible(); track member.id) {
+              <li>
+                <label class="modal__check teams__option">
+                  <input type="checkbox" [checked]="team.memberIds.includes(member.id)" (change)="toggle('memberIds', member.id)" />
+                  <span class="backlog-card__avatar">{{ initials(member.name) }}</span>
+                  <span>
+                    <span class="members__name">{{ member.name }}</span>
+                    <span class="members__email">{{ member.company }}</span>
+                  </span>
+                </label>
+              </li>
+            } @empty {
+              <li class="teams__muted">Nenhum membro disponível com esse filtro.</li>
+            }
+          </ul>
+        </fieldset>
+      </div>
+
+      <aside class="modal__side teams__side">
+        <!-- Projetos -->
+        <fieldset class="teams__picker">
+          <legend class="modal__label">Projetos associados · {{ team.projectIds.length }}</legend>
+          <ul class="teams__options">
+            @for (project of projects(); track project.id) {
+              <li>
+                <label class="modal__check teams__option">
+                  <input type="checkbox" [checked]="team.projectIds.includes(project.id)" (change)="toggle('projectIds', project.id)" />
+                  <span class="project-table__cover teams__cover" [style.background]="project.cover"></span>
+                  {{ project.name }}
+                </label>
+              </li>
+            }
+          </ul>
+        </fieldset>
+
+        <!-- Atividades gerais -->
+        <fieldset class="teams__picker">
+          <legend class="modal__label">Atividades gerais delegadas · {{ team.activityIds.length }}</legend>
+          <ul class="teams__options">
+            @for (activity of activities(); track activity.id) {
+              <li>
+                <label class="modal__check teams__option">
+                  <input type="checkbox" [checked]="team.activityIds.includes(activity.id)" (change)="toggle('activityIds', activity.id)" />
+                  <span>
+                    {{ activity.name }}
+                    @if (otherTeams(activity.id); as others) {
+                      <span class="members__email">também em: {{ others }}</span>
+                    }
+                  </span>
+                </label>
+              </li>
+            }
+          </ul>
+        </fieldset>
+      </aside>
+    </div>
+
+    @if (error()) {
+      <p class="planning__error teams__error" role="alert">{{ error() }}</p>
+    }
+    <footer class="modal__footer">
+      <button class="modal__ghost" type="button" (click)="closeEditor()">Cancelar</button>
+      <button class="modal__primary" type="submit">Salvar equipe</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- Confirmação de exclusão -->
+<dialog #confirmDialog class="confirm-dialog" aria-labelledby="teams-confirm-title" (click)="closeOnBackdrop($event, confirmDialog)">
+  @if (deleting(); as team) {
+    <div class="confirm-dialog__box">
+      <span class="confirm-dialog__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 6h18" />
+          <path d="M8 6V4h8v2" />
+          <path d="M6 6l1 14h10l1-14" />
+        </svg>
+      </span>
+      <h2 id="teams-confirm-title" class="confirm-dialog__title">Excluir a equipe {{ team.name }}?</h2>
+      <p class="confirm-dialog__text">Os membros, projetos e atividades continuam no sistema; só a equipe deixa de existir.</p>
+      <div class="confirm-dialog__actions">
+        <button class="confirm-dialog__button" type="button" autofocus (click)="cancelDelete()">Cancelar</button>
+        <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDelete()">Excluir</button>
+      </div>
+    </div>
+  }
+</dialog>
