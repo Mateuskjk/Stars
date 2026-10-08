@@ -1,4 +1,5 @@
 import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { formatTime } from '../chat/chat';
 import { formatWeekDate } from '../home/home';
 import { LINK, Note, NotesStore, linksIn } from './notes-store';
@@ -62,8 +63,16 @@ export class Notes {
     return parts;
   });
 
+  private readonly route = inject(ActivatedRoute);
+
   constructor() {
-    afterNextRender(() => this.store.load());
+    afterNextRender(() => {
+      this.store.load();
+      // Vindo do Brain: /workspace/notes?nota=ID abre a nota direto
+      const id = Number(this.route.snapshot.queryParamMap.get('nota'));
+      const note = this.store.notes().find((n) => n.id === id);
+      if (note) this.open(note);
+    });
   }
 
   protected isLink(segment: Segment): segment is { link: string; exists: boolean } {

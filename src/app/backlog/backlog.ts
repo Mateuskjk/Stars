@@ -1,5 +1,6 @@
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
+import { ActivatedRoute } from '@angular/router';
 import { USERS, formatTime, initials } from '../chat/chat';
 import {
   Attachment,
@@ -22,6 +23,16 @@ const today = () => new Date().toISOString().slice(0, 10);
 export class Backlog {
   private readonly store = inject(BacklogStore);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly route = inject(ActivatedRoute);
+
+  constructor() {
+    // Vindo dos Favoritos: /workspace/backlog?cartao=ID abre o cartão direto
+    afterNextRender(() => {
+      const id = Number(this.route.snapshot.queryParamMap.get('cartao'));
+      const item = this.store.items().find((current) => current.id === id);
+      if (item) this.openEdit(item);
+    });
+  }
 
   protected readonly columns = BACKLOG_COLUMNS;
   protected readonly people = USERS.map((user) => user.name);

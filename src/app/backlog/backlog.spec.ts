@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { Backlog } from './backlog';
 import { BacklogStore } from './backlog-store';
 
@@ -12,7 +13,7 @@ HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
 
 describe('Backlog', () => {
   it('creates, edits, advances, locks and deletes an activity through the modal', async () => {
-    await TestBed.configureTestingModule({ imports: [Backlog] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [Backlog], providers: [provideRouter([])] }).compileComponents();
     const store = TestBed.inject(BacklogStore);
     const fixture = TestBed.createComponent(Backlog);
     fixture.detectChanges();

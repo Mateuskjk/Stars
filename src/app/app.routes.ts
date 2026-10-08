@@ -1,8 +1,10 @@
 import { Routes } from '@angular/router';
 import { Backlog } from './backlog/backlog';
+import { Brain } from './brain/brain';
 import { Chat } from './chat/chat';
 import { Daily } from './daily/daily';
 import { Dashboard } from './dashboard/dashboard';
+import { Favorites } from './favorites/favorites';
 import { Home } from './home/home';
 import { ProjectCreate } from './projects/project-create';
 import { Notes } from './notes/notes';
@@ -23,8 +25,8 @@ export const routes: Routes = [
       { path: 'backlog', component: Backlog },
       { path: 'planning', component: Planning },
       { path: 'notes', component: Notes },
-      { path: 'favorites', children: [] },
-      { path: 'brain', children: [] },
+      { path: 'favorites', component: Favorites },
+      { path: 'brain', component: Brain },
     ],
   },
   { path: 'configuracoes', children: [] },

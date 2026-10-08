@@ -1,0 +1,119 @@
+<div class="week-date brain__date">
+  <p class="brain__subtitle">🧠 Brain · o grafo das suas notas</p>
+  <p class="week-date__title">{{ stats().notes }} notas · {{ stats().links }} ligações</p>
+</div>
+
+<div class="brain__layout">
+  <!-- Grafo -->
+  <div class="brain__canvas">
+    <svg
+      #svg
+      class="brain__svg"
+      role="img"
+      aria-label="Grafo das notas: cada círculo é uma nota e cada linha é um link entre duas notas"
+      [attr.viewBox]="viewBox()"
+      [class.is-focused]="hovered() !== null"
+      (pointerdown)="onPointerDown($event)"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp()"
+      (pointercancel)="onPointerUp()"
+      (wheel)="onWheel($event)"
+    >
+      <g [attr.transform]="transform()">
+        @for (edge of view().edges; track edge.a + '-' + edge.b) {
+          <line
+            class="brain__edge"
+            [class.is-active]="neighbors().has(edge.a) && neighbors().has(edge.b) && (edge.a === hovered() || edge.b === hovered())"
+            [attr.x1]="edge.from!.x"
+            [attr.y1]="edge.from!.y"
+            [attr.x2]="edge.to!.x"
+            [attr.y2]="edge.to!.y"
+          />
+        }
+        @for (node of view().nodes; track node.id) {
+          <g
+            class="brain__node"
+            role="button"
+            tabindex="0"
+            [class.is-active]="node.id === hovered()"
+            [class.is-neighbor]="neighbors().has(node.id)"
+            [class.is-orphan]="!node.degree"
+            [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
+            [attr.aria-label]="node.title + ', ' + node.degree + (node.degree === 1 ? ' ligação' : ' ligações') + '. Enter para abrir'"
+            (pointerdown)="onPointerDown($event, node.id)"
+            (pointerenter)="hovered.set(node.id)"
+            (pointerleave)="hovered.set(null)"
+            (focus)="hovered.set(node.id)"
+            (blur)="hovered.set(null)"
+            (keydown.enter)="openNote(node.id)"
+          >
+            <circle class="brain__hit" [attr.r]="node.r + 8" />
+            <circle class="brain__dot" [attr.r]="node.r" />
+            @if (showLabel(node)) {
+              <text class="brain__label" [attr.y]="node.r + 14" text-anchor="middle">{{ node.title }}</text>
+            }
+          </g>
+        }
+      </g>
+    </svg>
+
+    <div class="brain__controls">
+      <button class="nav-button" type="button" aria-label="Aproximar" (click)="zoom(1.25)">+</button>
+      <button class="nav-button" type="button" aria-label="Afastar" (click)="zoom(0.8)">−</button>
+      <button class="nav-button" type="button" aria-label="Enquadrar o grafo" (click)="fit()">⌖</button>
+    </div>
+    <p class="brain__help">Arraste as notas · arraste o fundo para mover · role para zoom · clique para abrir</p>
+
+    @if (!stats().notes) {
+      <p class="brain__empty">Nenhuma nota ainda. Crie notas em <a routerLink="/workspace/notes">Notas</a> e ligue-as com [[links]].</p>
+    }
+  </div>
+
+  <!-- Painel lateral -->
+  <aside class="brain__panel">
+    @if (focusedNote(); as note) {
+      <section class="brain__card">
+        <p class="brain__eyebrow">Nota em destaque</p>
+        <h2 class="brain__title">{{ note.title }}</h2>
+        <p class="brain__muted">{{ degree().get(note.id) ?? 0 }} ligações · mencionada em {{ focusedBacklinks() }}</p>
+        <button class="modal__primary brain__open" type="button" (click)="openNote(note.id)">Abrir nota</button>
+      </section>
+    } @else {
+      <section class="brain__card">
+        <p class="brain__eyebrow">Dica</p>
+        <p class="brain__muted">Passe o mouse (ou use Tab) sobre uma nota para ver as ligações dela.</p>
+      </section>
+    }
+
+    <section class="brain__card">
+      <dl class="brain__stats">
+        <div>
+          <dt>Notas</dt>
+          <dd>{{ stats().notes }}</dd>
+        </div>
+        <div>
+          <dt>Ligações</dt>
+          <dd>{{ stats().links }}</dd>
+        </div>
+        <div>
+          <dt>Soltas</dt>
+          <dd>{{ stats().orphans }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="brain__card">
+      <p class="brain__eyebrow">Mais conectadas</p>
+      <ol class="brain__hubs">
+        @for (note of stats().hubs; track note.id) {
+          <li>
+            <button class="notes__link" type="button" (click)="openNote(note.id)">{{ note.title }}</button>
+            <span class="brain__muted">{{ degree().get(note.id) }}</span>
+          </li>
+        } @empty {
+          <li class="brain__muted">Nenhuma ligação ainda.</li>
+        }
+      </ol>
+    </section>
+  </aside>
+</div>

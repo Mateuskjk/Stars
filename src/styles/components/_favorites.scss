@@ -1,0 +1,89 @@
+@use '../variables' as *;
+
+.favorites {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+
+  &__link {
+    display: inline-grid;
+    place-items: center;
+    text-decoration: none;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    list-style: none;
+  }
+
+  &__card {
+    position: relative;
+    border: 1px solid #e7e8ea;
+  }
+
+  &__open {
+    min-height: 100%;
+    cursor: pointer;
+    text-decoration: none;
+
+    // só a linha de cima reserva espaço para a estrela; o resto usa a largura toda,
+    // e assim o avatar (no canto de baixo) fica alinhado com a estrela (no canto de cima)
+    .status-chip {
+      align-self: flex-start;
+      margin-right: 32px;
+    }
+  }
+
+  &__description {
+    display: -webkit-box;
+    overflow: hidden;
+    color: #898781;
+    font-size: 13px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  &__star {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: #eda100;
+    font-size: 20px;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      background-color: #fff6e0;
+    }
+  }
+
+  &__empty {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    min-height: 320px;
+    border: 2px dashed #e7e8ea;
+    border-radius: 15px;
+    color: $color-title;
+    text-align: center;
+  }
+
+  &__empty-star {
+    color: #eda100;
+    font-size: 40px;
+  }
+}
