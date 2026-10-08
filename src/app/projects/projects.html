@@ -49,7 +49,7 @@
                   }
                 </select>
               </div>
-              <p class="kanban__card-title">{{ card.name }}</p>
+              <a class="kanban__card-title kanban__card-link" [routerLink]="['/projetos', card.id]">{{ card.name }}</a>
               @if (card.description) {
                 <p class="kanban__description">{{ card.description }}</p>
               }

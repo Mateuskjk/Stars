@@ -1,0 +1,204 @@
+@use '../variables' as *;
+
+// Página do projeto (/projetos/:id): cabeçalho com os dados + kanban das atividades (reaproveita .kanban)
+
+$page-muted: #898781;
+$page-line: #e7e8ea;
+
+.project-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+
+  &__header {
+    display: grid;
+    grid-template-columns: 8px 1fr 280px;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 15px;
+    background-color: $color-surface;
+    box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  }
+
+  // Faixa com a capa do projeto
+  &__cover {
+    border-radius: 6px;
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  &__title {
+    color: $color-title;
+    font-size: 22px;
+  }
+
+  &__dash {
+    margin-left: auto;
+    text-decoration: none;
+  }
+
+  &__description {
+    color: $color-text;
+    font-size: 14px;
+  }
+
+  &__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px 16px;
+
+    dt {
+      color: $page-muted;
+      font-size: 11px;
+    }
+
+    dd {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      color: $color-title;
+      font-size: 14px;
+      font-weight: 600;
+    }
+  }
+
+  &__docs {
+    grid-column: 1 / -1;
+  }
+
+  &__progress {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-left: 16px;
+    border-left: 1px solid $page-line;
+  }
+
+  &__progress-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: $page-muted;
+    font-size: 13px;
+
+    strong {
+      color: $color-title;
+      font-size: 28px;
+    }
+  }
+
+  &__numbers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+
+    dt {
+      color: $page-muted;
+      font-size: 11px;
+    }
+
+    dd {
+      color: $color-title;
+      font-size: 13px;
+      font-weight: 600;
+
+      small {
+        color: $page-muted;
+        font-weight: 400;
+      }
+    }
+  }
+
+  &__sprint {
+    margin-top: auto;
+    color: $page-muted;
+    font-size: 12px;
+  }
+
+  // ---------- Kanban ----------
+
+  &__kanban-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    .kanban__title {
+      margin-right: auto;
+    }
+  }
+
+  &__sprint-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__new {
+    display: grid;
+    grid-template-columns: 2fr repeat(4, 1fr) auto;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    background-color: #f0f2f3;
+  }
+
+  &__points {
+    flex-shrink: 0;
+    margin-left: auto;
+    color: $color-title;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  &__due {
+    flex-shrink: 0;
+    color: $page-muted;
+    font-size: 11px;
+
+    &.is-late {
+      color: #d03b3b;
+      font-weight: 600;
+    }
+  }
+
+  .kanban__project.is-current {
+    background-color: #dbe8f8;
+    color: $color-title;
+  }
+}
+
+@media (max-width: $bp-tablet) {
+  .project-page__header {
+    grid-template-columns: 8px 1fr;
+  }
+
+  .project-page__progress {
+    grid-column: 1 / -1;
+    padding: 12px 0 0;
+    border-top: 1px solid $page-line;
+    border-left: none;
+  }
+
+  .project-page__new {
+    grid-template-columns: 1fr 1fr;
+
+    input {
+      grid-column: 1 / -1;
+    }
+  }
+}

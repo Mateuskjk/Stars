@@ -11,9 +11,10 @@ export const routes: Routes = [
   {
     path: 'projetos',
     children: [
-      { path: '', children: [] }, // ponytail: /projetos ficou vazia; a tela antiga agora está em visaoGeral
+      { path: '', loadComponent: () => import('./projects/project-dashboard').then((m) => m.ProjectDashboard) },
       { path: 'visaoGeral', loadComponent: () => import('./projects/projects').then((m) => m.Projects) },
       { path: 'novo', loadComponent: () => import('./projects/project-create').then((m) => m.ProjectCreate) },
+      { path: ':id', loadComponent: () => import('./projects/project-page').then((m) => m.ProjectPage) },
     ],
   },
   {

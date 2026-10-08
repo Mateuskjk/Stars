@@ -1,6 +1,6 @@
 import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { formatTime } from '../chat/chat';
-import { AiModelConfig, AiModelDraft, AiStore, DEFAULT_PROMPT, PROVIDERS, Provider } from './ai-store';
+import { AiModelConfig, AiModelDraft, AiStore, DEFAULT_PROMPT, PROVIDERS, Provider, fixedTemperature } from './ai-store';
 
 const empty = (provider: Provider = 'anthropic'): AiModelDraft => ({
   name: '',
@@ -19,6 +19,7 @@ const empty = (provider: Provider = 'anthropic'): AiModelDraft => ({
 export class AiIntegration {
   protected readonly store = inject(AiStore);
   protected readonly providers = PROVIDERS;
+  protected readonly fixedTemperature = fixedTemperature;
   protected readonly defaultPrompt = DEFAULT_PROMPT;
 
   constructor() {

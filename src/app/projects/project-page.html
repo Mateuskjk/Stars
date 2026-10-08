@@ -1,0 +1,168 @@
+@if (project(); as p) {
+  <!-- Cabeçalho com as informações completas do projeto -->
+  <header class="project-page__header">
+    <div class="project-page__cover" [style.background]="p.cover" aria-hidden="true"></div>
+    <div class="project-page__main">
+      <div class="project-page__title-row">
+        <h2 class="project-page__title">{{ p.name }}</h2>
+        @if (status(); as st) {
+          <span class="status-chip" [style.--status-color]="st.color">{{ st.label }}</span>
+        }
+        <span class="status-chip" [style.--status-color]="summary().health.color" title="Saúde pelo burn-up">{{ summary().health.label }}</span>
+        <a class="modal__ghost planning__small project-page__dash" [routerLink]="['/projetos']" [queryParams]="{ projeto: p.id }">Ver no Dash de Projetos</a>
+      </div>
+      @if (p.description) {
+        <p class="project-page__description">{{ p.description }}</p>
+      }
+
+      <dl class="project-page__facts">
+        <div><dt>Responsável</dt><dd>{{ p.owner || '—' }}</dd></div>
+        <div><dt>Quem solicitou</dt><dd>{{ p.requester || '—' }}</dd></div>
+        <div><dt>Empresa</dt><dd>{{ p.company || '—' }}</dd></div>
+        <div><dt>Setor</dt><dd>{{ p.sector || '—' }}</dd></div>
+        <div><dt>Time responsável</dt><dd>{{ p.team || '—' }}</dd></div>
+        <div><dt>Custo inicial</dt><dd>{{ money(p.costInitial) }}</dd></div>
+        <div><dt>Custo de desenvolvimento</dt><dd>{{ money(p.costDev) }}</dd></div>
+        <div><dt>Custo final</dt><dd>{{ money(p.costFinal) }}</dd></div>
+        <div class="project-page__docs">
+          <dt>Documentação</dt>
+          <dd>
+            @for (doc of p.docs; track $index) {
+              <span class="project-table__doc">{{ doc }}</span>
+            } @empty {
+              —
+            }
+          </dd>
+        </div>
+      </dl>
+    </div>
+
+    <!-- Andamento (mesmos cálculos do Dash de Projetos) -->
+    @let s = summary();
+    <aside class="project-page__progress" aria-label="Andamento do projeto">
+      <div class="project-page__progress-head">
+        <span>Progresso</span>
+        <strong>{{ s.progress }}%</strong>
+      </div>
+      <span class="meter" role="img" [attr.aria-label]="'Progresso: ' + s.progress + '%'">
+        <span class="meter__fill" [style.width.%]="s.progress"></span>
+      </span>
+      <dl class="project-page__numbers">
+        <div><dt>Pontos</dt><dd>{{ s.done }} de {{ s.total }}</dd></div>
+        <div><dt>Velocidade</dt><dd>{{ s.velocity }} pts/sprint</dd></div>
+        <div><dt>Previsão</dt><dd>{{ s.forecast }} <small>(plano {{ s.planned }})</small></dd></div>
+        <div><dt>Atrasadas</dt><dd [class.project-dash__bad]="s.overdue">{{ s.overdue }}</dd></div>
+      </dl>
+      <p class="project-page__sprint">Sprint {{ currentSprint }} · dia {{ todayInSprint }} de {{ sprintDays }}</p>
+    </aside>
+  </header>
+
+  <!-- Kanban só com as atividades deste projeto -->
+  <section class="kanban project-page__kanban" [attr.aria-label]="'Atividades de ' + p.name">
+    <div class="project-page__kanban-head">
+      <h2 class="kanban__title">Atividades do projeto</h2>
+      <label class="project-page__sprint-filter">
+        <span class="project-dash__unit">Sprint</span>
+        <select class="modal__input" (change)="sprintFilter.set(+$any($event.target).value)">
+          <option value="0">Todas</option>
+          @for (n of sprintOptions(); track n) {
+            <option [value]="n" [selected]="n === sprintFilter()">Sprint {{ n }}{{ n === currentSprint ? ' (atual)' : '' }}</option>
+          }
+        </select>
+      </label>
+      <button class="backlog__new" type="button" (click)="creating.set(!creating())">{{ creating() ? 'Cancelar' : '+ Nova atividade' }}</button>
+    </div>
+
+    @if (creating()) {
+      <form class="project-page__new" (submit)="create($event)">
+        <input class="modal__input" name="title" placeholder="Nome da atividade *" aria-label="Nome da atividade" required maxlength="120" />
+        <select class="modal__input" name="assignee" aria-label="Responsável">
+          @for (person of people; track person) {
+            <option [value]="person" [selected]="person === p.owner">{{ person }}</option>
+          }
+        </select>
+        <select class="modal__input" name="points" aria-label="Pontos">
+          @for (n of points; track n) {
+            <option [value]="n" [selected]="n === 3">{{ n }} pts</option>
+          }
+        </select>
+        <select class="modal__input" name="sprint" aria-label="Sprint">
+          @for (n of [currentSprint, currentSprint + 1, currentSprint + 2, currentSprint + 3]; track n) {
+            <option [value]="n">Sprint {{ n }}{{ n === currentSprint ? ' (atual)' : '' }}</option>
+          }
+        </select>
+        <select class="modal__input" name="status" aria-label="Coluna">
+          @for (column of columns(); track column.id) {
+            <option [value]="column.id">{{ column.label }}</option>
+          }
+        </select>
+        <button class="backlog__new" type="submit">Criar</button>
+      </form>
+    }
+
+    <div class="kanban__board">
+      @for (column of board(); track column.id) {
+        <div
+          class="kanban__column"
+          [class.is-drop-target]="dropTarget() === column.id"
+          (dragover)="onDragOver($event, column.id)"
+          (drop)="onDrop($event, column.id)"
+        >
+          <header class="kanban__column-header">
+            <span class="kanban__status" [style.background]="column.color"></span>
+            <app-column-title
+              class="kanban__column-title"
+              [label]="column.label"
+              [custom]="isCustom(column.id)"
+              [count]="column.cards.length"
+              fallback="A fazer"
+              (rename)="renameColumn(column.id, $event)"
+              (remove)="removeColumn(column.id)"
+            />
+            <span class="kanban__count" [title]="column.points + ' pontos'">{{ column.cards.length }}</span>
+          </header>
+
+          <ul class="kanban__cards">
+            @for (card of column.cards; track card.id) {
+              <li
+                class="kanban__card"
+                draggable="true"
+                [class.is-dragging]="dragging() === card.id"
+                (dragstart)="dragging.set(card.id)"
+                (dragend)="endDrag()"
+              >
+                <div class="kanban__card-header">
+                  <span class="kanban__project" [class.is-current]="card.sprint === currentSprint">Sprint {{ card.sprint }}</span>
+                  <span class="project-page__points" [title]="card.points + ' pontos'">{{ card.points }} pts</span>
+                  <select class="kanban__move" [attr.aria-label]="'Mover ' + card.title + ' para'" (change)="move(card.id, $any($event.target).value)">
+                    @for (option of columns(); track option.id) {
+                      <option [value]="option.id" [selected]="option.id === card.status">{{ option.label }}</option>
+                    }
+                  </select>
+                </div>
+                <p class="kanban__card-title">{{ card.title }}</p>
+                <div class="kanban__card-footer">
+                  <span class="kanban__avatar" aria-hidden="true">{{ initials(card.assignee) }}</span>
+                  <span class="kanban__assignee">{{ card.assignee }}</span>
+                  <span class="project-page__due" [class.is-late]="isLate(card)">
+                    {{ isLate(card) ? 'Atrasada · ' : '' }}{{ card.status === 'done' && card.doneAt ? 'entregue ' + shortDate(card.doneAt) : 'até ' + shortDate(card.end) }}
+                  </span>
+                </div>
+              </li>
+            } @empty {
+              <li class="kanban__empty">Nenhuma atividade</li>
+            }
+          </ul>
+        </div>
+      }
+      @if (isAdmin()) {
+        <app-add-column (add)="addColumn($event)" />
+      }
+    </div>
+  </section>
+} @else {
+  <div class="dash-card favorites__empty">
+    <p>Projeto não encontrado.</p>
+    <p class="backlog__subtitle">Ele pode ter sido criado em outra sessão (os projetos ainda ficam só na memória). <a routerLink="/projetos/visaoGeral">Ver todos os projetos</a></p>
+  </div>
+}

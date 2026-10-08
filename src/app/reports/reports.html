@@ -76,8 +76,10 @@
         }
         @for (line of chart.lines; track line.name) {
           <path class="chart__line" [attr.d]="line.path" [attr.stroke]="line.color" />
-          <circle class="chart__dot" [attr.cx]="line.end.x" [attr.cy]="line.end.y" r="4" [attr.fill]="line.color" />
-          <text class="chart__value" [attr.x]="line.end.x + 8" [attr.y]="line.end.y">{{ line.end.value }}%</text>
+          @if (line.end) {
+            <circle class="chart__dot" [attr.cx]="line.end.x" [attr.cy]="line.end.y" r="4" [attr.fill]="line.color" />
+            <text class="chart__value" [attr.x]="line.end.x + 8" [attr.y]="line.end.y">{{ line.end.value }}%</text>
+          }
         }
         @for (hit of chart.hits; track hit.x) {
           <g

@@ -166,6 +166,15 @@ $status-active: #0ca30c;
     font-weight: 600;
   }
 
+  // Nome do projeto no card da Visão Geral: abre a página do projeto
+  &__card-link {
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
   &__card-footer {
     display: flex;
     align-items: center;

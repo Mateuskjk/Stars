@@ -26,6 +26,15 @@ describe('AI providers', () => {
     expect(buildRequest({ ...base, provider: 'deepseek' }, messages).url).toBe('https://api.deepseek.com/chat/completions');
   });
 
+  it('omits temperature for OpenAI reasoning models (gpt-5, o-series)', () => {
+    for (const model of ['gpt-5', 'gpt-5-mini', 'o3', 'o4-mini']) {
+      const body = buildRequest({ ...base, model, maxTokens: 800 }, messages).body as any;
+      expect(body.temperature).toBeUndefined();
+      expect(body).toMatchObject({ reasoning_effort: 'low', max_completion_tokens: 4000 });
+    }
+    expect((buildRequest({ ...base, model: 'gpt-4.1' }, messages).body as any).temperature).toBe(0.5);
+  });
+
   it('reads the reply text from each response format', () => {
     expect(readReply('openai', { choices: [{ message: { content: 'ok' } }] })).toBe('ok');
     expect(readReply('anthropic', { content: [{ type: 'text', text: 'o' }, { type: 'text', text: 'k' }] })).toBe('ok');

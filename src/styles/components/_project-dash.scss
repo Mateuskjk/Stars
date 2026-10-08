@@ -1,0 +1,357 @@
+@use '../variables' as *;
+
+// Dash de Projetos (/projetos): reaproveita .dashboard, .dash-card, .stat, .chart e .legend
+
+$ink-muted: #898781;
+$grid: #e1e0d9;
+$good: #0ca30c;
+$warn: #eda100;
+$bad: #d03b3b;
+$info: #2a78d6;
+
+.project-dash {
+  min-width: 0;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 0 4px;
+  }
+
+  &__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  &__filter {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 200px;
+    color: $ink-muted;
+    font-size: 12px;
+  }
+
+  &__unit {
+    color: $ink-muted;
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  &__health {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: $ink-muted;
+    font-size: 12px;
+  }
+
+  &__bad {
+    color: $bad;
+  }
+
+  &__muted {
+    color: $ink-muted;
+    font-weight: 400;
+  }
+
+  &__insights {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 16px;
+  }
+
+  &__ai {
+    gap: 4px;
+  }
+
+  &__ai-text {
+    flex: 1;
+    max-height: 340px;
+    overflow-y: auto;
+    color: $color-text;
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: pre-wrap; // a resposta da IA vem em texto com quebras de linha
+
+    a {
+      color: $color-title;
+      font-weight: 600;
+    }
+
+    &.is-loading {
+      color: $ink-muted;
+    }
+
+    &.is-error {
+      color: $bad;
+    }
+  }
+
+  &__ai-button {
+    align-self: flex-start;
+    margin-top: 12px;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  // Números de apoio embaixo dos gráficos
+  &__facts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid $grid;
+
+    dt {
+      color: $ink-muted;
+      font-size: 11px;
+    }
+
+    dd {
+      color: $color-title;
+      font-size: 14px;
+      font-weight: 600;
+    }
+  }
+}
+
+// Linha tracejada na legenda (ideal, planejado, projeção)
+.legend__line {
+  background: var(--line-color);
+
+  &.is-dashed {
+    height: 0;
+    border-top: 2px dashed var(--line-color);
+    background: none;
+  }
+}
+
+// ---------- Insights ----------
+
+.insights {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+
+  &__item {
+    padding: 8px 12px;
+    border-left: 4px solid var(--tone);
+    border-radius: 8px;
+    background-color: color-mix(in srgb, var(--tone) 8%, transparent);
+    color: $color-text;
+    font-size: 13px;
+    line-height: 1.45;
+
+    &--good {
+      --tone: #{$good};
+    }
+
+    &--warn {
+      --tone: #{$warn};
+    }
+
+    &--bad {
+      --tone: #{$bad};
+    }
+
+    &--info {
+      --tone: #{$info};
+    }
+  }
+
+  // O tom também vem escrito, não só na cor
+  &__tone {
+    margin-right: 4px;
+    color: $color-title;
+    font-weight: 700;
+  }
+}
+
+// ---------- Gantt ----------
+
+.gantt {
+  --label-w: 220px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+
+  &__inner {
+    min-width: 720px;
+    padding-right: 10px; // espaço para o ◆ no fim da linha do tempo
+  }
+
+  &__head,
+  &__row {
+    display: grid;
+    grid-template-columns: var(--label-w) 1fr;
+    align-items: center;
+  }
+
+  &__head {
+    padding-bottom: 6px;
+    border-bottom: 1px solid $grid;
+    color: $ink-muted;
+    font-size: 11px;
+  }
+
+  &__timeline {
+    position: relative;
+    height: 16px;
+  }
+
+  &__sprint {
+    position: absolute;
+    top: 0;
+    overflow: hidden;
+    text-align: center;
+    white-space: nowrap;
+
+    &.is-current {
+      color: $color-title;
+      font-weight: 700;
+    }
+  }
+
+  &__body {
+    position: relative;
+  }
+
+  // Faixas das sprints e linha de hoje, atrás das barras
+  &__grid {
+    position: absolute;
+    inset: 0 0 0 var(--label-w);
+    pointer-events: none;
+  }
+
+  &__band {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px solid $grid;
+
+    &.is-current {
+      background-color: rgba(42, 120, 214, 0.06);
+    }
+  }
+
+  &__today {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    border-left: 2px solid $bad;
+  }
+
+  &__row {
+    min-height: 40px;
+    border-bottom: 1px solid #efeee9;
+  }
+
+  &__label {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 4px 12px 4px 0;
+  }
+
+  &__name {
+    overflow: hidden;
+    color: $color-title;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__detail {
+    overflow: hidden;
+    color: $ink-muted;
+    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__track {
+    position: relative;
+    height: 40px;
+  }
+
+  &__bar {
+    position: absolute;
+    top: 50%;
+    height: 16px;
+    overflow: hidden;
+    border-radius: 6px;
+    background-color: color-mix(in srgb, var(--bar-color) 28%, #fff);
+    outline: none;
+    transform: translateY(-50%);
+    cursor: default;
+
+    &:hover,
+    &:focus-visible {
+      box-shadow: 0 0 0 2px $color-surface, 0 0 0 4px var(--bar-color);
+    }
+
+    &.is-late {
+      box-shadow: inset 0 0 0 2px $bad;
+    }
+  }
+
+  &__fill {
+    display: block;
+    height: 100%;
+    background-color: var(--bar-color);
+  }
+
+  &__forecast {
+    position: absolute;
+    top: 50%;
+    color: #1baf7a;
+    font-size: 14px;
+    line-height: 1;
+    transform: translate(-50%, -50%);
+  }
+
+  &__diamond-key {
+    color: #1baf7a;
+  }
+
+  &__today-key {
+    width: 0;
+    height: 12px;
+    border-left: 2px solid $bad;
+  }
+}
+
+// ---------- Responsivo ----------
+
+@media (max-width: $bp-tablet) {
+  .project-dash__insights {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .project-dash__filter {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .project-dash__facts {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gantt {
+    --label-w: 150px;
+  }
+}

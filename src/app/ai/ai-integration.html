@@ -36,7 +36,7 @@
         </div>
         <div>
           <dt>Criatividade · limite</dt>
-          <dd>{{ config.temperature }} · {{ config.maxTokens }} tokens</dd>
+          <dd>{{ fixedTemperature(config) ? 'padrão' : config.temperature }} · {{ config.maxTokens }} tokens</dd>
         </div>
       </dl>
 
@@ -130,9 +130,10 @@
 
       <div class="members__row">
         <label class="modal__field">
-          <span class="modal__label">Criatividade (temperatura): {{ config.temperature }}</span>
+          <span class="modal__label">Criatividade (temperatura): {{ fixedTemperature(config) ? 'padrão do modelo' : config.temperature }}</span>
           <input
             class="ai__range"
+            [disabled]="fixedTemperature(config)"
             type="range"
             min="0"
             max="1"
@@ -140,7 +141,7 @@
             [value]="config.temperature"
             (input)="patch({ temperature: +$any($event.target).value })"
           />
-          <span class="modal__hint">0 = respostas mais precisas · 1 = mais criativas</span>
+          <span class="modal__hint">{{ fixedTemperature(config) ? 'Este modelo não aceita ajuste de criatividade; o Stars usa o padrão dele.' : '0 = respostas mais precisas · 1 = mais criativas' }}</span>
         </label>
         <label class="modal__field">
           <span class="modal__label">Limite de resposta (tokens)</span>

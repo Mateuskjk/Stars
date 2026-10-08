@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Carousel } from '../carousel/carousel';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
@@ -14,7 +15,7 @@ export function initials(name: string) {
 }
 
 @Component({
-  imports: [Carousel, AddColumn, ColumnTitle],
+  imports: [Carousel, AddColumn, ColumnTitle, RouterLink],
   selector: 'app-projects',
   templateUrl: './projects.html',
   host: { class: 'projects' },

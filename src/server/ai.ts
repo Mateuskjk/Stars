@@ -24,21 +24,32 @@ interface ProviderRequest {
   body: unknown;
 }
 
+// Modelos de raciocínio da OpenAI (gpt-5…, o1, o3, o4-mini…): não aceitam temperatura diferente de 1
+export const isReasoningModel = (model: string) => /^(gpt-5|o\d)/i.test(model);
+export const REASONING_MIN_TOKENS = 4000;
+
 // Endereços fixos por fornecedor: o navegador escolhe o fornecedor, nunca a URL (evita o servidor ser usado como proxy aberto)
 export function buildRequest(config: AiConfig, messages: ChatMessage[]): ProviderRequest {
   const { provider, model, apiKey, temperature, maxTokens, systemPrompt } = config;
   switch (provider) {
-    case 'openai':
+    case 'openai': {
+      const messagesWithSystem = [{ role: 'system', content: systemPrompt }, ...messages];
+      if (isReasoningModel(model)) {
+        // GPT-5 e família "o" só aceitam a temperatura padrão (1) e gastam parte do limite raciocinando
+        // antes de responder; com pouco limite, a resposta volta vazia. Por isso: sem temperatura,
+        // raciocínio curto e um piso de tokens.
+        return {
+          url: 'https://api.openai.com/v1/chat/completions',
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: { model, reasoning_effort: 'low', max_completion_tokens: Math.max(maxTokens, REASONING_MIN_TOKENS), messages: messagesWithSystem },
+        };
+      }
       return {
         url: 'https://api.openai.com/v1/chat/completions',
         headers: { Authorization: `Bearer ${apiKey}` },
-        body: {
-          model,
-          temperature,
-          max_completion_tokens: maxTokens,
-          messages: [{ role: 'system', content: systemPrompt }, ...messages],
-        },
+        body: { model, temperature, max_completion_tokens: maxTokens, messages: messagesWithSystem },
       };
+    }
     case 'deepseek': // API compatível com a da OpenAI
       return {
         url: 'https://api.deepseek.com/chat/completions',

@@ -82,7 +82,7 @@ export class ProjectStore {
   readonly projects = signal<Project[]>(SEED.map((project) => this.build(project)));
 
   readonly carouselItems = computed<CarouselItem[]>(() =>
-    this.projects().map((project) => ({ name: project.name, cover: project.cover, link: '/projetos/visaoGeral' })),
+    this.projects().map((project) => ({ name: project.name, cover: project.cover, link: `/projetos/${project.id}` })),
   );
 
   // Situações fixas + colunas criadas no kanban (ponytail: só em memória, como os projetos)

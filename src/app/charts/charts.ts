@@ -23,7 +23,15 @@ export interface Series {
   values: number[];
 }
 
-export function lineChart(labels: string[], series: Series[], max: number, step: number, w: number) {
+// Linha: null = sem valor naquele ponto (ex.: dias da sprint que ainda não chegaram, projeção que começa no meio)
+export interface LineSeries {
+  name: string;
+  color: string;
+  values: (number | null)[];
+  dashed?: boolean; // tracejada: ideal, projeção
+}
+
+export function lineChart(labels: string[], series: LineSeries[], max: number, step: number, w: number) {
   const plotW = w - PAD.left - PAD.right;
   const xOf = (i: number) => PAD.left + (i * plotW) / (labels.length - 1);
   const band = plotW / (labels.length - 1);
@@ -31,18 +39,21 @@ export function lineChart(labels: string[], series: Series[], max: number, step:
     ticks: ticks(max, step),
     xLabels: labels.map((text, i) => ({ text, x: xOf(i) })),
     lines: series.map((s) => {
-      const last = s.values.length - 1;
+      const points = s.values.flatMap((v, i) => (v === null ? [] : [{ x: xOf(i), y: yOf(v, max), value: v }]));
       return {
         ...s,
-        path: s.values.map((v, i) => `${i ? 'L' : 'M'}${xOf(i)},${yOf(v, max)}`).join(''),
-        end: { x: xOf(last), y: yOf(s.values[last], max), value: s.values[last] },
+        path: points.map((p, i) => `${i ? 'L' : 'M'}${p.x},${p.y}`).join(''),
+        end: points.at(-1) ?? null,
       };
     }),
     // Faixa vertical por dia: passar o mouse em qualquer altura mostra todos os valores daquele dia
     hits: labels.map((label, i) => ({
       x: xOf(i),
       band: { x: xOf(i) - band / 2, width: band },
-      tip: { heading: label, rows: series.map((s) => ({ name: s.name, value: String(s.values[i]), color: s.color })) } as Tip,
+      tip: {
+        heading: label,
+        rows: series.filter((s) => s.values[i] != null).map((s) => ({ name: s.name, value: String(s.values[i]), color: s.color })),
+      } as Tip,
     })),
   };
 }
