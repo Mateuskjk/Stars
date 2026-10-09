@@ -4,11 +4,12 @@ import { USERS } from '../chat/chat';
 import { CompanyStore } from '../companies/company-store';
 import { SectorStore } from '../companies/sector-store';
 import { ProjectStatus, ProjectStore, SECTORS, TEAMS } from './project-store';
+import { ResponsiveTable } from '../responsive-table';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 @Component({
-  imports: [RouterLink],
+  imports: [ResponsiveTable, RouterLink],
   selector: 'app-project-create',
   templateUrl: './project-create.html',
   host: { class: 'project-create' },

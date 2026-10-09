@@ -25,6 +25,13 @@
     />
   </label>
 
+  <!-- No celular, os filtros ficam num menu; no computador, sempre à mostra -->
+  <button class="modal__ghost audits__filters-toggle" type="button" [attr.aria-expanded]="filtersOpen()" (click)="filtersOpen.set(!filtersOpen())">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
+    Filtros{{ activeFilters() ? ' (' + activeFilters() + ')' : '' }}
+  </button>
+
+  <div class="audits__filters-menu" [class.is-open]="filtersOpen()">
   <select class="project-table__input audits__select" aria-label="Tipo de item" (change)="entityFilter.set($any($event.target).value); limit.set(50)">
     <option value="" [selected]="!entityFilter()">Todos os tipos</option>
     @for (entity of entities(); track entity) {
@@ -58,6 +65,7 @@
       <button class="attachment__link" type="button" (click)="clearFilters()">Limpar filtros</button>
     }
   </div>
+  </div>
 </section>
 
 <p class="planning__muted" aria-live="polite">
@@ -65,7 +73,7 @@
 </p>
 
 <div class="project-table">
-  <table class="project-table__table audits__table">
+  <table appResponsiveTable class="project-table__table audits__table">
     <thead>
       <tr>
         <th scope="col">Data e hora</th>

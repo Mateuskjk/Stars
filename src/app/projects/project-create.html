@@ -9,7 +9,7 @@
 <form id="new-project" (submit)="create($event)"></form>
 
 <div class="project-table">
-  <table class="project-table__table">
+  <table appResponsiveTable class="project-table__table">
     <thead>
       <tr>
         <th class="project-table__sticky" scope="col">Nome do projeto</th>
@@ -103,13 +103,13 @@
           <input class="project-table__input" form="new-project" name="requester" placeholder="Quem solicitou" aria-label="Quem solicitou" />
         </td>
         <td>
-          <input class="project-table__input project-table__money" form="new-project" name="costInitial" type="number" min="0" step="0.01" placeholder="R$ 0,00" aria-label="Custo inicial" />
+          <input class="project-table__input project-table__money" form="new-project" name="costInitial" type="number" min="0" step="0.01" placeholder="Custo inicial · R$ 0,00" aria-label="Custo inicial" />
         </td>
         <td>
-          <input class="project-table__input project-table__money" form="new-project" name="costDev" type="number" min="0" step="0.01" placeholder="R$ 0,00" aria-label="Custo de desenvolvimento" />
+          <input class="project-table__input project-table__money" form="new-project" name="costDev" type="number" min="0" step="0.01" placeholder="Desenvolvimento · R$ 0,00" aria-label="Custo de desenvolvimento" />
         </td>
         <td>
-          <input class="project-table__input project-table__money" form="new-project" name="costFinal" type="number" min="0" step="0.01" placeholder="R$ 0,00" aria-label="Custo final" />
+          <input class="project-table__input project-table__money" form="new-project" name="costFinal" type="number" min="0" step="0.01" placeholder="Custo final · R$ 0,00" aria-label="Custo final" />
         </td>
         <td>
           <input class="project-table__file" form="new-project" name="docs" type="file" multiple aria-label="Anexos de documentação" />

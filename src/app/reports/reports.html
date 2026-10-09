@@ -114,7 +114,7 @@
     <h2 class="planning__group-title">Comparativo entre sprints</h2>
     <p class="planning__muted">★ = melhor sprint na métrica. A última coluna compara {{ latest()!.name }} com {{ previous()?.name }}.</p>
     <div class="project-table">
-      <table class="project-table__table reports__table">
+      <table appResponsiveTable class="project-table__table reports__table">
         <thead>
           <tr>
             <th class="project-table__sticky" scope="col">Métrica</th>

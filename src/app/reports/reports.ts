@@ -2,12 +2,14 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { H, PAD, SERIES, Tip, TipState, groupedColumns, lineChart, plotH, tipAt, watchChartWidth } from '../charts/charts';
 import { SprintStore } from '../planning/sprint-store';
 import { METRICS, MetricKey, ReportSprint, SAMPLE_METRICS, average, change, formatValue, isGood, lastSprints, toCsv, valueOf } from './report-data';
+import { ResponsiveTable } from '../responsive-table';
 
 // Planejado em cinza (contexto) e entregue na cor de destaque: o que importa é o entregue
 const PLANNED_COLOR = '#b6b9c0';
 const DELIVERED_COLOR = SERIES[0];
 
 @Component({
+  imports: [ResponsiveTable],
   selector: 'app-reports',
   templateUrl: './reports.html',
   host: { class: 'reports' },

@@ -1,11 +1,13 @@
 import { Component, afterNextRender, computed, inject, signal } from '@angular/core';
 import { AUDIT_ACTIONS, AuditAction, AuditEntry, AuditStore } from './audit-store';
+import { ResponsiveTable } from '../responsive-table';
 
 const PAGE = 50;
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const dayOf = (iso: string) => new Date(iso).toLocaleDateString('sv-SE'); // AAAA-MM-DD no fuso local
 
 @Component({
+  imports: [ResponsiveTable],
   selector: 'app-audits',
   templateUrl: './audits.html',
   host: { class: 'audits' },
@@ -48,6 +50,9 @@ export class Audits {
   });
 
   protected readonly visible = computed(() => this.filtered().slice(0, this.limit()));
+  // Menu de filtros (celular): quantos filtros além da busca estão ligados
+  protected readonly filtersOpen = signal(false);
+  protected readonly activeFilters = computed(() => this.actionFilter().size + (this.entityFilter() ? 1 : 0) + (this.from() ? 1 : 0) + (this.to() ? 1 : 0));
   protected readonly hasFilters = computed(() => !!(this.search() || this.actionFilter().size || this.entityFilter() || this.from() || this.to()));
 
   protected toggleAction(action: AuditAction) {

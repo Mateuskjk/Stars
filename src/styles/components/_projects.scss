@@ -549,3 +549,101 @@ $table-head: #f0f2f3;
 .projects .kanban__card {
   cursor: pointer;
 }
+
+// ---------- Tabelas no celular (diretiva appResponsiveTable) ----------
+// Só a primeira coluna, com uma seta; tocar na linha abre o modal com todas as colunas.
+// A linha de criação (tfoot) vira um formulário em pé.
+@media (max-width: $bp-mobile) {
+  .responsive-table.project-table__table {
+    min-width: 0;
+  }
+
+  .responsive-table {
+    width: 100%;
+
+    thead tr > :not(:first-child),
+    tbody tr > :not(:first-child) {
+      display: none;
+    }
+
+    tbody tr {
+      cursor: pointer;
+    }
+
+    tbody tr > :first-child {
+      position: relative;
+      width: 100%;
+      padding-right: 32px;
+
+      &::after {
+        content: '›';
+        position: absolute;
+        top: 50%;
+        right: 12px;
+        color: #898781;
+        font-size: 20px;
+        transform: translateY(-50%);
+      }
+    }
+
+    .project-table__sticky,
+    .project-table__sticky-end {
+      position: static;
+      box-shadow: none;
+    }
+
+    tfoot tr {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    tfoot tr > * {
+      display: block;
+      width: 100%;
+      padding: 0;
+      border: none;
+    }
+  }
+}
+
+// Modal de visualização de uma linha
+.table-view {
+  width: min(480px, calc(100vw - 32px));
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px 20px;
+    overflow-y: auto;
+
+    > div {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e1e4e8;
+    }
+
+    dt {
+      color: #898781;
+      font-size: 12px;
+    }
+
+    dd {
+      color: $color-title;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+  }
+}
+
+.table-view .modal__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 16px;
+}

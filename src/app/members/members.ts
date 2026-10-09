@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { initials } from '../chat/chat';
 import { RecentsStore } from '../home/recents-store';
+import { ResponsiveTable } from '../responsive-table';
 import {
   ACCESS_LEVELS,
   Access,
@@ -23,7 +24,7 @@ import { AccountStore } from '../account/account-store';
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 @Component({
-  imports: [NgTemplateOutlet, RouterLink],
+  imports: [ResponsiveTable, NgTemplateOutlet, RouterLink],
   selector: 'app-members',
   templateUrl: './members.html',
   host: { class: 'members' },

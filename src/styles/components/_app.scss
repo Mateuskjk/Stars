@@ -10,6 +10,20 @@
   gap: 10px 20px; // linhas, colunas
   min-height: calc(100vh - 30px);
   margin: 12px;
+
+  // Home: linha extra para a data, acima do main-content (a lateral ocupa as duas linhas)
+  &.has-date {
+    grid-template-areas:
+      'nav  nav'
+      'left date'
+      'left main';
+    grid-template-rows: 74px auto 1fr;
+  }
+}
+
+.week-date--page {
+  grid-area: date;
+  margin-bottom: 0;
 }
 
 .main-content {
@@ -207,6 +221,12 @@
   &__dropdown {
     position: relative;
 
+    > .center-options__link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
     &.is-active > .center-options__link {
       background-color: $color-nav-hover;
       color: $color-nav-text-hover;
@@ -217,7 +237,24 @@
       .center-options__submenu {
         display: flex;
       }
+
+      .center-options__chevron {
+        transform: rotate(180deg);
+      }
     }
+  }
+
+  // Setinha que indica que o item abre um submenu
+  &__chevron {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.2s;
   }
 
   &__dropdown:last-child &__submenu {
@@ -433,8 +470,32 @@
 // ---------- Responsivo ----------
 
 @media (max-width: $bp-tablet) {
-  .container-main {
-    grid-template-columns: 280px 1fr;
+  // Tablet e celular: coluna única — barra, saudação e conteúdo da página
+  .container-main,
+  .container-main.has-date {
+    grid-template-areas:
+      'nav'
+      'hello'
+      'main';
+    grid-template-columns: 1fr;
+    grid-template-rows: 74px auto 1fr;
+  }
+
+  // Os filhos da lateral viram itens do grid: a saudação vai para 'hello'
+  .left-content {
+    display: contents;
+  }
+
+  .hello-world {
+    grid-area: hello;
+    margin-bottom: 0;
+  }
+
+  // Os cards da lateral (Acesso rápido, Recentes, Perfis acessados) e a data da Home somem:
+  // o menu ☰ já leva às telas e eles só empurravam o conteúdo
+  .side-card,
+  .week-date--page {
+    display: none;
   }
 
   .navigation-top {
@@ -470,41 +531,47 @@
     }
 
     // Submenu do Workspace sempre aberto dentro do painel
+    // Submenus começam fechados; o clique no item abre (a setinha gira)
     &__submenu {
-      display: block;
+      display: none;
       position: static;
       padding: 0 0 0 16px;
       box-shadow: none;
+    }
+
+    &__dropdown > .center-options__link {
+      justify-content: space-between;
+    }
+
+    &__dropdown:hover,
+    &__dropdown:focus-within {
+      .center-options__submenu {
+        display: none;
+      }
+
+      .center-options__chevron {
+        transform: none;
+      }
+    }
+
+    .center-options__dropdown.is-expanded {
+      .center-options__submenu {
+        display: block;
+      }
+
+      .center-options__chevron {
+        transform: rotate(180deg);
+      }
     }
   }
 }
 
 @media (max-width: $bp-mobile) {
-  // Ordem no celular: barra, saudação, conteúdo da página e, por último, os cards da lateral
-  .container-main {
-    grid-template-areas:
-      'nav'
-      'hello'
-      'main';
-    grid-template-columns: 1fr;
+  .container-main,
+  .container-main.has-date {
     grid-template-rows: 64px auto auto;
     min-height: auto;
     margin: 10px;
-  }
-
-  // Os filhos da lateral viram itens do grid: a saudação vai para 'hello'
-  // e os cards caem nas linhas depois do conteúdo
-  .left-content {
-    display: contents;
-  }
-
-  .hello-world {
-    grid-area: hello;
-    margin-bottom: 0;
-  }
-
-  .side-card {
-    min-width: 0;
   }
 
   .main-content {

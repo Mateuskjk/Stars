@@ -1,11 +1,16 @@
 import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { Assistant } from './ai/assistant';
 import { ApiSnapshot } from './api-docs/api-snapshot';
 import { AccountStore, NotificationType, greetingFor, hourIn } from './account/account-store';
+import { formatWeekDate } from './home/home';
 import { RecentsStore } from './home/recents-store';
 
 type Menu = 'nav' | 'notifications' | 'user';
+
+const THEME_KEY = 'stars.theme';
 
 @Component({
   imports: [Assistant, RouterLink, RouterLinkActive, RouterOutlet],
@@ -29,12 +34,25 @@ export class App {
   private readonly now = signal(new Date());
   protected readonly greeting = computed(() => greetingFor(hourIn(this.account.timeZone(), this.now())));
 
+  // Data da semana (só na Home): fica fora do main-content, acima dele
+  protected readonly weekDate = computed(() => formatWeekDate(this.now(), this.account.timeZone()));
+  private readonly router = inject(Router);
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map((event) => event.urlAfterRedirects),
+    ),
+    { initialValue: this.router.url },
+  );
+  protected readonly isHome = computed(() => this.url().split(/[?#]/)[0] === '/');
+
   constructor() {
     const destroyRef = inject(DestroyRef);
     const snapshot = inject(ApiSnapshot);
     afterNextRender(() => {
       this.account.load();
       this.recentsStore.load();
+      this.loadTheme();
       snapshot.start(); // mantém a API pública com os dados atuais
       const id = setInterval(() => this.now.set(new Date()), 60_000);
       destroyRef.onDestroy(() => clearInterval(id));
@@ -90,6 +108,37 @@ export class App {
 
   protected readonly hasUnread = computed(() => this.notifications().some((n) => !n.read));
 
+  // ---------- Tema claro/escuro ----------
+  // ponytail: só troca o atributo data-theme no <html>; as cores do modo escuro entram depois,
+  // em :root[data-theme='dark'] { … }. A escolha fica salva neste navegador.
+  protected readonly theme = signal<'light' | 'dark'>('light');
+
+  private loadTheme() {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(THEME_KEY);
+    } catch {
+      // sem acesso ao localStorage: segue o sistema
+    }
+    const system = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    this.applyTheme(saved === 'dark' || saved === 'light' ? saved : system);
+  }
+
+  protected toggleTheme() {
+    const next = this.theme() === 'light' ? 'dark' : 'light';
+    this.applyTheme(next);
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch {
+      // sem espaço ou sem permissão: vale só nesta sessão
+    }
+  }
+
+  private applyTheme(theme: 'light' | 'dark') {
+    this.theme.set(theme);
+    document.documentElement.dataset['theme'] = theme;
+  }
+
   protected toggleMenu(menu: Menu) {
     this.openMenu.update((open) => (open === menu ? null : menu));
   }
@@ -99,9 +148,18 @@ export class App {
   }
 
   // No celular o menu do meio é um painel: fecha ao escolher uma página
+  // Submenus (Projetos, Workspace, Configurações): no tablet/celular abrem e fecham no clique;
+  // no computador continuam abrindo ao passar o mouse
+  protected readonly openSubmenu = signal<string | null>(null);
+
+  protected toggleSubmenu(name: string) {
+    this.openSubmenu.update((open) => (open === name ? null : name));
+  }
+
   protected closeNavOnLinkClick(event: Event) {
     if ((event.target as Element).closest('a')) {
       this.openMenu.set(null);
+      this.openSubmenu.set(null);
     }
   }
 

@@ -13,10 +13,17 @@ $backlog-column: #f0f2f3;
 
   &__header {
     display: flex;
+    flex-wrap: wrap; // sem espaço, os botões descem para a linha de baixo em vez de vazar
     justify-content: space-between;
     align-items: center;
     gap: 12px;
     padding: 0 4px;
+
+    // título encolhe e quebra o texto; os botões ficam juntos e descem quando não cabem
+    > :first-child {
+      flex: 1 1 260px;
+      min-width: 0;
+    }
   }
 
   &__title {
@@ -374,6 +381,10 @@ $backlog-column: #f0f2f3;
   .backlog__header {
     flex-direction: column;
     align-items: flex-start;
+
+    > :first-child {
+      flex: none; // em coluna, o flex-basis de 260px virava altura e deixava um vão em branco
+    }
   }
 
   .backlog__board {

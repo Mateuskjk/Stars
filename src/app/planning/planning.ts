@@ -5,6 +5,7 @@ import { BacklogItem, BacklogStore, tagColor } from '../backlog/backlog-store';
 import { formatWeekDate } from '../home/home';
 import { SPRINT_DAYS, businessDay, businessIndex } from '../projects/project-tasks';
 import { SPRINT_STATUS, Sprint, SprintStore } from './sprint-store';
+import { ResponsiveTable } from '../responsive-table';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -17,7 +18,7 @@ interface PendingConfirm {
 }
 
 @Component({
-  imports: [NgTemplateOutlet],
+  imports: [ResponsiveTable, NgTemplateOutlet],
   selector: 'app-planning',
   templateUrl: './planning.html',
   host: { class: 'planning' },
