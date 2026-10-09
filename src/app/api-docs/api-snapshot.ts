@@ -39,7 +39,7 @@ export class ApiSnapshot {
 
   build() {
     return {
-      projects: this.projects.projects().map(({ cover, docs, ...p }) => ({ ...p, docs: docs.length })),
+      projects: this.projects.projects().map(({ cover, docs, image, ...p }) => ({ ...p, docs: docs.length, image: !!image })),
       activities: this.backlog.items().map(({ attachments, subtasks, comments, ...a }) => ({
         ...a,
         attachments: attachments.length,

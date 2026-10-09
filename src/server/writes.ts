@@ -298,7 +298,8 @@ const idList = (v: unknown, field: string) => {
 // Dados das telas que o banco atual não tem (schema lexagile.extra)
 async function saveExtra(client: PoolClient, tipo: string, registroId: string, tenantId: string, extra: unknown) {
   if (extra === undefined || !(await ensureSchema())) return;
-  if (typeof extra !== 'object' || extra === null || JSON.stringify(extra).length > 50_000) throw new HttpError(400, 'Dados extras inválidos.');
+  // Até ~900 KB: cabe a foto do projeto (já comprimida no navegador, lado maior de 800px)
+  if (typeof extra !== 'object' || extra === null || JSON.stringify(extra).length > 900_000) throw new HttpError(400, 'Dados extras inválidos.');
   await client.query(
     `insert into lexagile.extra (tipo, "registroId", "tenantId", dados) values ($1, $2, $3, $4)
      on conflict (tipo, "registroId") do update set dados = excluded.dados`,

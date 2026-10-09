@@ -62,7 +62,7 @@ export class SectorPage {
     if (!sector || !company) return [];
     const statuses = this.projectStore.statuses();
     return this.projectStore
-      .projects()
+      .visible()
       .filter((p) => p.company === company.name && p.sector.toLowerCase() === sector.name.toLowerCase())
       .map((p) => ({ ...p, statusInfo: statuses.find((s) => s.id === p.status) }));
   });

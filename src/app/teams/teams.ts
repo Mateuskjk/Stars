@@ -27,7 +27,7 @@ export class Teams {
   // Membros que podem entrar em equipes (ativos e com empresa) e quantos ficam de fora
   protected readonly eligible = computed(() => this.membersStore.eligibleForTeams());
   protected readonly ineligibleCount = computed(() => this.membersStore.members().length - this.eligible().length);
-  protected readonly projects = this.projectStore.projects;
+  protected readonly projects = this.projectStore.visible; // só empresas ativas
   // Atividades gerais ainda em andamento (arquivadas e canceladas não recebem equipe)
   protected readonly activities = computed(() => this.backlog.items().filter((item) => item.status !== 'archived' && item.status !== 'canceled'));
 

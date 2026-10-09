@@ -106,7 +106,7 @@ describe('ApiSync', () => {
     expect(calls).toEqual([
       { url: '/api/data/setores/s1', method: 'PATCH', body: { nome: 'Tecnologia' } },
       { url: '/api/data/pessoas', method: 'PATCH', body: { email: 'beto@x.test', papel: 'GESTOR' } },
-      { url: '/api/data/projetos/p1', method: 'PATCH', body: { situacao: 'PARADO', extra: { status: 'paused', requester: '', docs: [] } } },
+      { url: '/api/data/projetos/p1', method: 'PATCH', body: { situacao: 'PARADO', extra: { status: 'paused', requester: '', docs: [], image: null, parentId: null } } },
     ]);
   });
 });

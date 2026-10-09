@@ -1,6 +1,6 @@
 @if (project(); as p) {
   <!-- Cabeçalho com as informações completas do projeto -->
-  <header class="project-page__header">
+  <header class="project-page__header" [class.has-image]="!!p.image">
     <div class="project-page__cover" [style.background]="p.cover" aria-hidden="true"></div>
     <div class="project-page__main">
       <div class="project-page__title-row">
@@ -35,6 +35,32 @@
           </dd>
         </div>
       </dl>
+
+      @if (parent(); as main) {
+        <p class="project-page__parent">
+          Agregado ao projeto <a [routerLink]="['/projetos', main.id]">{{ main.name }}</a>
+          @if (canEdit()) {
+            <button class="attachment__link" type="button" (click)="detach(p.id)">Separar</button>
+          }
+        </p>
+      }
+
+      @if (canEdit()) {
+        <div class="project-page__actions">
+          <label class="modal__ghost planning__small project-page__photo">
+            {{ p.image ? 'Trocar foto' : 'Adicionar foto' }}
+            <input type="file" accept="image/*" (change)="setPhoto($event)" />
+          </label>
+          @if (p.image) {
+            <button class="modal__ghost planning__small" type="button" (click)="removePhoto()">Remover foto</button>
+          }
+          <button class="modal__ghost planning__small" type="button" (click)="toggleArchive()">{{ p.status === 'archived' ? 'Desarquivar' : 'Arquivar' }}</button>
+          <button class="modal__ghost modal__ghost--danger planning__small" type="button" (click)="deleteDialog.showModal()">Excluir</button>
+        </div>
+        @if (photoError()) {
+          <p class="company-page__error" role="alert">{{ photoError() }}</p>
+        }
+      }
     </div>
 
     <!-- Andamento (mesmos cálculos do Dash de Projetos) -->
@@ -56,6 +82,56 @@
       <p class="project-page__sprint">Sprint {{ currentSprint }} · dia {{ todayInSprint }} de {{ sprintDays }}</p>
     </aside>
   </header>
+
+  <!-- Projetos agregados: só no projeto principal -->
+  @if (!p.parentId && (children().length || (canEdit() && candidates().length))) {
+    <section class="project-page__children" aria-labelledby="children-title">
+      <div class="project-page__children-head">
+        <h3 id="children-title" class="dash-card__title">Projetos agregados ({{ children().length }})</h3>
+        @if (canEdit() && candidates().length) {
+          <select #aggregateSel class="modal__input project-page__aggregate" aria-label="Agregar projeto" (change)="aggregate(aggregateSel.value, aggregateSel)">
+            <option value="">Agregar projeto…</option>
+            @for (c of candidates(); track c.id) {
+              <option [value]="c.id">{{ c.name }}</option>
+            }
+          </select>
+        }
+      </div>
+      <ul class="project-page__children-list">
+        @for (child of children(); track child.id) {
+          <li class="project-page__child">
+            <span class="project-page__child-cover" [style.background]="child.cover" aria-hidden="true"></span>
+            <a class="project-page__child-name" [routerLink]="['/projetos', child.id]">{{ child.name }}</a>
+            @if (statusOf(child.status); as st) {
+              <span class="status-chip" [style.--status-color]="st.color">{{ st.label }}</span>
+            }
+            @if (canEdit()) {
+              <button class="attachment__link" type="button" (click)="detach(child.id)">Separar</button>
+            }
+          </li>
+        } @empty {
+          <li class="backlog__subtitle">Nenhum projeto agregado. Agregue projetos menores para acompanhá-los aqui.</li>
+        }
+      </ul>
+    </section>
+  }
+
+  <dialog #deleteDialog class="confirm-dialog" aria-labelledby="project-delete-title" (click)="closeOnBackdrop($event, deleteDialog)">
+    <div class="confirm-dialog__box">
+      <span class="confirm-dialog__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" /></svg>
+      </span>
+      <h2 id="project-delete-title" class="confirm-dialog__title">Excluir o projeto “{{ p.name }}”?</h2>
+      <p class="confirm-dialog__text">
+        Ele some das telas do LexÁgile. No banco ele fica arquivado (dá para recuperar com o suporte).
+        {{ children().length ? 'Os projetos agregados viram independentes.' : '' }}
+      </p>
+      <div class="confirm-dialog__actions">
+        <button class="confirm-dialog__button" type="button" autofocus (click)="deleteDialog.close()">Cancelar</button>
+        <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDelete(deleteDialog)">Excluir</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- Kanban só com as atividades deste projeto -->
   <section class="kanban project-page__kanban" [attr.aria-label]="'Atividades de ' + p.name">
@@ -143,6 +219,9 @@
                   </select>
                 </div>
                 <!-- Clicar no cartão (ou no nome, pelo teclado) abre o modal da atividade -->
+                @if (subprojectOf(card); as sub) {
+                  <span class="project-page__subproject" [title]="'Do projeto agregado ' + sub">{{ sub }}</span>
+                }
                 <button class="kanban__card-title project-page__open" type="button">{{ card.title }}</button>
                 <div class="kanban__card-footer">
                   <span class="kanban__avatar" aria-hidden="true">{{ initials(card.assignee) }}</span>

@@ -17,7 +17,7 @@ const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 export class ProjectCreate {
   private readonly store = inject(ProjectStore);
 
-  protected readonly projects = this.store.projects;
+  protected readonly projects = this.store.visible; // só empresas ativas
   protected readonly statuses = this.store.statuses; // inclui as colunas criadas no kanban
   protected readonly people = USERS.map((user) => user.name);
   protected readonly companies = inject(CompanyStore).activeNames;

@@ -49,6 +49,8 @@ export interface Project {
   sector: string; // setor onde o projeto vai ser aplicado
   team: string;
   cover: string;
+  image?: string | null; // foto do projeto (data URL comprimida); vira a capa no lugar do gradiente
+  parentId?: number | null; // projeto agregado: aparece dentro do projeto principal
 }
 
 export type NewProject = Omit<Project, 'id' | 'cover'>;
@@ -63,6 +65,9 @@ const COVERS = [
   'linear-gradient(135deg, #1f4e79, #8fb8de)',
   'linear-gradient(135deg, #4d5b2f, #c2cf9a)',
 ];
+
+// Capa do projeto (cards, carrosséis, cabeçalho): a foto, se houver; senão o gradiente do projeto
+const coverFor = (id: number, image?: string | null) => (image ? `center / cover no-repeat url("${image}")` : COVERS[(id - 1) % COVERS.length]);
 
 // ponytail: projetos de exemplo, só em memória (somem ao recarregar); trocar por API quando o backend existir
 const SEED: NewProject[] = [
@@ -81,9 +86,26 @@ export class ProjectStore {
   private nextId = 1;
   readonly projects = signal<Project[]>(SEED.map((project) => this.build(project)));
 
+  // Empresas ativas (o CompanyStore mantém atualizado); null = sem filtro (exemplos e testes)
+  readonly activeCompanies = signal<Set<string> | null>(null);
+  // Só aparecem projetos de empresas ativas (projeto sem empresa sempre aparece)
+  readonly visible = computed(() => {
+    const active = this.activeCompanies();
+    return this.projects().filter((p) => !active || !p.company || active.has(p.company));
+  });
+  // Projetos principais: os agregados só aparecem dentro do principal
+  readonly topLevel = computed(() => {
+    const ids = new Set(this.visible().map((p) => p.id));
+    return this.visible().filter((p) => !p.parentId || !ids.has(p.parentId));
+  });
+
   readonly carouselItems = computed<CarouselItem[]>(() =>
-    this.projects().map((project) => ({ name: project.name, cover: project.cover, link: `/projetos/${project.id}` })),
+    this.topLevel().map((project) => ({ name: project.name, cover: project.cover, link: `/projetos/${project.id}` })),
   );
+
+  childrenOf(id: number) {
+    return this.visible().filter((p) => p.parentId === id);
+  }
 
   // Situações fixas + colunas criadas no kanban (ponytail: só em memória, como os projetos)
   readonly statuses = signal(PROJECT_STATUSES);
@@ -133,6 +155,42 @@ export class ProjectStore {
     this.audit.log({ action, entity: 'Projeto', name: before.name, from: this.label(before.status), to: this.label(status) });
   }
 
+  private change(id: number, changes: Partial<Project>) {
+    this.projects.update((list) => list.map((p) => (p.id === id ? { ...p, ...changes } : p)));
+  }
+
+  setImage(id: number, image: string | null) {
+    const project = this.projects().find((p) => p.id === id);
+    if (!project) return;
+    this.change(id, { image, cover: coverFor(id, image) });
+    this.audit.log({ action: 'update', entity: 'Projeto', name: project.name, details: image ? 'Foto adicionada' : 'Foto removida' });
+  }
+
+  // Agregar: o projeto vira secundário de outro (só um nível: um principal não vira secundário)
+  setParent(id: number, parentId: number | null) {
+    const project = this.projects().find((p) => p.id === id);
+    const parent = parentId ? this.projects().find((p) => p.id === parentId) : null;
+    if (!project || id === parentId || (parentId && (!parent || parent.parentId || this.childrenOf(id).length))) return;
+    const before = project.parentId ? this.projects().find((p) => p.id === project.parentId)?.name : null;
+    this.change(id, { parentId });
+    this.audit.log({
+      action: 'update',
+      entity: 'Projeto',
+      name: project.name,
+      from: before ?? 'Independente',
+      to: parent?.name ?? 'Independente',
+      details: parent ? 'Agregado a outro projeto' : 'Separado do projeto principal',
+    });
+  }
+
+  // Excluir: some das telas (no banco fica arquivado e marcado como excluído); os agregados viram independentes
+  remove(id: number) {
+    const project = this.projects().find((p) => p.id === id);
+    if (!project) return;
+    this.projects.update((list) => list.filter((p) => p.id !== id).map((p) => (p.parentId === id ? { ...p, parentId: null } : p)));
+    this.audit.log({ action: 'delete', entity: 'Projeto', name: project.name });
+  }
+
   add(project: NewProject) {
     this.projects.update((list) => [...list, this.build(project)]);
     this.audit.log({
@@ -146,6 +204,6 @@ export class ProjectStore {
 
   private build(project: NewProject): Project {
     const id = this.nextId++;
-    return { ...project, id, cover: COVERS[(id - 1) % COVERS.length] };
+    return { ...project, id, cover: coverFor(id, project.image) };
   }
 }

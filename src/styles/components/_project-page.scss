@@ -225,3 +225,139 @@ $page-line: var(--color-line);
 .project-task-editor__facts {
   margin-top: 8px;
 }
+
+// Com foto, a faixa de cor vira um quadro com a foto
+.project-page__header.has-image {
+  grid-template-columns: 120px 1fr 280px;
+
+  .project-page__cover {
+    min-height: 120px;
+    border-radius: 12px;
+  }
+}
+
+.project-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+// Botão de foto: é um rótulo (o input de arquivo fica escondido dentro), então centraliza o texto como os botões
+.project-page__photo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+
+  &:focus-within {
+    outline: 2px solid $color-nav-hover;
+  }
+}
+
+.project-page__parent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 14px;
+
+  a {
+    color: $color-title;
+    font-weight: 600;
+  }
+}
+
+// Projetos agregados (dentro do projeto principal)
+.project-page__children {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 15px;
+  background-color: $color-surface;
+  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+}
+
+.project-page__children-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.project-page__aggregate {
+  width: auto;
+  min-width: 220px;
+}
+
+.project-page__children-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+}
+
+.project-page__child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+
+.project-page__child-cover {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.project-page__child-name {
+  flex: 1;
+  min-width: 0;
+  color: $color-title;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+@media (max-width: $bp-tablet) {
+  .project-page__header.has-image {
+    grid-template-columns: 1fr;
+
+    .project-page__cover {
+      min-height: 140px;
+    }
+  }
+}
+
+// Cartão de um projeto agregado no kanban do principal
+.project-page__subproject {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: color-mix(in srgb, var(--ink-purple) 14%, var(--color-card));
+  color: var(--ink-purple);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

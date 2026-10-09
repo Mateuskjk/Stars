@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { CarouselItem } from '../carousel/carousel';
 import { MembersStore } from '../members/members-store';
 import { ProjectStore } from '../projects/project-store';
@@ -79,6 +79,11 @@ export class CompanyStore {
 
   readonly active = computed(() => this.companies().filter((company) => company.active));
   readonly activeNames = computed(() => this.active().map((company) => company.name));
+
+  // Projetos de empresas inativas somem das telas (o ProjectStore não injeta este store: seria circular)
+  constructor() {
+    effect(() => this.projects.activeCompanies.set(new Set(this.activeNames())));
+  }
 
   // Carrossel de Empresas: só perfis ativos marcados para aparecer; com imagem, ela vira a capa
   readonly carouselItems = computed<CarouselItem[]>(() =>

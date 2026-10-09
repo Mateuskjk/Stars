@@ -213,7 +213,7 @@ export class ApiSync {
 
   async load(me: Me) {
     this.loaded = false;
-    const [empresas, setores, usuarios, equipes, projetos, sprints, atividades, extras] = await Promise.all([
+    let [empresas, setores, usuarios, equipes, projetos, sprints, atividades, extras] = await Promise.all([
       api<DbEmpresa[]>('/data/empresas'),
       api<DbSetor[]>('/data/setores'),
       api<DbUsuario[]>('/data/usuarios'),
@@ -313,11 +313,15 @@ export class ApiSync {
 
     // ---------- Projetos (ids na mesma ordem do ProjectStore.load) ----------
     const equipeNome = new Map(equipes.map((e) => [e.id, e.nome]));
+    // Excluídos no LexÁgile: somem das telas (e as atividades deles também)
+    type ProjetoExtra = { status: ProjectStatus; requester: string; docs: string[]; image: string | null; parentId: string | null; excluido: boolean };
+    const excluidos = new Set(projetos.filter((p) => extra<ProjetoExtra>('projeto', p.id).excluido).map((p) => p.id));
+    projetos = projetos.filter((p) => !excluidos.has(p.id));
     this.projectTenant.clear();
     projetos.forEach((p) => this.projectTenant.set(ids.projeto.num(p.id), p.tenantId));
     this.projects.load(
       projetos.map<NewProject>((p) => {
-        const x = extra<{ status: ProjectStatus; requester: string; docs: string[] }>('projeto', p.id);
+        const x = extra<ProjetoExtra>('projeto', p.id);
         const savedStatus = x.status && PROJECT_STATUSES.some((st) => st.id === x.status) ? x.status : null;
         return {
         name: p.nome,
@@ -329,6 +333,8 @@ export class ApiSync {
         costDev: p.custoPrevisto,
         costFinal: p.custoRealizado,
         docs: x.docs ?? [],
+        image: x.image ?? null,
+        parentId: x.parentId && ids.projeto.has(x.parentId) ? ids.projeto.num(x.parentId) : null,
         company: empresaNome.get(p.tenantId) ?? '',
         sector: (p.setorId && setorNome.get(p.setorId)) || '',
         team: (p.equipeId && equipeNome.get(p.equipeId)) || '',
@@ -380,6 +386,7 @@ export class ApiSync {
     const sprintIds = new Set(SPRINT_COLUMNS.map((c) => c.id as string));
     let commentId = 1;
     for (const a of atividades) {
+      if (a.projetoId && excluidos.has(a.projetoId)) continue;
       const sprint = a.sprintId ? sprintById.get(a.sprintId) : undefined;
       const done = a.status === 'CONCLUIDO';
       const doneAt = done ? day(a.atualizadoEm) : undefined;
@@ -731,7 +738,7 @@ export class ApiSync {
           orcamento: Math.round(p.costInitial || 0),
           custoPrevisto: Math.round(p.costDev || 0),
           custoRealizado: Math.round(p.costFinal || 0),
-          extra: { status: p.status, requester: p.requester, docs: p.docs },
+          extra: { status: p.status, requester: p.requester, docs: p.docs, image: p.image ?? null, parentId: this.ids.projeto.db(p.parentId) },
         };
       },
       create: (p, fields) => {
@@ -740,7 +747,15 @@ export class ApiSync {
         this.send('/data/projetos', 'POST', { ...fields, tenantId }, (r) => r?.id && this.ids.projeto.link(r.id, p.id));
       },
       update: (p, diff) => this.send(() => `/data/projetos/${this.ids.projeto.db(p.id)}`, 'PATCH', diff),
+      remove: (dbId, p) => {
+        const extra = (this.lastProjectExtra(p) ?? {}) as Record<string, unknown>;
+        this.send(`/data/projetos/${dbId}`, 'PATCH', { arquivado: true, extra: { ...extra, excluido: true } });
+      },
     });
+  }
+
+  private lastProjectExtra(p: Project) {
+    return { status: p.status, requester: p.requester, docs: p.docs, image: p.image ?? null, parentId: this.ids.projeto.db(p.parentId) };
   }
 
   private syncSprints(sprints: Sprint[]) {

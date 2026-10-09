@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { compressImage } from '../companies/company-store';
 import { USERS } from '../chat/chat';
 import { RecentsStore } from '../home/recents-store';
 import { AddColumn } from '../kanban/add-column';
@@ -39,12 +40,79 @@ export class ProjectPage {
   protected readonly isAdmin = inject(MembersStore).isAdmin;
   protected readonly isCustom = (id: string) => this.isAdmin() && isCustomColumn(id);
 
-  protected readonly project = computed(() => this.projectStore.projects().find((p) => p.id === Number(this.id())) ?? null);
+  protected readonly project = computed(() => this.projectStore.visible().find((p) => p.id === Number(this.id())) ?? null);
+
+  // ---------- Foto, arquivar, excluir e projetos agregados (Admin e Supervisor) ----------
+  private readonly members = inject(MembersStore);
+  private readonly router = inject(Router);
+  protected readonly canEdit = computed(() => ['admin', 'supervisor'].includes(this.members.current()?.role ?? ''));
+  protected readonly photoError = signal('');
+  protected readonly parent = computed(() => {
+    const parentId = this.project()?.parentId;
+    return parentId ? (this.projectStore.visible().find((p) => p.id === parentId) ?? null) : null;
+  });
+  protected readonly children = computed(() => this.projectStore.childrenOf(Number(this.id())));
+  // Pode ser agregado aqui: projeto principal da mesma empresa que ainda não tem agregados
+  protected readonly candidates = computed(() => {
+    const project = this.project();
+    if (!project || project.parentId) return [];
+    return this.projectStore
+      .topLevel()
+      .filter((p) => p.id !== project.id && p.company === project.company && !this.projectStore.childrenOf(p.id).length);
+  });
+  protected readonly statusOf = (id: string) => this.projectStore.statuses().find((s) => s.id === id);
+
+  protected async setPhoto(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    this.photoError.set('');
+    try {
+      this.projectStore.setImage(Number(this.id()), await compressImage(file));
+    } catch {
+      this.photoError.set('Não foi possível ler essa imagem. Use JPG ou PNG.');
+    }
+  }
+
+  protected removePhoto() {
+    this.projectStore.setImage(Number(this.id()), null);
+  }
+
+  protected toggleArchive() {
+    const project = this.project();
+    if (project) this.projectStore.setStatus(project.id, project.status === 'archived' ? 'not-started' : 'archived');
+  }
+
+  protected aggregate(childId: string, select: HTMLSelectElement) {
+    if (childId) this.projectStore.setParent(Number(childId), Number(this.id()));
+    select.value = '';
+  }
+
+  protected detach(childId: number) {
+    this.projectStore.setParent(childId, null);
+  }
+
+  protected confirmDelete(dialog: HTMLDialogElement) {
+    dialog.close();
+    this.projectStore.remove(Number(this.id()));
+    void this.router.navigate(['/projetos/visaoGeral']);
+  }
+
+  protected closeOnBackdrop(event: MouseEvent, dialog: HTMLDialogElement) {
+    if (event.target === dialog) dialog.close();
+  }
   protected readonly status = computed(() => {
     const project = this.project();
     return project ? this.projectStore.statuses().find((s) => s.id === project.status) : null;
   });
-  protected readonly tasks = computed(() => this.taskStore.tasks().filter((task) => task.projectId === Number(this.id())));
+  // Atividades do projeto e dos projetos agregados a ele (o principal mostra tudo num kanban só)
+  private readonly projectIds = computed(() => new Set([Number(this.id()), ...this.children().map((c) => c.id)]));
+  protected readonly tasks = computed(() => this.taskStore.tasks().filter((task) => this.projectIds().has(task.projectId)));
+  // Nome do agregado no cartão (as do próprio projeto não levam etiqueta)
+  protected subprojectOf(task: ProjectTask) {
+    return task.projectId === Number(this.id()) ? null : (this.children().find((c) => c.id === task.projectId)?.name ?? null);
+  }
 
   constructor() {
     // Entra nos "Recentes" da lateral

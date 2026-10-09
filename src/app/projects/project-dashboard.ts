@@ -24,7 +24,7 @@ export class ProjectDashboard {
   protected readonly now = today();
   protected readonly currentSprint = sprintOf(this.now);
   protected readonly todayInSprint = sprintWindow(this.currentSprint).days.filter((day) => day <= this.now).length;
-  protected readonly projects = this.projectStore.projects;
+  protected readonly projects = this.projectStore.visible; // só empresas ativas
   protected readonly taskStatuses = this.taskStore.columns;
   protected readonly healthInfo = HEALTH;
   protected readonly tones = TONES;
@@ -35,9 +35,11 @@ export class ProjectDashboard {
   protected readonly sprintNumber = signal<number | null>(null); // null = sprint atual
 
   protected readonly project = computed(() => this.projects().find((p) => p.id === this.projectId()) ?? null);
+  // Um projeto: as atividades dele e dos agregados. Todos: só projetos visíveis (empresas ativas)
   protected readonly tasks = computed(() => {
     const id = this.projectId();
-    return this.taskStore.tasks().filter((task) => !id || task.projectId === id);
+    const ids = new Set(id ? [id, ...this.projectStore.childrenOf(id).map((c) => c.id)] : this.projects().map((p) => p.id));
+    return this.taskStore.tasks().filter((task) => ids.has(task.projectId));
   });
 
   // Sprints com atividades (para o seletor do burn-down), mais recentes primeiro

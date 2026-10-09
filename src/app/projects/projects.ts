@@ -37,7 +37,7 @@ export class Projects {
   protected readonly board = computed(() =>
     this.columns().map((column) => ({
       ...column,
-      cards: this.store.projects().filter((project) => project.status === column.id),
+      cards: this.store.topLevel().filter((project) => project.status === column.id),
     })),
   );
 
