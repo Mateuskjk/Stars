@@ -1,7 +1,9 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { initials } from '../chat/chat';
+import { RecentsStore } from '../home/recents-store';
 import {
   ACCESS_LEVELS,
   Access,
@@ -140,7 +142,22 @@ export class Members {
   private readonly permDialog = viewChild.required<ElementRef<HTMLDialogElement>>('permDialog');
   protected readonly editing = signal<Member | null>(null);
 
+  private readonly recents = inject(RecentsStore);
+
+  constructor() {
+    const route = inject(ActivatedRoute);
+    const destroyRef = inject(DestroyRef);
+    // Vindo dos "Perfis acessados": ?membro=ID abre direto
+    afterNextRender(() =>
+      route.queryParamMap.pipe(takeUntilDestroyed(destroyRef)).subscribe((params) => {
+        const found = this.store.members().find((item) => item.id === Number(params.get('membro')));
+        if (found) this.openPermissions(found);
+      }),
+    );
+  }
+
   protected openPermissions(member: Member) {
+    this.recents.visit('member', member.id);
     this.editing.set(member);
     this.permDraft.set({ ...member.permissions });
     this.permDialog().nativeElement.showModal();

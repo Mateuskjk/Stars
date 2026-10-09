@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { Chat, formatTime } from './chat';
 
 describe('Chat', () => {
@@ -9,7 +10,7 @@ describe('Chat', () => {
   });
 
   it('searches ignoring accents, opens a conversation and sends a message', async () => {
-    await TestBed.configureTestingModule({ imports: [Chat] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [Chat], providers: [provideRouter([])] }).compileComponents();
     const fixture = TestBed.createComponent(Chat);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;

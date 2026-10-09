@@ -109,6 +109,12 @@
     }
   }
 
+  &__empty {
+    color: #898781;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
   &__label {
     display: flex;
     align-items: center;

@@ -3,6 +3,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Assistant } from './ai/assistant';
 import { ApiSnapshot } from './api-docs/api-snapshot';
 import { AccountStore, NotificationType, greetingFor, hourIn } from './account/account-store';
+import { RecentsStore } from './home/recents-store';
 
 type Menu = 'nav' | 'notifications' | 'user';
 
@@ -33,6 +34,7 @@ export class App {
     const snapshot = inject(ApiSnapshot);
     afterNextRender(() => {
       this.account.load();
+      this.recentsStore.load();
       snapshot.start(); // mantém a API pública com os dados atuais
       const id = setInterval(() => this.now.set(new Date()), 60_000);
       destroyRef.onDestroy(() => clearInterval(id));
@@ -51,25 +53,12 @@ export class App {
     const prefs = this.account.account().notifications;
     return prefs.enabled ? this.allNotifications().filter((n) => prefs.types[n.type]) : [];
   });
-  // ponytail: acessos fixos de exemplo; registrar os acessos reais quando as telas existirem
-  protected readonly recents = signal([
-    { type: 'Nota', title: 'Ideias para o Q4', link: '/workspace/notes' },
-    { type: 'Projeto', title: 'Redesign do site', link: '/projetos/visaoGeral' },
-    { type: 'Dashboard', title: 'Métricas de vendas', link: '/dashboards' },
-    { type: 'Cartão', title: 'Revisar backlog', link: '/workspace/backlog' },
-    { type: 'Conversa', title: 'Time de produto', link: '/conversas' },
-  ]);
+  // O que a pessoa realmente abriu (projetos, notas, cartões, conversas e dashboards)
+  private readonly recentsStore = inject(RecentsStore);
+  protected readonly recents = this.recentsStore.items;
 
-  // ponytail: perfis fixos de exemplo; registrar os acessos reais quando a tela de perfis existir
-  protected readonly recentProfiles = signal(
-    [
-      { name: 'Ana Souza', type: 'Perfil' },
-      { name: 'Equipe Comercial', type: 'Subperfil' },
-      { name: 'Carlos Lima', type: 'Perfil' },
-      { name: 'Financeiro', type: 'Subperfil' },
-      { name: 'Marketing', type: 'Subperfil' },
-    ].map((p) => ({ ...p, initials: p.name.split(' ').map((w) => w[0]).slice(0, 2).join('') })),
-  );
+  // Membros, equipes e perfis de empresa que a pessoa abriu
+  protected readonly recentProfiles = this.recentsStore.profiles;
 
   protected readonly quickAccess = [
     {

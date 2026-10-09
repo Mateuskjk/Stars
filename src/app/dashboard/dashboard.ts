@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, afterNextRender, computed, inject, signal } from '@angular/core';
+import { RecentsStore } from '../home/recents-store';
 import { H, MUTED, PAD, SERIES, Tip, TipState, columnChart, lineChart, pieChart, plotH, tipAt, watchChartWidth } from '../charts/charts';
 
 @Component({
@@ -21,6 +22,8 @@ export class Dashboard {
 
   constructor() {
     watchChartWidth('.dashboard__charts .dash-card', this.chartWidth);
+    const recents = inject(RecentsStore);
+    afterNextRender(() => recents.visit('dashboard', 'dashboards'));
   }
 
   // Dica única da página, posicionada junto ao ponteiro (ou ao elemento, quando vem do teclado)

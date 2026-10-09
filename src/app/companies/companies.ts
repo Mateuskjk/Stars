@@ -1,6 +1,9 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { MembersStore } from '../members/members-store';
 import { Company, CompanyData, CompanyStore, DEFAULT_VIEW, ViewSettings, compressImage } from './company-store';
+import { RecentsStore } from '../home/recents-store';
 
 type Filter = 'active' | 'inactive' | 'all';
 
@@ -54,6 +57,14 @@ export class Companies {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
+    const route = inject(ActivatedRoute);
+    // Vindo dos "Perfis acessados": ?empresa=ID abre direto
+    afterNextRender(() =>
+      route.queryParamMap.pipe(takeUntilDestroyed(destroyRef)).subscribe((params) => {
+        const found = this.store.companies().find((item) => item.id === Number(params.get('empresa')));
+        if (found) this.openEdit(found);
+      }),
+    );
     afterNextRender(() => {
       const id = setInterval(() => this.now.set(new Date()), 60_000);
       destroyRef.onDestroy(() => clearInterval(id));
@@ -99,7 +110,10 @@ export class Companies {
     this.openEditor();
   }
 
+  private readonly recents = inject(RecentsStore);
+
   protected openEdit(company: Company) {
+    this.recents.visit('company', company.id);
     this.editingId.set(company.id);
     const { id, cover, ...data } = company;
     this.draft.set({ ...data, view: { ...data.view } });

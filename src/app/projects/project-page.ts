@@ -1,6 +1,7 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { USERS } from '../chat/chat';
+import { RecentsStore } from '../home/recents-store';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
@@ -43,6 +44,15 @@ export class ProjectPage {
     return project ? this.projectStore.statuses().find((s) => s.id === project.status) : null;
   });
   protected readonly tasks = computed(() => this.taskStore.tasks().filter((task) => task.projectId === Number(this.id())));
+
+  constructor() {
+    // Entra nos "Recentes" da lateral
+    const recents = inject(RecentsStore);
+    effect(() => {
+      const project = this.project();
+      if (project) untracked(() => recents.visit('project', project.id));
+    });
+  }
 
   // ---------- Resumo do andamento ----------
   protected readonly summary = computed(() => {

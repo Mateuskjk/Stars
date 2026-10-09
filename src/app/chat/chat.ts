@@ -1,10 +1,8 @@
-import { Component, computed, signal } from '@angular/core';
-
-interface User {
-  id: number;
-  name: string;
-  role: string;
-}
+import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
+import { RecentsStore } from '../home/recents-store';
+import { USERS } from './users';
 
 interface Message {
   fromMe: boolean;
@@ -12,16 +10,7 @@ interface Message {
   time: Date;
 }
 
-// ponytail: usuários e mensagens fixos de exemplo; trocar por um service/API (e tempo real) quando o backend existir
-export const USERS: User[] = [
-  { id: 1, name: 'Ana Souza', role: 'Product Manager' },
-  { id: 2, name: 'Carlos Lima', role: 'Desenvolvedor' },
-  { id: 3, name: 'Bruna Alves', role: 'Designer' },
-  { id: 4, name: 'Diego Rocha', role: 'Desenvolvedor' },
-  { id: 5, name: 'Eva Martins', role: 'QA' },
-  { id: 6, name: 'Felipe Costa', role: 'Tech Lead' },
-  { id: 7, name: 'Gabriela Nunes', role: 'Analista de dados' },
-];
+export { USERS } from './users';
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
 
@@ -98,7 +87,22 @@ export class Chat {
     return id === null ? [] : [...(this.messages()[id] ?? [])].reverse();
   });
 
+  private readonly recents = inject(RecentsStore);
+
+  constructor() {
+    // Vindo dos Recentes: /conversas?com=ID abre a conversa com a pessoa
+    const route = inject(ActivatedRoute);
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      route.queryParamMap.pipe(takeUntilDestroyed(destroyRef)).subscribe((params) => {
+        const id = Number(params.get('com'));
+        if (USERS.some((user) => user.id === id)) this.open(id);
+      });
+    });
+  }
+
   protected open(userId: number) {
+    this.recents.visit('chat', userId);
     this.activeId.set(userId);
     this.pickingUser.set(false);
     this.draft.set('');

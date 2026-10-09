@@ -1,7 +1,9 @@
-import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { formatTime } from '../chat/chat';
 import { formatWeekDate } from '../home/home';
+import { RecentsStore } from '../home/recents-store';
 import { LINK, Note, NotesStore, linksIn } from './notes-store';
 
 type Segment = { text: string } | { link: string; exists: boolean };
@@ -64,14 +66,17 @@ export class Notes {
   });
 
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly recents = inject(RecentsStore);
 
   constructor() {
     afterNextRender(() => {
       this.store.load();
-      // Vindo do Brain: /workspace/notes?nota=ID abre a nota direto
-      const id = Number(this.route.snapshot.queryParamMap.get('nota'));
-      const note = this.store.notes().find((n) => n.id === id);
-      if (note) this.open(note);
+      // Vindo do Brain ou dos Recentes: /workspace/notes?nota=ID abre a nota direto
+      this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+        const note = this.store.notes().find((n) => n.id === Number(params.get('nota')));
+        if (note) this.open(note);
+      });
     });
   }
 
@@ -95,6 +100,7 @@ export class Notes {
     this.commitTitle(); // se estava renomeando outra nota, conclui antes de trocar
     this.selectedId.set(note.id);
     this.titleBeforeEdit = note.title;
+    this.recents.visit('note', note.id);
     this.mode.set(mode);
   }
 

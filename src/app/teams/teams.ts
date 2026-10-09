@@ -1,10 +1,12 @@
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BacklogStatus, BacklogStore } from '../backlog/backlog-store';
 import { initials } from '../chat/chat';
 import { Member, MembersStore } from '../members/members-store';
 import { ProjectStore } from '../projects/project-store';
 import { Team, TeamData, TeamsStore } from './teams-store';
+import { RecentsStore } from '../home/recents-store';
 
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const empty = (): TeamData => ({ name: '', focus: '', memberIds: [], projectIds: [], activityIds: [] });
@@ -74,7 +76,22 @@ export class Teams {
     this.openEditor();
   }
 
+  private readonly recents = inject(RecentsStore);
+
+  constructor() {
+    const route = inject(ActivatedRoute);
+    const destroyRef = inject(DestroyRef);
+    // Vindo dos "Perfis acessados": ?equipe=ID abre direto
+    afterNextRender(() =>
+      route.queryParamMap.pipe(takeUntilDestroyed(destroyRef)).subscribe((params) => {
+        const found = this.store.teams().find((item) => item.id === Number(params.get('equipe')));
+        if (found) this.openEdit(found);
+      }),
+    );
+  }
+
   protected openEdit(team: Team) {
+    this.recents.visit('team', team.id);
     this.editingId.set(team.id);
     // Quem perdeu a elegibilidade (saiu da empresa, foi removido…) não volta para o rascunho
     const eligible = new Set(this.eligible().map((member) => member.id));

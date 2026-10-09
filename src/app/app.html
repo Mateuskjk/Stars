@@ -215,9 +215,9 @@
         Recentes
       </h2>
       <ul class="side-card__list">
-        @for (item of recents(); track item.title) {
+        @for (item of recents(); track $index) {
           <li>
-            <a class="side-card__item" [routerLink]="item.link">
+            <a class="side-card__item" [routerLink]="item.link" [queryParams]="item.query">
               <span>
                 <span class="side-card__type">{{ item.type }}</span>
                 {{ item.title }}
@@ -228,6 +228,8 @@
               </svg>
             </a>
           </li>
+        } @empty {
+          <li class="side-card__empty">O que você abrir (projetos, notas, cartões, conversas e dashboards) aparece aqui.</li>
         }
       </ul>
     </div>
@@ -242,12 +244,12 @@
         Perfis acessados
       </h2>
       <ul class="side-card__list">
-        @for (profile of recentProfiles(); track profile.name) {
+        @for (profile of recentProfiles(); track $index) {
           <li>
-            <a class="side-card__item" routerLink="/perfis">
+            <a class="side-card__item" [routerLink]="profile.link" [queryParams]="profile.query">
               <span class="side-card__label">
                 <span class="side-card__avatar" aria-hidden="true">{{ profile.initials }}</span>
-                {{ profile.name }}
+                {{ profile.title }}
                 <span class="side-card__type">{{ profile.type }}</span>
               </span>
               <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -256,6 +258,8 @@
               </svg>
             </a>
           </li>
+        } @empty {
+          <li class="side-card__empty">Membros, equipes e perfis de empresa que você abrir aparecem aqui.</li>
         }
       </ul>
     </div>

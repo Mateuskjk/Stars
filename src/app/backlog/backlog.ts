@@ -1,7 +1,9 @@
-import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { USERS, formatTime, initials } from '../chat/chat';
+import { RecentsStore } from '../home/recents-store';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
@@ -27,13 +29,16 @@ export class Backlog {
   private readonly store = inject(BacklogStore);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly recents = inject(RecentsStore);
 
   constructor() {
-    // Vindo dos Favoritos: /workspace/backlog?cartao=ID abre o cartão direto
+    // Vindo dos Favoritos ou dos Recentes: /workspace/backlog?cartao=ID abre o cartão direto
     afterNextRender(() => {
-      const id = Number(this.route.snapshot.queryParamMap.get('cartao'));
-      const item = this.store.items().find((current) => current.id === id);
-      if (item) this.openEdit(item);
+      this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+        const item = this.store.items().find((current) => current.id === Number(params.get('cartao')));
+        if (item) this.openEdit(item);
+      });
     });
   }
 
@@ -100,6 +105,7 @@ export class Backlog {
   }
 
   protected openEdit(item: BacklogItem) {
+    this.recents.visit('card', item.id);
     this.draft.set({
       ...item,
       tags: [...item.tags],

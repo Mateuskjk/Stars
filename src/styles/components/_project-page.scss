@@ -47,7 +47,11 @@ $page-line: #e7e8ea;
   }
 
   &__dash {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
     margin-left: auto;
+    text-align: center;
     text-decoration: none;
   }
 

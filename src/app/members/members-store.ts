@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AccountStore } from '../account/account-store';
 import { AuditStore } from '../audit/audit-store';
-import { USERS } from '../chat/chat';
+import { USERS } from '../chat/users';
 
 export type Role = 'admin' | 'supervisor' | 'member';
 export type Access = 'none' | 'view' | 'edit';
