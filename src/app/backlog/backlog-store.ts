@@ -52,6 +52,7 @@ export interface BacklogItem {
   // Planning: só vale para atividades em "Finalizado refinamento"
   planning?: 'ready' | 'waiting'; // padrão: 'ready' (pronta para a sprint)
   sprintId?: number; // definida quando a atividade entra numa sprint
+  sectorId?: number; // setor de uma empresa (aparece no kanban da página do setor)
 }
 
 // Cores das tags: cada tag pega sempre a mesma cor (pelo texto), sem precisar configurar
@@ -88,12 +89,13 @@ const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000);
 
 // ponytail: atividades de exemplo, só em memória (somem ao recarregar; anexos usam object URL da sessão)
 const SEED: Omit<BacklogItem, 'id'>[] = [
-  { ...emptyItem('to-refine'), name: 'Padronizar e-mails de boas-vindas', description: 'Revisar textos e layout dos e-mails automáticos.', due: inDays(5), tags: ['comunicação'], assignee: 'Ana Souza', favorite: true },
-  { ...emptyItem('to-refine'), name: 'Levantar ferramentas de BI', description: 'Comparar opções para os relatórios internos.', tags: ['pesquisa', 'dados'], assignee: 'Gabriela Nunes' },
-  { ...emptyItem('refined'), name: 'Política de férias 2027', description: 'Definir janelas e regras de aprovação.', due: inDays(-2), tags: ['RH'], assignee: 'Felipe Costa', comments: [{ id: 1, author: 'Ana Souza', text: 'Falta validar com o jurídico.', time: hoursAgo(20) }] },
+  { ...emptyItem('to-refine'), name: 'Padronizar e-mails de boas-vindas', sectorId: 1, description: 'Revisar textos e layout dos e-mails automáticos.', due: inDays(5), tags: ['comunicação'], assignee: 'Ana Souza', favorite: true },
+  { ...emptyItem('to-refine'), name: 'Levantar ferramentas de BI', sectorId: 6, description: 'Comparar opções para os relatórios internos.', tags: ['pesquisa', 'dados'], assignee: 'Gabriela Nunes' },
+  { ...emptyItem('refined'), name: 'Política de férias 2027', sectorId: 3, description: 'Definir janelas e regras de aprovação.', due: inDays(-2), tags: ['RH'], assignee: 'Felipe Costa', comments: [{ id: 1, author: 'Ana Souza', text: 'Falta validar com o jurídico.', time: hoursAgo(20) }] },
   {
     ...emptyItem('refined'),
     name: 'Organizar o onboarding de novos devs',
+    sectorId: 6,
     tags: ['time', 'documentação'],
     assignee: 'Carlos Lima',
     subtasks: [
@@ -102,10 +104,10 @@ const SEED: Omit<BacklogItem, 'id'>[] = [
       { id: 3, title: 'Guia do repositório', done: false },
     ],
   },
-  { ...emptyItem('waiting'), name: 'Renovar licenças de software', description: 'Aguardando orçamento do fornecedor.', due: inDays(10), tags: ['financeiro'], assignee: 'Diego Rocha', locked: true },
-  { ...emptyItem('refinement-done'), name: 'Rotina de backup dos arquivos', tags: ['infra'], assignee: 'Felipe Costa', due: inDays(12) },
-  { ...emptyItem('refinement-done'), name: 'Template de relatório mensal', tags: ['documentação'], assignee: 'Gabriela Nunes', due: inDays(8) },
-  { ...emptyItem('refinement-done'), name: 'Treinamento de segurança', tags: ['time', 'infra'], assignee: 'Eva Martins', planning: 'waiting' },
+  { ...emptyItem('waiting'), name: 'Renovar licenças de software', sectorId: 4, description: 'Aguardando orçamento do fornecedor.', due: inDays(10), tags: ['financeiro'], assignee: 'Diego Rocha', locked: true },
+  { ...emptyItem('refinement-done'), name: 'Rotina de backup dos arquivos', sectorId: 4, tags: ['infra'], assignee: 'Felipe Costa', due: inDays(12) },
+  { ...emptyItem('refinement-done'), name: 'Template de relatório mensal', sectorId: 3, tags: ['documentação'], assignee: 'Gabriela Nunes', due: inDays(8) },
+  { ...emptyItem('refinement-done'), name: 'Treinamento de segurança', sectorId: 4, tags: ['time', 'infra'], assignee: 'Eva Martins', planning: 'waiting' },
   { ...emptyItem('refinement-done'), name: 'Automatizar convites da daily', tags: ['time'], assignee: 'Ana Souza', sprintId: 12 },
   { ...emptyItem('archived'), name: 'Pesquisa de clima Q2', tags: ['RH'], assignee: 'Ana Souza' },
   { ...emptyItem('canceled'), name: 'Migrar wiki para nova plataforma', tags: ['documentação'], assignee: 'Eva Martins' },

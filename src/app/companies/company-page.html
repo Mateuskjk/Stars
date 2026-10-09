@@ -1,0 +1,139 @@
+@if (company(); as c) {
+  <!-- Cabeçalho com as informações da empresa -->
+  <header class="company-page__header">
+    <div
+      class="company-page__cover"
+      [style.background]="c.image ? 'center / cover no-repeat url(' + c.image + ')' : c.cover"
+      aria-hidden="true"
+    ></div>
+    <div class="company-page__main">
+      <div class="project-page__title-row">
+        <h2 class="project-page__title">{{ c.name }}</h2>
+        <span class="status-chip" [style.--status-color]="c.active ? '#0ca30c' : '#898781'">{{ c.active ? 'Ativa' : 'Inativa' }}</span>
+        <a class="modal__ghost planning__small project-page__dash" routerLink="/configuracoes/perfis-empresas" [queryParams]="{ empresa: c.id }">Editar perfil</a>
+      </div>
+      @if (c.description) {
+        <p class="project-page__description">{{ c.description }}</p>
+      }
+      <dl class="project-page__facts">
+        <div>
+          <dt>Site</dt>
+          <dd>
+            @if (c.site) {
+              <a class="company-page__site" [href]="c.site" target="_blank" rel="noopener noreferrer">{{ c.site }}</a>
+            } @else {
+              —
+            }
+          </dd>
+        </div>
+        <div><dt>Fuso horário</dt><dd>{{ c.timeZone.replaceAll('_', ' ') }} · {{ localTime(c.timeZone) }}</dd></div>
+        <div><dt>Idioma</dt><dd>{{ locales[c.view.locale] }}</dd></div>
+        <div><dt>Moeda</dt><dd>{{ c.view.currency }}</dd></div>
+        <div><dt>Formato de data</dt><dd>{{ c.view.dateFormat }}</dd></div>
+        <div><dt>Semana começa</dt><dd>{{ c.view.weekStart === 'monday' ? 'segunda' : 'domingo' }}</dd></div>
+      </dl>
+    </div>
+
+    <aside class="project-page__progress" aria-label="Resumo da empresa">
+      <dl class="company-page__counts">
+        <div><dt>Setores</dt><dd>{{ sectors().length }}</dd></div>
+        <div><dt>Projetos</dt><dd>{{ projects().length }}</dd></div>
+        <div><dt>Membros</dt><dd>{{ members().length }}</dd></div>
+      </dl>
+      @if (members().length) {
+        <ul class="company-page__people" aria-label="Membros ligados à empresa">
+          @for (m of members(); track m.id) {
+            <li class="kanban__avatar" [title]="m.name">{{ initials(m.name) }}</li>
+          }
+        </ul>
+      }
+    </aside>
+  </header>
+
+  <!-- Perfis dos setores -->
+  <section class="company-page__sectors" aria-label="Setores">
+    <div class="project-page__kanban-head">
+      <h2 class="kanban__title">Setores</h2>
+      @if (isAdmin()) {
+        <button class="backlog__new" type="button" (click)="creating.set(!creating()); error.set('')">{{ creating() ? 'Cancelar' : '+ Novo setor' }}</button>
+      }
+    </div>
+
+    @if (creating() && isAdmin()) {
+      <form class="company-page__new" (submit)="create($event)">
+        <input class="modal__input" name="name" placeholder="Nome do setor *" aria-label="Nome do setor" required maxlength="60" />
+        <input class="modal__input" name="description" placeholder="Descrição" aria-label="Descrição do setor" maxlength="160" />
+        <select class="modal__input" name="manager" aria-label="Gestor do setor">
+          <option value="">Sem gestor</option>
+          @for (m of members(); track m.id) {
+            <option [value]="m.name">{{ m.name }}</option>
+          }
+        </select>
+        <button class="backlog__new" type="submit">Criar setor</button>
+        @if (error()) {
+          <p class="company-page__error" role="alert">{{ error() }}</p>
+        }
+      </form>
+    }
+
+    <ul class="company-page__grid">
+      @for (s of sectors(); track s.id) {
+        <li class="sector-card" [style.--sector-color]="s.color">
+          <div class="sector-card__head">
+            <span class="sector-card__badge" aria-hidden="true">{{ initials(s.name) }}</span>
+            <div class="sector-card__title">
+              <h3><a class="sector-card__link" [routerLink]="['/empresas', c.id, 'setores', s.id]">{{ s.name }}</a></h3>
+              <span>{{ s.description || 'Sem descrição' }}</span>
+            </div>
+          </div>
+
+          <dl class="sector-card__facts">
+            <div><dt>Gestor</dt><dd>{{ s.manager || '—' }}</dd></div>
+            <div><dt>Projetos</dt><dd>{{ s.projects.length }}</dd></div>
+            <div><dt>Atividades de projeto</dt><dd>{{ s.open }} abertas</dd></div>
+            <div><dt>Atividades gerais</dt><dd>{{ s.general }}</dd></div>
+          </dl>
+
+          @if (s.progress !== null) {
+            <span class="meter" role="img" [attr.aria-label]="'Progresso dos projetos do setor: ' + s.progress + '%'">
+              <span class="meter__fill" [style.width.%]="s.progress"></span>
+            </span>
+            <span class="sector-card__progress">{{ s.progress }}% dos pontos entregues</span>
+          }
+
+          <ul class="sector-card__projects">
+            @for (p of s.projects; track p.id) {
+              <li>
+                <a [routerLink]="['/projetos', p.id]">{{ p.name }}</a>
+                @if (p.statusInfo; as st) {
+                  <span class="status-chip" [style.--status-color]="st.color">{{ st.label }}</span>
+                }
+              </li>
+            } @empty {
+              <li class="sector-card__empty">Nenhum projeto neste setor ainda.</li>
+            }
+          </ul>
+        </li>
+      } @empty {
+        <li class="favorites__empty">
+          <p>Nenhum setor criado.</p>
+          <p class="backlog__subtitle">{{ isAdmin() ? 'Crie os setores da empresa para organizar os projetos por área.' : 'Só um admin pode criar setores.' }}</p>
+        </li>
+      }
+    </ul>
+
+    @if (withoutSector().length) {
+      <p class="company-page__hint">
+        Projetos sem setor cadastrado aqui:
+        @for (p of withoutSector(); track p.id) {
+          <a [routerLink]="['/projetos', p.id]">{{ p.name }}</a>{{ p.sector ? ' (' + p.sector + ')' : '' }}{{ $last ? '' : ', ' }}
+        }
+      </p>
+    }
+  </section>
+} @else {
+  <div class="dash-card favorites__empty">
+    <p>Empresa não encontrada.</p>
+    <p class="backlog__subtitle"><a routerLink="/configuracoes/perfis-empresas">Ver os perfis de empresas</a></p>
+  </div>
+}

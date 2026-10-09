@@ -115,7 +115,7 @@
           <input class="project-table__file" form="new-project" name="docs" type="file" multiple aria-label="Anexos de documentação" />
         </td>
         <td>
-          <select class="project-table__input" form="new-project" name="company" aria-label="Empresa associada">
+          <select class="project-table__input" form="new-project" name="company" aria-label="Empresa associada" (change)="draftCompany.set($any($event.target).value)">
             <option value="">Empresa</option>
             @for (company of companies(); track company) {
               <option [value]="company">{{ company }}</option>
@@ -126,7 +126,7 @@
           <!-- Sugestões na lista, mas aceita qualquer setor digitado -->
           <input class="project-table__input" form="new-project" name="sector" list="project-sectors" placeholder="Setor" aria-label="Setor onde o projeto vai ser aplicado" />
           <datalist id="project-sectors">
-            @for (sector of sectors; track sector) {
+            @for (sector of sectors(); track sector) {
               <option [value]="sector"></option>
             }
           </datalist>

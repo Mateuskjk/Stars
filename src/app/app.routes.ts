@@ -28,6 +28,8 @@ export const routes: Routes = [
       { path: 'brain', loadComponent: () => import('./brain/brain').then((m) => m.Brain) },
     ],
   },
+  { path: 'empresas/:id/setores/:sectorId', loadComponent: () => import('./companies/sector-page').then((m) => m.SectorPage) },
+  { path: 'empresas/:id', loadComponent: () => import('./companies/company-page').then((m) => m.CompanyPage) },
   { path: 'convite', loadComponent: () => import('./members/invite').then((m) => m.Invite) },
   {
     path: 'configuracoes',

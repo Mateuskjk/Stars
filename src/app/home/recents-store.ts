@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { BacklogStore } from '../backlog/backlog-store';
 import { CompanyStore } from '../companies/company-store';
+import { SectorStore } from '../companies/sector-store';
 import { MembersStore } from '../members/members-store';
 import { TeamsStore } from '../teams/teams-store';
 import { USERS } from '../chat/users';
@@ -8,9 +9,9 @@ import { NotesStore } from '../notes/notes-store';
 import { ProjectStore } from '../projects/project-store';
 
 export type RecentKind = 'project' | 'note' | 'card' | 'chat' | 'dashboard' | ProfileKind;
-export type ProfileKind = 'member' | 'team' | 'company'; // "Perfis acessados"
+export type ProfileKind = 'member' | 'team' | 'company' | 'sector'; // "Perfis acessados"
 
-const PROFILE_KINDS: RecentKind[] = ['member', 'team', 'company'];
+const PROFILE_KINDS: RecentKind[] = ['member', 'team', 'company', 'sector'];
 
 interface Visit {
   kind: RecentKind;
@@ -52,6 +53,7 @@ export class RecentsStore {
   private readonly members = inject(MembersStore);
   private readonly teams = inject(TeamsStore);
   private readonly companies = inject(CompanyStore);
+  private readonly sectors = inject(SectorStore);
 
   private readonly visits = signal<Visit[]>([]);
   private loaded = false;
@@ -119,7 +121,12 @@ export class RecentsStore {
       }
       case 'company': {
         const company = this.companies.companies().find((c) => c.id === id);
-        return company && { type: 'Empresa', title: company.name, link: '/configuracoes/perfis-empresas', query: { empresa: company.id }, initials: initialsOf(company.name) };
+        return company && { type: 'Empresa', title: company.name, link: `/empresas/${company.id}`, initials: initialsOf(company.name) };
+      }
+      case 'sector': {
+        const sector = this.sectors.byId(Number(id));
+        const company = sector && this.companies.companies().find((c) => c.id === sector.companyId);
+        return sector && company && { type: `Setor · ${company.name}`, title: sector.name, link: `/empresas/${company.id}/setores/${sector.id}`, initials: initialsOf(sector.name) };
       }
       case 'dashboard': {
         const dash = DASHBOARDS[id];

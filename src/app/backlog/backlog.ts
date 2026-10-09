@@ -3,6 +3,8 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { USERS, formatTime, initials } from '../chat/chat';
+import { CompanyStore } from '../companies/company-store';
+import { SectorStore } from '../companies/sector-store';
 import { RecentsStore } from '../home/recents-store';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
@@ -43,6 +45,16 @@ export class Backlog {
   }
 
   protected readonly columns = this.store.columns;
+
+  // Setores agrupados por empresa, para o campo Setor do cartão
+  private readonly sectorStore = inject(SectorStore);
+  private readonly companyStore = inject(CompanyStore);
+  protected readonly sectorGroups = computed(() =>
+    this.companyStore
+      .companies()
+      .map((company) => ({ company: company.name, sectors: this.sectorStore.ofCompany(company.id) }))
+      .filter((group) => group.sectors.length),
+  );
   protected readonly people = USERS.map((user) => user.name);
   protected readonly initials = initials;
   protected readonly formatTime = formatTime;

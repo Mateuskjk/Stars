@@ -84,7 +84,7 @@ export class CompanyStore {
       .map((company) => ({
         name: company.name,
         cover: company.image ? `center / cover no-repeat url("${company.image}")` : company.cover,
-        link: '/configuracoes/perfis-empresas',
+        link: `/empresas/${company.id}`,
       })),
   );
 

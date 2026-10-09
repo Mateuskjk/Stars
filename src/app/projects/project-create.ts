@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { USERS } from '../chat/chat';
 import { CompanyStore } from '../companies/company-store';
+import { SectorStore } from '../companies/sector-store';
 import { ProjectStatus, ProjectStore, SECTORS, TEAMS } from './project-store';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -20,7 +21,16 @@ export class ProjectCreate {
   protected readonly people = USERS.map((user) => user.name);
   protected readonly companies = inject(CompanyStore).activeNames;
   protected readonly teams = TEAMS;
-  protected readonly sectors = SECTORS;
+  // Setor: sugere os setores cadastrados da empresa escolhida (sem empresa, a lista geral); aceita outro digitado
+  private readonly companyStore = inject(CompanyStore);
+  private readonly sectorStore = inject(SectorStore);
+  protected readonly draftCompany = signal('');
+  protected readonly sectors = computed(() => {
+    const company = this.companyStore.companies().find((c) => c.name === this.draftCompany());
+    if (!company) return SECTORS;
+    const names = this.sectorStore.sectors().filter((s) => s.companyId === company.id).map((s) => s.name);
+    return names.length ? names : SECTORS;
+  });
 
   // Status escolhido na linha de criação (para a bolinha de cor acompanhar o select)
   protected readonly draftStatus = signal<ProjectStatus>('idea');
@@ -67,6 +77,7 @@ export class ProjectCreate {
 
     form.reset();
     this.draftStatus.set('idea');
+    this.draftCompany.set('');
     this.created.set(name);
   }
 }

@@ -1,0 +1,349 @@
+@use '../variables' as *;
+
+// Página da empresa (/empresas/:id): reaproveita o cabeçalho da página de projeto (.project-page__*)
+
+$cp-muted: #898781;
+$cp-line: #e7e8ea;
+
+.company-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+
+  &__header {
+    display: grid;
+    grid-template-columns: 96px 1fr 240px;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 15px;
+    background-color: $color-surface;
+    box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  }
+
+  &__cover {
+    width: 96px;
+    height: 96px;
+    border-radius: 15px;
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  &__site {
+    color: $color-title;
+    word-break: break-all;
+  }
+
+  &__counts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    text-align: center;
+
+    dt {
+      color: $cp-muted;
+      font-size: 11px;
+    }
+
+    dd {
+      color: $color-title;
+      font-size: 24px;
+      font-weight: 700;
+    }
+  }
+
+  &__people {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    list-style: none;
+  }
+
+  &__sectors {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__new {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr auto;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    background-color: #f0f2f3;
+  }
+
+  &__error {
+    grid-column: 1 / -1;
+    color: #d03b3b;
+    font-size: 13px;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    list-style: none;
+  }
+
+  &__hint {
+    color: $cp-muted;
+    font-size: 13px;
+
+    a {
+      color: $color-title;
+      font-weight: 600;
+    }
+  }
+}
+
+// Perfil de um setor
+.sector-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-top: 4px solid var(--sector-color);
+  border-radius: 15px;
+  background-color: $color-surface;
+  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__badge {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background-color: color-mix(in srgb, var(--sector-color) 16%, transparent);
+    color: $color-title;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  &__title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    h3 {
+      color: $color-title;
+      font-size: 16px;
+    }
+
+    span {
+      color: $cp-muted;
+      font-size: 12px;
+    }
+  }
+
+  &__facts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+
+    dt {
+      color: $cp-muted;
+      font-size: 11px;
+    }
+
+    dd {
+      color: $color-title;
+      font-size: 13px;
+      font-weight: 600;
+    }
+  }
+
+  &__progress {
+    margin-top: -6px;
+    color: $cp-muted;
+    font-size: 12px;
+  }
+
+  &__projects {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid $cp-line;
+    list-style: none;
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    a {
+      min-width: 0;
+      overflow: hidden;
+      color: $color-title;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  &__empty {
+    color: $cp-muted;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: $bp-tablet) {
+  .company-page__header {
+    grid-template-columns: 64px 1fr;
+  }
+
+  .company-page__cover {
+    width: 64px;
+    height: 64px;
+  }
+
+  .company-page__header .project-page__progress {
+    grid-column: 1 / -1;
+    padding: 12px 0 0;
+    border-top: 1px solid $cp-line;
+    border-left: none;
+  }
+
+  .company-page__new {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Nome do setor no card: abre a página do setor
+.sector-card__link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// ---------- Página do setor (/empresas/:id/setores/:sectorId) ----------
+
+.sector-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+
+  &__header {
+    border-top: 4px solid var(--sector-color);
+  }
+
+  &__badge {
+    display: grid;
+    place-items: center;
+    width: 96px;
+    height: 96px;
+    border-radius: 15px;
+    background-color: color-mix(in srgb, var(--sector-color) 16%, transparent);
+    color: $color-title;
+    font-size: 32px;
+    font-weight: 700;
+  }
+
+  &__crumb {
+    color: $cp-muted;
+    font-size: 12px;
+
+    a {
+      color: $color-title;
+      font-weight: 600;
+    }
+  }
+
+  &__projects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  &__project {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 4px 4px 10px;
+    border: 1px solid $cp-line;
+    border-radius: 20px;
+    color: $color-title;
+    font-size: 13px;
+    text-decoration: none;
+
+    &:hover {
+      background-color: #f5f6f7;
+    }
+  }
+
+  &__kanban {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+
+    .backlog__board {
+      min-height: 360px;
+    }
+
+    .backlog-card {
+      position: relative;
+    }
+
+    .backlog-card__open {
+      padding-right: 44px; // espaço para o seletor "Mover para"
+      text-decoration: none;
+    }
+  }
+
+  &__new {
+    grid-template-columns: 2fr repeat(3, 1fr) auto;
+  }
+
+  // Seletor "Mover para" no canto do cartão
+  &__move {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+
+  &__sprint {
+    padding: 1px 8px;
+    border-radius: 10px;
+    background-color: #dbe8f8;
+    color: $color-title;
+    font-size: 11px;
+    font-weight: 600;
+  }
+}
+
+@media (max-width: $bp-tablet) {
+  .sector-page__badge {
+    width: 64px;
+    height: 64px;
+    font-size: 22px;
+  }
+}

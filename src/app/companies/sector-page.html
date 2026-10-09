@@ -1,0 +1,147 @@
+@if (sector(); as s) {
+  @let c = company()!;
+  <!-- Cabeçalho com as informações do setor -->
+  <header class="company-page__header sector-page__header" [style.--sector-color]="s.color">
+    <span class="sector-page__badge" aria-hidden="true">{{ initials(s.name) }}</span>
+    <div class="company-page__main">
+      <p class="sector-page__crumb">
+        <a [routerLink]="['/empresas', c.id]">{{ c.name }}</a> › Setor
+      </p>
+      <div class="project-page__title-row">
+        <h2 class="project-page__title">{{ s.name }}</h2>
+      </div>
+      <p class="project-page__description">{{ s.description || 'Sem descrição' }}</p>
+      <dl class="project-page__facts">
+        <div><dt>Gestor</dt><dd>{{ s.manager || '—' }}</dd></div>
+        <div><dt>Empresa</dt><dd><a class="company-page__site" [routerLink]="['/empresas', c.id]">{{ c.name }}</a></dd></div>
+        <div class="project-page__docs">
+          <dt>Projetos associados</dt>
+          <dd class="sector-page__projects">
+            @for (p of projects(); track p.id) {
+              <a class="sector-page__project" [routerLink]="['/projetos', p.id]">
+                {{ p.name }}
+                @if (p.statusInfo; as st) {
+                  <span class="status-chip" [style.--status-color]="st.color">{{ st.label }}</span>
+                }
+              </a>
+            } @empty {
+              <span class="sector-card__empty">Nenhum projeto da {{ c.name }} neste setor.</span>
+            }
+          </dd>
+        </div>
+      </dl>
+    </div>
+
+    @let sum = summary();
+    <aside class="project-page__progress" aria-label="Resumo das atividades gerais">
+      <dl class="project-page__numbers">
+        <div><dt>Em aberto</dt><dd>{{ sum.open }}</dd></div>
+        <div><dt>Em sprint</dt><dd>{{ sum.inSprint }}</dd></div>
+        <div><dt>Prontas p/ sprint</dt><dd>{{ sum.ready }}</dd></div>
+        <div><dt>Atrasadas</dt><dd [class.project-dash__bad]="sum.overdue">{{ sum.overdue }}</dd></div>
+      </dl>
+      <p class="project-page__sprint">Atividades gerais vêm do Backlog e da Planning</p>
+    </aside>
+  </header>
+
+  <!-- Kanban das atividades gerais do setor (Backlog + Planning) -->
+  <section class="sector-page__kanban" [attr.aria-label]="'Atividades gerais de ' + s.name">
+    <div class="project-page__kanban-head">
+      <h2 class="kanban__title">Atividades gerais</h2>
+      <a class="modal__ghost planning__small project-page__dash" routerLink="/workspace/planning">Abrir Planning</a>
+      <button class="backlog__new" type="button" (click)="creating.set(!creating())">{{ creating() ? 'Cancelar' : '+ Nova atividade' }}</button>
+    </div>
+
+    @if (creating()) {
+      <form class="project-page__new sector-page__new" (submit)="create($event)">
+        <input class="modal__input" name="name" placeholder="Nome da atividade *" aria-label="Nome da atividade" required maxlength="120" />
+        <select class="modal__input" name="assignee" aria-label="Responsável">
+          <option value="">Sem responsável</option>
+          @for (person of people; track person) {
+            <option [value]="person" [selected]="person === s.manager">{{ person }}</option>
+          }
+        </select>
+        <input class="modal__input" name="due" type="date" aria-label="Prazo" />
+        <select class="modal__input" name="status" aria-label="Coluna">
+          @for (column of columns(); track column.id) {
+            <option [value]="column.id">{{ column.label }}</option>
+          }
+        </select>
+        <button class="backlog__new" type="submit">Criar</button>
+      </form>
+    }
+
+    <div class="backlog__board">
+      @for (column of board(); track column.id) {
+        <section
+          class="backlog__column"
+          [class.is-drop-target]="dropTarget() === column.id"
+          [attr.aria-label]="column.label"
+          (dragover)="onDragOver($event, column.id)"
+          (drop)="onDrop($event, column.id)"
+        >
+          <header class="backlog__column-header">
+            <span class="backlog__dot" [style.background]="column.color"></span>
+            <h3 class="backlog__column-title">{{ column.label }}</h3>
+            <span class="backlog__count">{{ column.cards.length }}</span>
+          </header>
+
+          <ul class="backlog__cards">
+            @for (card of column.cards; track card.id) {
+              <li
+                class="backlog-card"
+                [class.is-locked]="card.locked"
+                [class.is-dragging]="dragging() === card.id"
+                [attr.draggable]="!card.locked"
+                (dragstart)="dragging.set(card.id)"
+                (dragend)="endDrag()"
+              >
+                <!-- Abre o cartão completo no Backlog -->
+                <a class="backlog-card__open" routerLink="/workspace/backlog" [queryParams]="{ cartao: card.id }">
+                  @if (card.tags.length) {
+                    <span class="backlog-card__tags">
+                      @for (tag of card.tags; track tag) {
+                        <span class="tag" [style.--tag-color]="tagColor(tag)">{{ tag }}</span>
+                      }
+                    </span>
+                  }
+                  <span class="backlog-card__name">{{ card.name }}</span>
+                  <span class="backlog-card__meta">
+                    @if (planning(card); as plan) {
+                      <span class="sector-page__sprint">{{ plan }}</span>
+                    }
+                    @if (card.due) {
+                      <span class="backlog-card__due" [class.is-overdue]="isOverdue(card)">
+                        {{ isOverdue(card) ? 'Atrasado · ' : '' }}{{ formatDue(card.due) }}
+                      </span>
+                    }
+                    @if (card.locked) {
+                      <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
+                    }
+                    @if (card.assignee) {
+                      <span class="kanban__avatar" [title]="card.assignee">{{ initials(card.assignee) }}</span>
+                    }
+                  </span>
+                </a>
+                @if (!card.locked) {
+                  <select class="kanban__move sector-page__move" [attr.aria-label]="'Mover ' + card.name + ' para'" (change)="move(card.id, $any($event.target).value)">
+                    @for (option of columns(); track option.id) {
+                      <option [value]="option.id" [selected]="option.id === card.status">{{ option.label }}</option>
+                    }
+                  </select>
+                }
+              </li>
+            } @empty {
+              <li class="backlog__empty">Nenhuma atividade</li>
+            }
+          </ul>
+        </section>
+      }
+    </div>
+  </section>
+} @else {
+  <div class="dash-card favorites__empty">
+    <p>Setor não encontrado.</p>
+    <p class="backlog__subtitle"><a [routerLink]="['/empresas', id()]">Voltar para a empresa</a></p>
+  </div>
+}

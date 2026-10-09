@@ -11,6 +11,8 @@ const PAGES: [RegExp, string][] = [
   [/^\/projetos\/?$/, 'Dash de Projetos (burn-up, burn-down, Gantt, insights; sprints de 7 dias úteis)'],
   [/^\/projetos\/\d+/, 'Página de um projeto (cabeçalho com os dados e kanban das atividades)'],
   [/^\/projetos\/visaoGeral/, 'Projetos > Geral (carrossel e kanban)'],
+  [/^\/empresas\/\d+\/setores\/\d+/, 'Página de um setor (cabeçalho, projetos ligados e kanban das atividades gerais do Backlog e da Planning)'],
+  [/^\/empresas\/\d+/, 'Página de uma empresa (cabeçalho com os dados e perfis dos setores)'],
   [/^\/workspace\/daily/, 'Daily'],
   [/^\/workspace\/backlog/, 'Backlog'],
   [/^\/workspace\/planning/, 'Planning'],

@@ -238,6 +238,20 @@
           </select>
         </label>
 
+        <label class="modal__field">
+          <span class="modal__label">Setor</span>
+          <select class="modal__input" (change)="patch({ sectorId: +$any($event.target).value || undefined })">
+            <option value="">Sem setor</option>
+            @for (group of sectorGroups(); track group.company) {
+              <optgroup [label]="group.company">
+                @for (sector of group.sectors; track sector.id) {
+                  <option [value]="sector.id" [selected]="sector.id === item.sectorId">{{ sector.name }}</option>
+                }
+              </optgroup>
+            }
+          </select>
+        </label>
+
         <div class="modal__field">
           <span class="modal__label">Tags</span>
           @if (item.tags.length) {
