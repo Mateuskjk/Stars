@@ -14,11 +14,11 @@
   }
 
   &__vs-average {
-    color: #898781;
+    color: var(--color-muted);
     font-size: 12px;
 
     &.is-good {
-      color: #006300;
+      color: var(--ink-green);
     }
   }
 
@@ -46,14 +46,14 @@
   }
 
   &__average {
-    background-color: #f5f6f7;
+    background-color: var(--color-soft);
     font-weight: 600;
   }
 }
 
 // Variação sem mudança: cor neutra (nem boa nem ruim)
 .stat__delta.is-neutral {
-  color: #898781;
+  color: var(--color-muted);
 }
 
 // Impressão / salvar como PDF: só o conteúdo da página
@@ -75,7 +75,7 @@
   }
 
   body {
-    background: #fff;
+    background: var(--color-card);
   }
 }
 

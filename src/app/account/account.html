@@ -97,7 +97,7 @@
 
       <label class="modal__toggle">
         <input type="checkbox" role="switch" [checked]="store.account().assistantEnabled" (change)="store.update({ assistantEnabled: $any($event.target).checked })" />
-        <span>Mostrar o assistente de IA (✨)</span>
+        <span>Mostrar o assistente de IA</span>
       </label>
       <label class="modal__toggle">
         <input type="checkbox" role="switch" [checked]="store.account().reduceMotion" (change)="store.update({ reduceMotion: $any($event.target).checked })" />

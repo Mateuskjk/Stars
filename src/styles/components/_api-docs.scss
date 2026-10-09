@@ -1,6 +1,6 @@
 @use '../variables' as *;
 
-$docs-line: #e7e8ea;
+$docs-line: var(--color-line);
 $docs-get: #2a78d6;
 
 .api-docs {
@@ -14,8 +14,8 @@ $docs-get: #2a78d6;
     margin-left: 6px;
     padding: 2px 8px;
     border-radius: 10px;
-    background-color: #f0f2f3;
-    color: #52514e;
+    background-color: var(--color-soft);
+    color: var(--color-muted);
     font-size: 12px;
     font-weight: 600;
     vertical-align: middle;
@@ -42,7 +42,7 @@ $docs-get: #2a78d6;
   }
 
   &__auth {
-    background-color: #f7f8fb;
+    background-color: var(--color-soft);
   }
 
   &__steps {
@@ -68,11 +68,11 @@ $docs-get: #2a78d6;
   }
 
   &__auth-status {
-    color: #898781;
+    color: var(--color-muted);
     font-size: 13px;
 
     &.is-ok {
-      color: #006300;
+      color: var(--ink-green);
     }
   }
 
@@ -134,12 +134,12 @@ $docs-get: #2a78d6;
 
   &__summary {
     flex: 1;
-    color: #52514e;
+    color: var(--color-muted);
     font-size: 13px;
   }
 
   &__chevron {
-    color: #898781;
+    color: var(--color-muted);
   }
 
   &__body {
@@ -176,12 +176,12 @@ $docs-get: #2a78d6;
   }
 
   &__status {
-    color: #b42f2f;
+    color: var(--ink-red);
     font-size: 13px;
     font-weight: 600;
 
     &.is-ok {
-      color: #006300;
+      color: var(--ink-green);
     }
   }
 
@@ -204,14 +204,14 @@ $docs-get: #2a78d6;
     margin-right: 6px;
     padding: 1px 6px;
     border-radius: 6px;
-    background-color: #fdf0f0;
-    color: #b42f2f;
+    background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
+    color: var(--ink-red);
     font-weight: 700;
     text-align: center;
 
     &.is-ok {
-      background-color: #e7f6e7;
-      color: #006300;
+      background-color: color-mix(in srgb, #0ca30c 10%, var(--color-card));
+      color: var(--ink-green);
     }
   }
 }

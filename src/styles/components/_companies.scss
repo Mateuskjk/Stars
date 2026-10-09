@@ -1,7 +1,7 @@
 @use '../variables' as *;
 
-$companies-line: #e7e8ea;
-$companies-muted: #898781;
+$companies-line: var(--color-line);
+$companies-muted: var(--color-muted);
 
 .companies {
   display: flex;
@@ -54,7 +54,7 @@ $companies-muted: #898781;
     left: 10px;
     padding: 3px 10px;
     border-radius: 12px;
-    background-color: rgba(250, 249, 246, 0.92);
+    background-color: color-mix(in srgb, var(--color-card) 92%, transparent);
     color: $color-title;
     font-size: 11px;
     font-weight: 600;
@@ -142,7 +142,7 @@ $companies-muted: #898781;
   &__preview {
     padding: 8px 10px;
     border-radius: 8px;
-    background-color: #f0f2f3;
+    background-color: var(--color-soft);
     color: $color-title;
     font-size: 13px;
   }

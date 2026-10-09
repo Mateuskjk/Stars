@@ -1,12 +1,12 @@
 @use '../variables' as *;
 
 // Cores de apoio dos gráficos (tinta de texto, grade e eixo)
-$chart-ink-secondary: #52514e;
-$chart-ink-muted: #898781;
-$chart-grid: #e1e0d9;
+$chart-ink-secondary: var(--color-muted);
+$chart-ink-muted: var(--color-muted);
+$chart-grid: var(--color-line);
 $chart-accent: #2a78d6;
-$chart-track: #cde2fb;
-$status-good: #006300;
+$chart-track: color-mix(in srgb, #2a78d6 24%, var(--color-card));
+$status-good: var(--ink-green);
 $status-critical: #d03b3b;
 
 .dashboard {
@@ -34,7 +34,7 @@ $status-critical: #d03b3b;
   padding: 16px;
   border-radius: 15px;
   background-color: $color-surface;
-  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
 
   &__title {
     color: $color-title;
@@ -264,10 +264,10 @@ $status-critical: #d03b3b;
   z-index: 50;
   min-width: 120px;
   padding: 8px 12px;
-  border: 1px solid rgba(11, 11, 11, 0.1);
+  border: 1px solid var(--color-line);
   border-radius: 10px;
-  background-color: #fff;
-  box-shadow: 0 6px 16px rgba(32, 43, 67, 0.16);
+  background-color: var(--color-card);
+  box-shadow: var(--shadow-ring), 0 6px 16px rgb(var(--shadow-color) / calc(0.16 * var(--shadow-strength)));
   font-size: 12px;
   transform: translate(12px, 12px);
   pointer-events: none; // não rouba o hover do gráfico

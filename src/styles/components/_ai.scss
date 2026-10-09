@@ -1,9 +1,9 @@
 @use '../variables' as *;
 
-$ai-line: #e7e8ea;
-$ai-muted: #898781;
-$ai-soft: #f0f2f3;
-$ai-accent: #4a3aa7;
+$ai-line: var(--color-line);
+$ai-muted: var(--color-muted);
+$ai-soft: var(--color-soft);
+$ai-accent: var(--ink-purple);
 
 // ---------- Tela de Integração com IA ----------
 .ai {
@@ -16,8 +16,8 @@ $ai-accent: #4a3aa7;
   &__security {
     padding: 10px 14px;
     border-radius: 10px;
-    background-color: #eef4ff;
-    color: #1c3d6e;
+    background-color: color-mix(in srgb, #2a78d6 7%, var(--color-card));
+    color: var(--ink-blue);
     font-size: 13px;
   }
 
@@ -84,13 +84,13 @@ $ai-accent: #4a3aa7;
     font-size: 13px;
 
     &.is-ok {
-      background-color: #e7f6e7;
-      color: #006300;
+      background-color: color-mix(in srgb, #0ca30c 10%, var(--color-card));
+      color: var(--ink-green);
     }
 
     &.is-fail {
-      background-color: #fdf0f0;
-      color: #b42f2f;
+      background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
+      color: var(--ink-red);
     }
   }
 
@@ -186,8 +186,8 @@ $ai-accent: #4a3aa7;
     border: none;
     border-radius: 50%;
     background-color: $color-nav-hover;
-    box-shadow: 0 8px 20px rgba(32, 43, 67, 0.3);
-    color: #fff;
+    box-shadow: var(--shadow-ring), 0 8px 20px rgb(var(--shadow-color) / calc(0.3 * var(--shadow-strength)));
+    color: $color-nav-text-hover;
     font-size: 22px;
     cursor: pointer;
     transition: transform 0.15s;
@@ -205,7 +205,7 @@ $ai-accent: #4a3aa7;
     overflow: hidden;
     border-radius: 15px;
     background-color: $color-surface;
-    box-shadow: 0 16px 40px rgba(32, 43, 67, 0.25);
+    box-shadow: var(--shadow-ring), 0 16px 40px rgb(var(--shadow-color) / calc(0.25 * var(--shadow-strength)));
   }
 
   &__header {
@@ -265,7 +265,7 @@ $ai-accent: #4a3aa7;
     padding: 8px 12px;
     border: 1px solid $ai-line;
     border-radius: 12px;
-    background: #fff;
+    background: var(--color-card);
     color: $color-title;
     font: inherit;
     font-size: 13px;
@@ -274,7 +274,7 @@ $ai-accent: #4a3aa7;
 
     &:hover {
       border-color: $ai-accent;
-      background-color: #f4f2fd;
+      background-color: color-mix(in srgb, var(--ink-purple) 8%, var(--color-card));
     }
   }
 
@@ -313,8 +313,8 @@ $ai-accent: #4a3aa7;
     margin: 0 14px 8px;
     padding: 8px 10px;
     border-radius: 8px;
-    background-color: #fdf0f0;
-    color: #b42f2f;
+    background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
+    color: var(--ink-red);
     font-size: 13px;
   }
 
@@ -337,7 +337,7 @@ $ai-accent: #4a3aa7;
     padding: 10px 12px;
     border: 1px solid $ai-line;
     border-radius: 12px;
-    background-color: #fff;
+    background-color: var(--color-card);
     color: $color-text;
     font: inherit;
     font-size: 14px;
@@ -375,5 +375,19 @@ $ai-accent: #4a3aa7;
   .assistant {
     right: 16px;
     bottom: 16px;
+  }
+}
+
+// Mesma logo do sistema (estrelas) no botão e no cabeçalho do assistente
+.assistant__logo {
+  display: block;
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+
+  .assistant__spark & {
+    width: 20px;
+    height: 20px;
+    fill: $color-logo;
   }
 }

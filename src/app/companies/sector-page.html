@@ -156,6 +156,7 @@
                 <li
                   class="backlog-card"
                   [class.is-locked]="card.locked"
+                  [class.is-late]="isOverdue(card)"
                   [class.is-dragging]="dragging() === card.id"
                   draggable="true"
                   (dragstart)="dragging.set(card.id)"

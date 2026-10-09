@@ -1,8 +1,8 @@
 @use '../variables' as *;
 
-$backlog-line: #e7e8ea;
-$backlog-muted: #898781;
-$backlog-column: #f0f2f3;
+$backlog-line: var(--color-line);
+$backlog-muted: var(--color-muted);
+$backlog-column: var(--color-soft);
 
 .backlog {
   display: flex;
@@ -85,7 +85,7 @@ $backlog-column: #f0f2f3;
 
     &.is-drop-target {
       border-color: $color-nav-hover;
-      background-color: #e6e9ee;
+      background-color: var(--color-soft-strong);
     }
   }
 
@@ -145,7 +145,7 @@ $backlog-column: #f0f2f3;
     cursor: pointer;
 
     &:hover {
-      background-color: #e6e9ee;
+      background-color: var(--color-soft-strong);
       color: $color-title;
     }
   }
@@ -154,7 +154,7 @@ $backlog-column: #f0f2f3;
 .backlog-card {
   border-radius: 10px;
   background-color: $color-surface;
-  box-shadow: 0 1px 4px rgba(32, 43, 67, 0.1);
+  box-shadow: var(--shadow-ring), 0 1px 4px rgb(var(--shadow-color) / calc(0.1 * var(--shadow-strength)));
   transition:
     box-shadow 0.15s,
     opacity 0.15s;
@@ -164,7 +164,7 @@ $backlog-column: #f0f2f3;
   }
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(32, 43, 67, 0.16);
+    box-shadow: var(--shadow-ring), 0 4px 12px rgb(var(--shadow-color) / calc(0.16 * var(--shadow-strength)));
   }
 
   &.is-dragging {
@@ -174,10 +174,11 @@ $backlog-column: #f0f2f3;
   // Bloqueado: faixa cinza à esquerda + cadeado (não depende só da cor)
   // Bloqueado: cartão vermelho (o cadeado 🔒 também aparece, a cor não fica sozinha)
   &.is-locked {
-    background-color: #fdeeee;
+    background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
     box-shadow:
+      var(--shadow-ring),
       inset 3px 0 0 #d03b3b,
-      0 1px 4px rgba(32, 43, 67, 0.1);
+      0 1px 4px rgb(var(--shadow-color) / calc(0.1 * var(--shadow-strength)));
   }
 
   &__open {
@@ -223,8 +224,8 @@ $backlog-column: #f0f2f3;
     color: $color-text;
 
     &.is-overdue {
-      background-color: #fdf0f0;
-      color: #d03b3b;
+      background-color: color-mix(in srgb, var(--color-late) 12%, var(--color-card));
+      color: var(--color-late);
       font-weight: 600;
     }
   }
@@ -248,7 +249,7 @@ $backlog-column: #f0f2f3;
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background-color: $color-title;
+    background-color: $color-nav-hover;
     color: $color-surface;
     font-size: 10px;
     font-weight: 600;
@@ -415,14 +416,14 @@ $backlog-column: #f0f2f3;
 .backlog-card__sprint {
   padding: 1px 8px;
   border-radius: 10px;
-  background-color: #f0f2f3;
+  background-color: var(--color-soft);
   color: $color-text;
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
 
   &.is-active {
-    background-color: #dbe8f8;
+    background-color: color-mix(in srgb, #2a78d6 16%, var(--color-card));
     color: $color-title;
   }
 
@@ -464,7 +465,7 @@ $backlog-column: #f0f2f3;
     gap: 4px;
     padding: 2px 6px 2px 2px;
     border-radius: 14px;
-    background-color: #f0f2f3;
+    background-color: var(--color-soft);
     color: $color-title;
     font-size: 12px;
 
@@ -476,7 +477,7 @@ $backlog-column: #f0f2f3;
   }
 
   &__remove {
-    color: #898781;
+    color: var(--color-muted);
     font-size: 10px;
     cursor: pointer;
 
@@ -487,12 +488,12 @@ $backlog-column: #f0f2f3;
 
   &__placeholder {
     flex: 1;
-    color: #898781;
+    color: var(--color-muted);
   }
 
   &__caret {
     margin-left: auto;
-    color: #898781;
+    color: var(--color-muted);
   }
 
   &__menu {
@@ -506,10 +507,10 @@ $backlog-column: #f0f2f3;
     gap: 6px;
     min-width: 240px;
     padding: 8px;
-    border: 1px solid #e7e8ea;
+    border: 1px solid var(--color-line);
     border-radius: 12px;
-    background-color: #fff;
-    box-shadow: 0 8px 24px rgba(32, 43, 67, 0.18);
+    background-color: var(--color-card);
+    box-shadow: var(--shadow-ring), 0 8px 24px rgb(var(--shadow-color) / calc(0.18 * var(--shadow-strength)));
   }
 
   &__list {
@@ -527,7 +528,7 @@ $backlog-column: #f0f2f3;
     cursor: pointer;
 
     &:hover {
-      background-color: #f5f6f7;
+      background-color: var(--color-soft);
     }
   }
 
@@ -540,7 +541,7 @@ $backlog-column: #f0f2f3;
 
     small {
       overflow: hidden;
-      color: #898781;
+      color: var(--color-muted);
       font-size: 11px;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -549,7 +550,25 @@ $backlog-column: #f0f2f3;
 
   &__empty {
     padding: 8px;
-    color: #898781;
+    color: var(--color-muted);
     font-size: 12px;
+  }
+}
+
+// Atividade atrasada (Backlog, setor, Favoritos e kanban do projeto): cartão em âmbar.
+// Bloqueado (vermelho) tem prioridade.
+.backlog-card.is-late:not(.is-locked),
+.kanban__card.is-late {
+  background-color: color-mix(in srgb, var(--color-late) 12%, var(--color-card));
+  box-shadow:
+    var(--shadow-ring),
+    inset 3px 0 0 var(--color-late),
+    0 1px 4px rgb(var(--shadow-color) / calc(0.1 * var(--shadow-strength)));
+
+  &:hover {
+    box-shadow:
+      var(--shadow-ring),
+      inset 3px 0 0 var(--color-late),
+      0 4px 12px rgb(var(--shadow-color) / calc(0.16 * var(--shadow-strength)));
   }
 }

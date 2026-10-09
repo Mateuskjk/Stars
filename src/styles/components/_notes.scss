@@ -1,9 +1,9 @@
 @use '../variables' as *;
 
-$notes-line: #e7e8ea;
-$notes-muted: #898781;
-$notes-soft: #f0f2f3;
-$notes-link: #4a3aa7;
+$notes-line: var(--color-line);
+$notes-muted: var(--color-muted);
+$notes-soft: var(--color-soft);
+$notes-link: var(--ink-purple);
 
 .notes {
   display: flex;
@@ -108,7 +108,7 @@ $notes-link: #4a3aa7;
 
       .notes__item-preview,
       .notes__item-meta {
-        color: #c3c7d1;
+        color: var(--color-muted);
       }
     }
   }
@@ -200,14 +200,14 @@ $notes-link: #4a3aa7;
 
       &.is-active {
         background-color: $color-surface;
-        box-shadow: 0 1px 3px rgba(32, 43, 67, 0.15);
+        box-shadow: var(--shadow-ring), 0 1px 3px rgb(var(--shadow-color) / calc(0.15 * var(--shadow-strength)));
         color: $color-title;
       }
     }
   }
 
   &__delete:hover {
-    background-color: #fdf0f0;
+    background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
     color: #d03b3b;
   }
 
@@ -215,8 +215,8 @@ $notes-link: #4a3aa7;
     margin: 8px 16px 0;
     padding: 8px 12px;
     border-radius: 8px;
-    background-color: #fff6e0;
-    color: #7a5600;
+    background-color: color-mix(in srgb, #eda100 12%, var(--color-card));
+    color: var(--ink-amber);
     font-size: 13px;
   }
 
@@ -245,7 +245,7 @@ $notes-link: #4a3aa7;
     padding: 6px 10px;
     border: 1px solid $notes-line;
     border-radius: 8px;
-    background-color: #fff;
+    background-color: var(--color-card);
     color: $color-title;
     font: inherit;
     font-size: 13px;
@@ -289,7 +289,7 @@ $notes-link: #4a3aa7;
     cursor: pointer;
 
     &:hover {
-      background-color: #efedfb;
+      background-color: color-mix(in srgb, var(--ink-purple) 8%, var(--color-card));
     }
 
     &.is-missing {

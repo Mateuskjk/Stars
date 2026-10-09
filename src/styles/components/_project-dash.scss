@@ -2,8 +2,8 @@
 
 // Dash de Projetos (/projetos): reaproveita .dashboard, .dash-card, .stat, .chart e .legend
 
-$ink-muted: #898781;
-$grid: #e1e0d9;
+$ink-muted: var(--color-muted);
+$grid: var(--color-line);
 $good: #0ca30c;
 $warn: #eda100;
 $bad: #d03b3b;
@@ -96,7 +96,7 @@ $info: #2a78d6;
   &__ai-stale {
     padding: 6px 10px;
     border-radius: 8px;
-    background-color: #fdf3dc;
+    background-color: color-mix(in srgb, #eda100 12%, var(--color-card));
     color: $color-text;
     font-size: 12px;
   }
@@ -262,7 +262,7 @@ $info: #2a78d6;
 
   &__row {
     min-height: 40px;
-    border-bottom: 1px solid #efeee9;
+    border-bottom: 1px solid var(--color-line);
   }
 
   &__label {
@@ -300,7 +300,7 @@ $info: #2a78d6;
     height: 16px;
     overflow: hidden;
     border-radius: 6px;
-    background-color: color-mix(in srgb, var(--bar-color) 28%, #fff);
+    background-color: color-mix(in srgb, var(--bar-color) 28%, var(--color-card));
     outline: none;
     transform: translateY(-50%);
     cursor: default;

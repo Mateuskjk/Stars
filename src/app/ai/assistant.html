@@ -1,7 +1,7 @@
 @if (open()) {
   <section class="assistant__panel" role="dialog" aria-label="Assistente de IA">
     <header class="assistant__header">
-      <span class="assistant__spark" aria-hidden="true">✨</span>
+      <span class="assistant__spark"><svg class="assistant__logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 1Q13 12 24 12Q13 12 13 23Q13 12 2 12Q13 12 13 1Z" /><path d="M25 18Q25 24 31 24Q25 24 25 30Q25 24 19 24Q25 24 25 18Z" /></svg></span>
       <div class="assistant__title">
         <strong>Assistente Stars</strong>
         @if (store.assistant(); as model) {
@@ -68,5 +68,9 @@
 }
 
 <button class="assistant__fab" type="button" [attr.aria-expanded]="open()" aria-label="Abrir assistente de IA" (click)="toggle()">
-  {{ open() ? '✕' : '✨' }}
+  @if (open()) {
+    ✕
+  } @else {
+    <svg class="assistant__logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 1Q13 12 24 12Q13 12 13 23Q13 12 2 12Q13 12 13 1Z" /><path d="M25 18Q25 24 31 24Q25 24 25 30Q25 24 19 24Q25 24 25 18Z" /></svg>
+  }
 </button>

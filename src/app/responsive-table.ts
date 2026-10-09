@@ -20,7 +20,7 @@ export class ResponsiveTable {
   }
 
   protected onClick(event: MouseEvent) {
-    if (!matchMedia('(max-width: 768px)').matches) return;
+    if (!window.matchMedia?.('(max-width: 768px)').matches) return;
     const target = event.target as Element;
     if (target.closest('input, select, textarea, button, a, label')) return;
     const row = target.closest('tbody tr') as HTMLTableRowElement | null;

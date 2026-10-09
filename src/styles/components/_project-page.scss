@@ -2,8 +2,8 @@
 
 // Página do projeto (/projetos/:id): cabeçalho com os dados + kanban das atividades (reaproveita .kanban)
 
-$page-muted: #898781;
-$page-line: #e7e8ea;
+$page-muted: var(--color-muted);
+$page-line: var(--color-line);
 
 .project-page {
   display: flex;
@@ -19,7 +19,7 @@ $page-line: #e7e8ea;
     padding: 16px;
     border-radius: 15px;
     background-color: $color-surface;
-    box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+    box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
   }
 
   // Faixa com a capa do projeto
@@ -158,7 +158,7 @@ $page-line: #e7e8ea;
     gap: 8px;
     padding: 10px;
     border-radius: 12px;
-    background-color: #f0f2f3;
+    background-color: var(--color-soft);
   }
 
   &__points {
@@ -175,13 +175,13 @@ $page-line: #e7e8ea;
     font-size: 11px;
 
     &.is-late {
-      color: #d03b3b;
+      color: var(--color-late);
       font-weight: 600;
     }
   }
 
   .kanban__project.is-current {
-    background-color: #dbe8f8;
+    background-color: color-mix(in srgb, #2a78d6 16%, var(--color-card));
     color: $color-title;
   }
 }

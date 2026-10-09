@@ -1,8 +1,8 @@
 @use '../variables' as *;
 
-$daily-line: #e7e8ea;
-$daily-muted: #898781;
-$daily-soft: #f0f2f3;
+$daily-line: var(--color-line);
+$daily-muted: var(--color-muted);
+$daily-soft: var(--color-soft);
 $daily-good: #0ca30c;
 
 .daily {
@@ -66,8 +66,8 @@ $daily-good: #0ca30c;
     justify-content: center;
     gap: 16px 24px;
     padding: 8px 0 20px;
-    border-bottom: 0.5px solid black;
-    box-shadow: 0 6px 6px -6px rgba(32, 43, 67, 0.25);
+    border-bottom: 0.5px solid $color-nav-text;
+    box-shadow: 0 6px 6px -6px rgb(var(--shadow-color) / calc(0.25 * var(--shadow-strength)));
     list-style: none;
   }
 
@@ -105,7 +105,7 @@ $daily-good: #0ca30c;
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background-color: $color-title;
+    background-color: $color-nav-hover;
     color: $color-surface;
     font-size: 18px;
     font-weight: 600;
@@ -253,7 +253,7 @@ $daily-good: #0ca30c;
     padding: 10px 12px;
     border: 1px solid $daily-line;
     border-radius: 10px;
-    background-color: #fff;
+    background-color: var(--color-card);
     color: $color-text;
     font: inherit;
     font-size: 14px;
@@ -479,7 +479,7 @@ $daily-good: #0ca30c;
   &:hover,
   &:focus-visible {
     border-color: #d03b3b;
-    background-color: #fdf0f0;
+    background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
     color: #d03b3b;
   }
 }

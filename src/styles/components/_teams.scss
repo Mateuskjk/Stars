@@ -1,8 +1,8 @@
 @use '../variables' as *;
 
-$teams-line: #e7e8ea;
-$teams-muted: #898781;
-$teams-soft: #f0f2f3;
+$teams-line: var(--color-line);
+$teams-muted: var(--color-muted);
+$teams-soft: var(--color-soft);
 
 .teams {
   display: flex;

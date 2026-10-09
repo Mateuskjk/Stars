@@ -34,7 +34,7 @@
   padding: 16px;
   border-radius: 15px;
   background-color: $color-surface;
-  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
 }
 
 .navigation-top {
@@ -67,7 +67,7 @@
   text-align: right;
 
   &__title {
-    color: #a7afb9;
+    color: var(--color-date);
     font-weight: 600;
   }
 }
@@ -76,7 +76,7 @@
   padding: 16px;
   border-radius: 15px;
   background-color: $color-surface;
-  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
 
   &__title {
     display: flex;
@@ -124,7 +124,7 @@
   }
 
   &__empty {
-    color: #898781;
+    color: var(--color-muted);
     font-size: 13px;
     line-height: 1.4;
   }
@@ -141,7 +141,7 @@
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background-color: $color-title;
+    background-color: $color-nav-hover;
     color: $color-surface;
     font-size: 10px;
     font-weight: 600;
@@ -161,7 +161,7 @@
   padding: 8px 14px;
   border-radius: 25px;
   background-color: $color-surface;
-  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
   color: $color-text;
   text-decoration: none;
   cursor: pointer;
@@ -188,7 +188,7 @@
   padding: 6px;
   border-radius: 25px;
   background-color: $color-surface;
-  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
 
   &__list {
     display: flex;
@@ -277,7 +277,7 @@
     list-style: none;
     border-radius: 0 0 10px 10px;
     background-color: $color-surface;
-    box-shadow: 0 6px 12px rgba(32, 43, 67, 0.12);
+    box-shadow: var(--shadow-ring), 0 6px 12px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
   }
 }
 
@@ -297,7 +297,7 @@
   border: none;
   border-radius: 40px;
   background-color: $color-surface;
-  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
   color: $color-icon;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -347,7 +347,7 @@
   align-items: center;
   border-radius: 40px;
   background-color: $color-surface;
-  box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
 
   .nav-button {
     box-shadow: none;
@@ -385,7 +385,7 @@
     list-style: none;
     border-radius: 10px 10px 10px 10px;
     background-color: $color-surface;
-    box-shadow: 0 6px 12px rgba(32, 43, 67, 0.12);
+    box-shadow: var(--shadow-ring), 0 6px 12px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
 
     .center-options__link {
       width: 100%;
@@ -515,7 +515,7 @@
     left: 0;
     z-index: 20;
     border-radius: 15px;
-    box-shadow: 0 6px 12px rgba(32, 43, 67, 0.12);
+    box-shadow: var(--shadow-ring), 0 6px 12px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
 
     &.is-open {
       display: block;

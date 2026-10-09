@@ -1,8 +1,8 @@
 @use '../variables' as *;
 
-$chat-border: #e7e8ea;
-$chat-muted: #898781;
-$chat-bubble: #f0f2f3;
+$chat-border: var(--color-line);
+$chat-muted: var(--color-muted);
+$chat-bubble: var(--color-soft);
 
 .chat {
   display: grid;
@@ -135,7 +135,7 @@ $chat-bubble: #f0f2f3;
 
       .chat__contact-preview,
       .chat__contact-time {
-        color: #c3c7d1;
+        color: var(--color-muted);
       }
     }
   }
@@ -324,7 +324,7 @@ $chat-bubble: #f0f2f3;
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: $color-title;
+  background-color: $color-nav-hover;
   color: $color-surface;
   font-size: 14px;
   font-weight: 600;

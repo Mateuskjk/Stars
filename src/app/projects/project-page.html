@@ -128,6 +128,7 @@
                 class="kanban__card"
                 draggable="true"
                 [class.is-dragging]="dragging() === card.id"
+                [class.is-late]="isLate(card)"
                 (dragstart)="dragging.set(card.id)"
                 (dragend)="endDrag()"
                 (click)="openCard(card, $event, taskEditor)"

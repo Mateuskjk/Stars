@@ -1,7 +1,7 @@
 @use '../variables' as *;
 
-$int-line: #e7e8ea;
-$int-muted: #898781;
+$int-line: var(--color-line);
+$int-muted: var(--color-muted);
 
 .integrations {
   display: flex;
@@ -43,7 +43,7 @@ $int-muted: #898781;
   &__event code {
     padding: 2px 8px;
     border-radius: 8px;
-    background-color: #f0f2f3;
+    background-color: var(--color-soft);
     color: $color-title;
     font-size: 11px;
   }
@@ -104,7 +104,7 @@ $int-muted: #898781;
   &__all {
     padding: 8px 10px;
     border-radius: 10px;
-    background-color: #f0f2f3;
+    background-color: var(--color-soft);
   }
 
   &__groups {

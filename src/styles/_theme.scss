@@ -1,0 +1,75 @@
+// Cores do tema. O app.ts troca o atributo data-theme no <html>
+:root {
+  color-scheme: light;
+  --color-background: #ebeff3;
+  --color-surface: #faf9f6; // main-content e cards da lateral
+  --color-card: #fff; // cards, inputs e painéis dentro das telas
+  --color-soft: #f0f2f3; // colunas do kanban, hovers suaves
+  --color-soft-strong: #e6e9ee;
+  --color-line: #e7e8ea;
+  --color-text: #3e4352;
+  --color-title: #222b44;
+  --color-logo: #202b43;
+  --color-nav-text: #010013;
+  --color-icon: #222b44;
+  --color-muted: #898781;
+  --color-date: #a7afb9;
+  --color-accent: #222b44; // hover do menu e botões principais
+  --color-on-accent: #faf9f6;
+  --ink-green: #006300;
+  --ink-amber: #7a5600;
+  --ink-blue: #1c3d6e;
+  --ink-red: #b42f2f;
+  --ink-purple: #4a3aa7;
+  --color-late: #e08a00; // âmbar das atividades atrasadas
+  // Sombras: cor (r g b), intensidade e um contorno que só aparece no escuro
+  --shadow-color: 32 43 67;
+  --shadow-strength: 1;
+  --shadow-ring: 0 0 0 0 transparent;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-background: #131215;
+  --color-surface: #222124;
+  --color-card: #222124;
+  --color-soft: #2c2b2f;
+  --color-soft-strong: #36353a;
+  --color-line: #3a393e;
+  --color-text: #fffefd;
+  --color-title: #fffefd;
+  --color-logo: #fffefd;
+  --color-nav-text: #fffefd;
+  --color-icon: #fffefd;
+  --color-muted: #fffefd;
+  --color-date: #8390a3;
+  --color-accent: #b89cff;
+  --color-on-accent: #131215;
+  --ink-green: #6fd66f;
+  --ink-amber: #f2c25b;
+  --ink-blue: #8cb8f0;
+  --ink-red: #f08080;
+  --ink-purple: #b89cff;
+  --color-late: #f5a524;
+  // No fundo escuro a sombra precisa ser preta e mais forte, com um contorno claro sutil
+  --shadow-color: 0 0 0;
+  --shadow-strength: 3.5;
+  --shadow-ring: 0 0 0 1px rgb(255 254 253 / 0.07);
+
+  // Ícone de setas do seletor de coluna nos cartões (SVG embutido não lê variáveis CSS)
+  .kanban__move {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fffefd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 7h13l-4-4M17 17H4l4 4'/%3E%3C/svg%3E");
+  }
+
+  // Sombra mais forte: cards dos carrosséis, dashboards (geral e de projetos) e cabeçalhos
+  // das empresas, setores e projetos
+  .carousel__card,
+  .dash-card,
+  .company-page__header,
+  .project-page__header {
+    box-shadow:
+      var(--shadow-ring),
+      0 4px 16px rgb(0 0 0 / 0.6),
+      0 1px 4px rgb(0 0 0 / 0.5);
+  }
+}

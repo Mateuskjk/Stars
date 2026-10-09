@@ -1,18 +1,19 @@
 // Variáveis globais (cores, espaçamentos, fontes)
+// As cores apontam para variáveis CSS (definidas em _theme.scss) para o tema claro/escuro trocar em tempo real
 $font-family: 'Google Sans', sans-serif;
-$color-background: #ebeff3;
+$color-background: var(--color-background);
 $font-family-logo: 'Sora', sans-serif;
-$color-surface: #faf9f6;
-$color-surface-hover: #f0f2f3;
-$color-text: #3e4352;
-$color-logo: #202b43;
-$color-nav-text: #010013;
-$color-nav-text-hover: #faf9f6;
-$color-nav-hover: #222b44;
-$color-icon: #222b44;
+$color-surface: var(--color-surface);
+$color-surface-hover: var(--color-soft);
+$color-text: var(--color-text);
+$color-logo: var(--color-logo);
+$color-nav-text: var(--color-nav-text);
+$color-nav-text-hover: var(--color-on-accent);
+$color-nav-hover: var(--color-accent);
+$color-icon: var(--color-icon);
 $color-badge: #e5484d;
 $font-family-title: 'Roboto', sans-serif;
-$color-title: #222b44;
+$color-title: var(--color-title);
 $bp-tablet: 1024px;
 $bp-mobile: 768px;
 $bp-small: 480px;

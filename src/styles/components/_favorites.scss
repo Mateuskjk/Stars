@@ -22,7 +22,7 @@
 
   &__card {
     position: relative;
-    border: 1px solid #e7e8ea;
+    border: 1px solid var(--color-line);
   }
 
   &__open {
@@ -41,7 +41,7 @@
   &__description {
     display: -webkit-box;
     overflow: hidden;
-    color: #898781;
+    color: var(--color-muted);
     font-size: 13px;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -64,7 +64,7 @@
 
     &:hover,
     &:focus-visible {
-      background-color: #fff6e0;
+      background-color: color-mix(in srgb, #eda100 12%, var(--color-card));
     }
   }
 
@@ -76,7 +76,7 @@
     align-items: center;
     gap: 8px;
     min-height: 320px;
-    border: 2px dashed #e7e8ea;
+    border: 2px dashed var(--color-line);
     border-radius: 15px;
     color: $color-title;
     text-align: center;

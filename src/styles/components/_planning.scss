@@ -1,7 +1,7 @@
 @use '../variables' as *;
 
-$planning-line: #e7e8ea;
-$planning-muted: #898781;
+$planning-line: var(--color-line);
+$planning-muted: var(--color-muted);
 
 .planning {
   display: flex;

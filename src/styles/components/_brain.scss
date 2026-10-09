@@ -1,9 +1,9 @@
 @use '../variables' as *;
 
-$brain-line: #e7e8ea;
-$brain-muted: #898781;
-$brain-edge: #c9ccd3;
-$brain-accent: #4a3aa7; // mesmo roxo dos links das notas
+$brain-line: var(--color-line);
+$brain-muted: var(--color-muted);
+$brain-edge: var(--color-line);
+$brain-accent: var(--ink-purple); // mesmo roxo dos links das notas
 
 .brain {
   display: flex;
@@ -40,8 +40,8 @@ $brain-accent: #4a3aa7; // mesmo roxo dos links das notas
     border: 1px solid $brain-line;
     border-radius: 15px;
     background:
-      radial-gradient(circle, #e9eaee 1px, transparent 1px) 0 0 / 22px 22px,
-      #fcfcfb;
+      radial-gradient(circle, var(--color-line) 1px, transparent 1px) 0 0 / 22px 22px,
+      var(--color-soft);
   }
 
   &__svg {
@@ -80,13 +80,13 @@ $brain-accent: #4a3aa7; // mesmo roxo dos links das notas
 
   &__dot {
     fill: $color-title;
-    stroke: #fcfcfb;
+    stroke: var(--color-soft);
     stroke-width: 2;
     transition: fill 0.15s;
   }
 
   &__node.is-orphan &__dot {
-    fill: #9aa0ad;
+    fill: var(--color-muted);
   }
 
   &__node.is-active &__dot,
@@ -104,7 +104,7 @@ $brain-accent: #4a3aa7; // mesmo roxo dos links das notas
     font-size: 11px;
     font-weight: 600;
     paint-order: stroke; // contorno claro atrás do texto: legível sobre as linhas
-    stroke: #fcfcfb;
+    stroke: var(--color-soft);
     stroke-width: 3px;
     pointer-events: none;
   }

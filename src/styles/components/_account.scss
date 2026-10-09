@@ -1,6 +1,6 @@
 @use '../variables' as *;
 
-$account-line: #e7e8ea;
+$account-line: var(--color-line);
 
 .account {
   display: flex;
@@ -32,7 +32,7 @@ $account-line: #e7e8ea;
     background-color: $color-surface;
 
     &--danger {
-      border-color: #f3c4c4;
+      border-color: color-mix(in srgb, #d03b3b 30%, var(--color-card));
     }
   }
 
@@ -57,7 +57,7 @@ $account-line: #e7e8ea;
     &--empty {
       display: grid;
       place-items: center;
-      background-color: $color-title;
+      background-color: $color-nav-hover;
       color: $color-surface;
       font-size: 26px;
       font-weight: 700;

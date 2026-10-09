@@ -1,8 +1,8 @@
 @use '../variables' as *;
 
-$members-line: #e7e8ea;
-$members-muted: #898781;
-$members-soft: #f0f2f3;
+$members-line: var(--color-line);
+$members-muted: var(--color-muted);
+$members-soft: var(--color-soft);
 
 .members {
   display: flex;
@@ -48,7 +48,7 @@ $members-soft: #f0f2f3;
   // Sem empresa: destaca, porque a pessoa não pode entrar em equipes
   &__missing {
     border-color: #eda100;
-    background-color: #fff6e0;
+    background-color: color-mix(in srgb, #eda100 12%, var(--color-card));
   }
 
   &__table {
@@ -59,7 +59,7 @@ $members-soft: #f0f2f3;
     padding: 4px 10px;
     border: 1px solid $members-line;
     border-radius: 8px;
-    background: #fff;
+    background: var(--color-card);
     color: $color-title;
     font: inherit;
     font-size: 12px;
@@ -185,8 +185,8 @@ $members-soft: #f0f2f3;
   &__notice {
     padding: 10px 12px;
     border-radius: 10px;
-    background-color: #fff6e0;
-    color: #6b4c00;
+    background-color: color-mix(in srgb, #eda100 12%, var(--color-card));
+    color: var(--ink-amber);
     font-size: 13px;
   }
 
@@ -194,7 +194,7 @@ $members-soft: #f0f2f3;
     overflow: hidden;
     border: 1px solid $members-line;
     border-radius: 12px;
-    background-color: #fff;
+    background-color: var(--color-card);
   }
 
   &__email-meta {
@@ -258,7 +258,7 @@ $members-soft: #f0f2f3;
     font-size: 26px;
 
     &--ok {
-      background-color: #e7f6e7;
+      background-color: color-mix(in srgb, #0ca30c 10%, var(--color-card));
       color: #0ca30c;
       font-weight: 700;
     }

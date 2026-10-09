@@ -1,7 +1,7 @@
 @use '../variables' as *;
 
-$kanban-column: #f0f2f3;
-$kanban-muted: #898781;
+$kanban-column: var(--color-soft);
+$kanban-muted: var(--color-muted);
 
 // Cor de sucesso (mensagem de projeto criado)
 $status-active: #0ca30c;
@@ -58,7 +58,7 @@ $status-active: #0ca30c;
 
     &.is-drop-target {
       border-color: $color-nav-hover;
-      background-color: #e6e9ee;
+      background-color: var(--color-soft-strong);
     }
   }
 
@@ -108,14 +108,14 @@ $status-active: #0ca30c;
     padding: 12px;
     border-radius: 10px;
     background-color: $color-surface;
-    box-shadow: 0 1px 4px rgba(32, 43, 67, 0.1);
+    box-shadow: var(--shadow-ring), 0 1px 4px rgb(var(--shadow-color) / calc(0.1 * var(--shadow-strength)));
     cursor: grab;
     transition:
       box-shadow 0.15s,
       opacity 0.15s;
 
     &:hover {
-      box-shadow: 0 4px 12px rgba(32, 43, 67, 0.16);
+      box-shadow: var(--shadow-ring), 0 4px 12px rgb(var(--shadow-color) / calc(0.16 * var(--shadow-strength)));
     }
 
     &.is-dragging {
@@ -188,7 +188,7 @@ $status-active: #0ca30c;
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background-color: $color-title;
+    background-color: $color-nav-hover;
     color: $color-surface;
     font-size: 10px;
     font-weight: 600;
@@ -211,7 +211,7 @@ $status-active: #0ca30c;
     width: 28px;
     height: 24px;
     padding: 0;
-    border: 1px solid #e1e0d9;
+    border: 1px solid var(--color-line);
     border-radius: 6px;
     background: $color-surface
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23222b44' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 7h13l-4-4M17 17H4l4 4'/%3E%3C/svg%3E")
@@ -277,8 +277,8 @@ $status-active: #0ca30c;
 
 // ---------- Tabela de criação de projetos (/projetos/novo) ----------
 
-$table-line: #e7e8ea;
-$table-head: #f0f2f3;
+$table-line: var(--color-line);
+$table-head: var(--color-soft);
 
 .project-create {
   display: flex;
@@ -358,7 +358,7 @@ $table-head: #f0f2f3;
   }
 
   tbody tr:hover > * {
-    background-color: #f5f6f7;
+    background-color: var(--color-soft);
   }
 
   &__sticky {
@@ -427,12 +427,12 @@ $table-head: #f0f2f3;
   // Linha de criação
   &__new > * {
     border-bottom: none;
-    background-color: #f7f8f9;
+    background-color: var(--color-soft);
   }
 
   &__new &__sticky,
   &__new &__sticky-end {
-    background-color: #f7f8f9;
+    background-color: var(--color-soft);
   }
 
   &__input {
@@ -442,7 +442,7 @@ $table-head: #f0f2f3;
     padding: 0 10px;
     border: 1px solid $table-line;
     border-radius: 8px;
-    background-color: #fff;
+    background-color: var(--color-card);
     color: $color-text;
     font: inherit;
 
@@ -462,7 +462,7 @@ $table-head: #f0f2f3;
       padding: 6px 10px;
       border: 1px solid $table-line;
       border-radius: 8px;
-      background-color: #fff;
+      background-color: var(--color-card);
       color: $color-title;
       font: inherit;
       cursor: pointer;
@@ -580,7 +580,7 @@ $table-head: #f0f2f3;
         position: absolute;
         top: 50%;
         right: 12px;
-        color: #898781;
+        color: var(--color-muted);
         font-size: 20px;
         transform: translateY(-50%);
       }
@@ -624,11 +624,11 @@ $table-head: #f0f2f3;
       flex-direction: column;
       gap: 4px;
       padding-bottom: 10px;
-      border-bottom: 1px solid #e1e4e8;
+      border-bottom: 1px solid var(--color-line);
     }
 
     dt {
-      color: #898781;
+      color: var(--color-muted);
       font-size: 12px;
     }
 

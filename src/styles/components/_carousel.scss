@@ -34,7 +34,7 @@
     transition: background-color 0.2s;
 
     &:hover {
-      background-color: #e3e6e8;
+      background-color: var(--color-soft-strong);
     }
   }
 
@@ -68,7 +68,7 @@
     overflow: hidden;
     border-radius: 15px;
     background-color: $color-surface;
-    box-shadow: 0 2px 8px rgba(32, 43, 67, 0.12);
+    box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
     scroll-snap-align: start;
   }
 

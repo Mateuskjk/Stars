@@ -9,7 +9,7 @@
 @if (cards().length) {
   <ul class="favorites__grid">
     @for (card of cards(); track card.id) {
-      <li class="backlog-card favorites__card" [class.is-locked]="card.locked">
+      <li class="backlog-card favorites__card" [class.is-locked]="card.locked" [class.is-late]="isOverdue(card)">
         <a class="backlog-card__open favorites__open" routerLink="/workspace/backlog" [queryParams]="{ cartao: card.id }">
           <span class="status-chip" [style.--status-color]="column(card).color">{{ column(card).label }}</span>
           <span class="backlog-card__name">{{ card.name }}</span>

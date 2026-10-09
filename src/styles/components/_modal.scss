@@ -1,9 +1,9 @@
 @use '../variables' as *;
 
 // Modal grande (criação/edição de atividades e visualizador de anexos)
-$modal-line: #e7e8ea;
-$modal-muted: #898781;
-$modal-soft: #f0f2f3;
+$modal-line: var(--color-line);
+$modal-muted: var(--color-muted);
+$modal-soft: var(--color-soft);
 
 .modal {
   width: min(920px, calc(100vw - 32px));
@@ -14,9 +14,10 @@ $modal-soft: #f0f2f3;
   border-radius: 15px;
   background-color: $color-background; // mesma cor do fundo do site (#ebeff3)
   box-shadow:
-    0 0 0 1px rgba(32, 43, 67, 0.08),
-    0 0 24px rgba(32, 43, 67, 0.18),
-    0 20px 50px rgba(32, 43, 67, 0.3); // sombreado em volta
+    var(--shadow-ring),
+    0 0 0 1px rgb(var(--shadow-color) / calc(0.08 * var(--shadow-strength))),
+    0 0 24px rgb(var(--shadow-color) / calc(0.18 * var(--shadow-strength))),
+    0 20px 50px rgb(var(--shadow-color) / calc(0.3 * var(--shadow-strength))); // sombreado em volta
   color: $color-text;
 
   &::backdrop {
@@ -124,7 +125,7 @@ $modal-soft: #f0f2f3;
     padding: 8px 12px;
     border: 1px solid $modal-line;
     border-radius: 10px;
-    background-color: #fff;
+    background-color: var(--color-card);
     color: $color-text;
     font: inherit;
     font-size: 14px;
@@ -273,7 +274,7 @@ $modal-soft: #f0f2f3;
         width: 16px;
         height: 16px;
         border-radius: 50%;
-        background-color: #fff;
+        background-color: var(--color-card);
         transition: transform 0.2s;
       }
 
@@ -327,7 +328,7 @@ $modal-soft: #f0f2f3;
 
   &__ghost {
     border: 1px solid $modal-line;
-    background-color: #fff;
+    background-color: var(--color-card);
     color: $color-title;
 
     &:hover:not(:disabled) {
@@ -335,11 +336,11 @@ $modal-soft: #f0f2f3;
     }
 
     &--danger {
-      border-color: #f3c4c4;
+      border-color: color-mix(in srgb, #d03b3b 30%, var(--color-card));
       color: #d03b3b;
 
       &:hover:not(:disabled) {
-        background-color: #fdf0f0;
+        background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
       }
     }
   }
@@ -378,7 +379,7 @@ $modal-soft: #f0f2f3;
     height: 100%;
     border: none;
     border-radius: 8px;
-    background-color: #fff;
+    background-color: var(--color-card);
   }
 
   &__image {
