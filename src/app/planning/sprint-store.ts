@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuditStore } from '../audit/audit-store';
 import { sprintOf, sprintWindow, today } from '../projects/project-tasks';
+import { CompanyStore } from '../companies/company-store';
 
 export type SprintStatus = 'active' | 'closed' | 'archived' | 'canceled';
 
@@ -18,6 +19,7 @@ export interface Sprint {
   end: string;
   goal: string;
   status: SprintStatus;
+  companyId?: number; // empresa da sprint (dados do banco): cada empresa tem a sua sprint ativa
 }
 
 // Sprints de 7 dias úteis (mesmo calendário do Dash de Projetos): a atual contém hoje
@@ -37,10 +39,18 @@ const SEED: Sprint[] = [
 @Injectable({ providedIn: 'root' })
 export class SprintStore {
   readonly sprints = signal<Sprint[]>(SEED);
-  readonly active = computed(() => this.sprints().find((sprint) => sprint.status === 'active') ?? null);
+  private readonly companyId = inject(CompanyStore).currentId;
+  // Sprints da empresa escolhida (sem empresa: exemplos e testes)
+  readonly ofCompany = computed(() => this.sprints().filter((s) => s.companyId === undefined || this.companyId() === null || s.companyId === this.companyId()));
+  readonly active = computed(() => this.ofCompany().find((sprint) => sprint.status === 'active') ?? null);
   readonly nextNumber = computed(() => Math.max(0, ...this.sprints().map((sprint) => sprint.id)) + 1);
 
   private readonly audit = inject(AuditStore);
+
+  // Sprint ativa de uma empresa (página do setor)
+  activeOf(companyId: number | undefined) {
+    return this.sprints().find((s) => s.status === 'active' && (s.companyId === undefined || s.companyId === companyId)) ?? null;
+  }
 
   byId(id: number | undefined) {
     return this.sprints().find((sprint) => sprint.id === id) ?? null;
@@ -48,7 +58,7 @@ export class SprintStore {
 
   create(sprint: Omit<Sprint, 'id' | 'status'>) {
     if (this.active()) return;
-    this.sprints.update((list) => [...list, { ...sprint, id: this.nextNumber(), status: 'active' }]);
+    this.sprints.update((list) => [...list, { ...sprint, id: this.nextNumber(), status: 'active', companyId: this.companyId() ?? undefined }]);
     this.audit.log({ action: 'create', entity: 'Sprint', name: sprint.name, to: SPRINT_STATUS.active.label, details: `Período: ${sprint.start} a ${sprint.end}` });
   }
 

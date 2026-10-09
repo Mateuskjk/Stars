@@ -41,7 +41,8 @@ export class SectorPage {
   protected readonly people = USERS.map((user) => user.name);
   protected readonly isAdmin = this.membersStore.isAdmin;
   private readonly sprints = inject(SprintStore);
-  protected readonly sprint = this.sprints.active;
+  // Sprint ativa da empresa do setor (cada empresa tem a sua)
+  protected readonly sprint = computed(() => this.sprints.activeOf(this.sector()?.companyId));
 
   protected readonly sector = computed(() => {
     const sector = this.sectorStore.byId(Number(this.sectorId()));

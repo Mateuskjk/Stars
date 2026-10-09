@@ -1,20 +1,28 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, Injector, inject, signal } from '@angular/core';
 import { ApiError, api } from './http';
-import { ApiSync, Me } from './api-sync';
+import type { ApiSync, Me } from './api-sync';
 
 // Sessão do app: sem login, nenhuma tela de dados aparece (o servidor também recusa as rotas com 401)
 @Injectable({ providedIn: 'root' })
 export class SessionStore {
-  private readonly sync = inject(ApiSync);
+  private readonly injector = inject(Injector);
   readonly status = signal<'checking' | 'out' | 'in'>('checking');
   readonly me = signal<Me | null>(null);
   readonly error = signal('');
+  // Erro da última gravação no banco (aparece numa faixa no app)
+  readonly saveError = signal('');
+
+  // O tradutor do banco (e os stores que ele preenche) só carrega depois do login
+  private async sync(): Promise<ApiSync> {
+    const { ApiSync } = await import('./api-sync');
+    return this.injector.get(ApiSync);
+  }
 
   // Já tem sessão (cookie)? Então carrega os dados do banco
   async check() {
     try {
       const me = await api<Me>('/auth/me');
-      await this.sync.load(me);
+      await (await this.sync()).load(me);
       this.me.set(me);
       this.error.set('');
       this.status.set('in');
@@ -28,6 +36,10 @@ export class SessionStore {
   async login(email: string, senha: string) {
     await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) });
     await this.check();
+  }
+
+  async selectCompany(id: number) {
+    (await this.sync()).selectCompany(id);
   }
 
   // Sai e recarrega a página, para não sobrar nenhum dado da sessão na memória

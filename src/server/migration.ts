@@ -30,6 +30,21 @@ create table if not exists lexagile.sprint_periodo (
   inicio date not null,
   fim date not null check (fim >= inicio)
 );
+create table if not exists lexagile.atividade_front (
+  "atividadeId" text primary key references public."Atividade"(id) on delete cascade,
+  "colunaBacklog" text,
+  "colunaSprint" text
+);
+-- Dados das telas que o banco atual não tem (descrição e site da empresa, descrição e colunas do setor,
+-- foco da equipe, status exato e documentos do projeto), por registro
+create table if not exists lexagile.extra (
+  tipo text not null,
+  "registroId" text not null,
+  "tenantId" text not null references public."Tenant"(id) on delete cascade,
+  dados jsonb not null default '{}',
+  primary key (tipo, "registroId")
+);
+alter table lexagile.atividade_front add column if not exists planning text;
 create table if not exists lexagile.migracao_log (
   id bigserial primary key,
   em timestamptz not null default now(),
@@ -56,6 +71,41 @@ export async function isInstalled() {
   return rows[0].ok as boolean;
 }
 
+// Banco já preparado: garante as tabelas do LexÁgile que vieram em versões mais novas (só cria o que falta,
+// e só dentro do schema "lexagile"). Roda uma vez por processo.
+let schemaReady: Promise<boolean> | null = null;
+export function ensureSchema() {
+  schemaReady ??= isInstalled()
+    .then(async (installed) => {
+      if (installed) await db().query(INSTALL_SQL);
+      return installed;
+    })
+    .catch((error) => {
+      schemaReady = null; // tenta de novo na próxima chamada
+      throw error;
+    });
+  return schemaReady;
+}
+
+// Cria a empresa; quem cria vira Dono dela (cópia do seu usuário, com a mesma senha)
+export async function createTenant(client: PoolClient, s: Session, data: { nome: string; sigla: string; cor?: string }) {
+  const source = s.memberships.find((m) => m.papel === 'DONO');
+  if (!source) throw new HttpError(403, 'Só administradores criam empresas.');
+  const id = newId();
+  await client.query(
+    `insert into "Tenant" (id, nome, sigla, cor, ordem) values ($1, $2, $3, $4, (select coalesce(max(ordem), 0) + 1 from "Tenant"))`,
+    [id, data.nome, data.sigla, COLORS.includes(data.cor ?? '') ? data.cor : 'sky'],
+  );
+  const usuarioId = newId();
+  await client.query(
+    `insert into "Usuario" (id, nome, email, papel, situacao, "avatarUrl", "senhaHash", "senhaAtualizadaEm", tema, "tenantId")
+     select $1, nome, email, 'DONO', 'ATIVO', "avatarUrl", "senhaHash", "senhaAtualizadaEm", tema, $2 from "Usuario" where id = $3`,
+    [usuarioId, id, source.usuarioId],
+  );
+  s.memberships.push({ usuarioId, tenantId: id, papel: 'DONO' });
+  return id;
+}
+
 const adminTenants = (s: Session) => s.memberships.filter((m) => m.papel === 'DONO').map((m) => m.tenantId);
 const adminUserIn = (s: Session, tenantId: string) => s.memberships.find((m) => m.tenantId === tenantId && m.papel === 'DONO')?.usuarioId;
 
@@ -67,7 +117,7 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-class HttpError extends Error {
+export class HttpError extends Error {
   constructor(
     readonly status: number,
     message: string,
@@ -147,6 +197,7 @@ export function migrationRouter() {
     '/instalar',
     action('instalar', async (client) => {
       await client.query(INSTALL_SQL);
+      schemaReady = null; // a API de dados volta a conferir o schema
       return { detail: 'schema lexagile criado/atualizado' };
     }),
   );
@@ -192,21 +243,7 @@ export function migrationRouter() {
     action('criar empresa', async (client, req, s) => {
       const nome = text(req.body?.nome, 80);
       const sigla = text(req.body?.sigla, 4).toUpperCase();
-      const cor = COLORS.includes(req.body?.cor) ? req.body.cor : 'sky';
-      const id = newId();
-      await client.query(
-        `insert into "Tenant" (id, nome, sigla, cor, ordem) values ($1, $2, $3, $4, (select coalesce(max(ordem), 0) + 1 from "Tenant"))`,
-        [id, nome, sigla, cor],
-      );
-      // Quem cria vira Dono da nova empresa (cópia do seu usuário, com a mesma senha)
-      const source = s.memberships.find((m) => m.papel === 'DONO')!;
-      const usuarioId = newId();
-      await client.query(
-        `insert into "Usuario" (id, nome, email, papel, situacao, "avatarUrl", "senhaHash", "senhaAtualizadaEm", tema, "tenantId")
-         select $1, nome, email, 'DONO', 'ATIVO', "avatarUrl", "senhaHash", "senhaAtualizadaEm", tema, $2 from "Usuario" where id = $3`,
-        [usuarioId, id, source.usuarioId],
-      );
-      s.memberships.push({ usuarioId, tenantId: id, papel: 'DONO' });
+      const id = await createTenant(client, s, { nome, sigla, cor: req.body?.cor });
       return { result: { id }, detail: `${nome} (${sigla})` };
     }),
   );

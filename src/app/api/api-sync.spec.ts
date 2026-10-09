@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ApiSync, backlogStatus } from './api-sync';
+import { ApiSync, backlogStatus, dbStatusOf } from './api-sync';
 import { BacklogStore } from '../backlog/backlog-store';
 import { CompanyStore } from '../companies/company-store';
 import { SectorStore } from '../companies/sector-store';
@@ -10,7 +10,7 @@ import { ProjectTaskStore } from '../projects/project-tasks';
 const atividade = (over: Record<string, unknown>) => ({
   id: 'a1', titulo: 'Atividade', descricao: '', status: 'PRONTO', prazo: null, tags: [], compartilhadoCom: [],
   responsavelId: 'u1', sprintId: null, projetoId: null, setorGeral: null, bloqueioMotivo: null, estimativa: null,
-  arquivadoTipo: null, criadoEm: '2026-10-01T10:00:00', atualizadoEm: '2026-10-02T10:00:00', ...over,
+  arquivadoTipo: null, criadoEm: '2026-10-01T10:00:00', atualizadoEm: '2026-10-02T10:00:00', tenantId: 'tA', ...over,
 });
 
 const DATA: Record<string, unknown> = {
@@ -31,12 +31,20 @@ const DATA: Record<string, unknown> = {
     atividade({ id: 'a1', sprintId: 'sp1', setorGeral: 's1', status: 'EM_EXECUCAO', compartilhadoCom: ['u2'] }),
     atividade({ id: 'a2', projetoId: 'p1', status: 'CONCLUIDO', estimativa: 3 }),
     atividade({ id: 'a3', status: 'RASCUNHO' }),
+    atividade({ id: 'a4', status: 'PRONTO', responsavelId: 'u2' }), // sem marcação: setor do responsável
+    atividade({ id: 'a5', projetoId: 'p1', setorGeral: 's1', titulo: 'Geral com projeto' }), // aparece no setor e no projeto
   ],
+  '/api/data/extras': [{ tipo: 'setor', registroId: 's1', dados: { descricao: 'Infraestrutura' } }],
 };
 
 describe('ApiSync', () => {
+  let calls: { url: string; method: string; body: unknown }[];
   beforeEach(() => {
-    vi.stubGlobal('fetch', (url: string) => Promise.resolve(new Response(JSON.stringify(DATA[url]), { status: 200 })));
+    calls = [];
+    vi.stubGlobal('fetch', (url: string, init: RequestInit = {}) => {
+      if (init.method && init.method !== 'GET' && url.startsWith('/api/data')) calls.push({ url, method: init.method, body: JSON.parse(String(init.body)) });
+      return Promise.resolve(new Response(JSON.stringify(DATA[url] ?? { id: 'novo' }), { status: 200 }));
+    });
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -60,15 +68,55 @@ describe('ApiSync', () => {
 
     // Atividade com projeto vai para o kanban do projeto
     const tasks = TestBed.inject(ProjectTaskStore).tasks();
-    expect(tasks).toHaveLength(1);
+    expect(tasks).toHaveLength(2);
     expect(tasks[0]).toMatchObject({ title: 'Atividade', projectId: 1, status: 'done', points: 3, doneAt: '2026-10-02' });
 
     // Sem projeto: Backlog; na sprint e geral do setor aparece no kanban do setor
     const items = TestBed.inject(BacklogStore).items();
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(4);
     expect(items[0]).toMatchObject({ status: 'refinement-done', sprintStatus: 'doing', sectorId: 1, sharedWith: ['Beto'] });
     expect(items[0].sprintId).toBeDefined();
-    expect(items[1]).toMatchObject({ status: 'to-refine', sprintId: undefined });
+    expect(items[1]).toMatchObject({ status: 'to-refine', sprintId: undefined, sectorId: undefined });
+    expect(items[2]).toMatchObject({ assignee: 'Beto', sectorId: 1 });
+    expect(items[3]).toMatchObject({ name: 'Geral com projeto', sectorId: 1 });
+  });
+
+  it('grava no banco só o que mudou', async () => {
+    const sync = TestBed.inject(ApiSync);
+    await sync.load({ nome: 'Ana Dona', email: 'ana@x.test', memberships: [] });
+    const backlog = TestBed.inject(BacklogStore);
+    const first = backlog.items()[0];
+    backlog.patch(first.id, { locked: true, sprintStatus: 'review' });
+    TestBed.tick();
+    await new Promise((r) => setTimeout(r));
+    expect(calls).toEqual([{ url: '/api/data/atividades/a1', method: 'PATCH', body: { status: 'EM_REVISAO', bloqueado: true, colunaSprint: 'review' } }]);
+  });
+
+  it('grava as configurações: setor, cargo do membro e projeto', async () => {
+    const sync = TestBed.inject(ApiSync);
+    await sync.load({ nome: 'Ana Dona', email: 'ana@x.test', memberships: [] });
+    expect(TestBed.inject(SectorStore).sectors()[0].description).toBe('Infraestrutura'); // veio dos extras
+
+    TestBed.inject(SectorStore).sectors.update((list) => list.map((s) => ({ ...s, name: 'Tecnologia' })));
+    TestBed.inject(MembersStore).members.update((list) => list.map((m) => (m.name === 'Beto' ? { ...m, role: 'supervisor' as const } : m)));
+    TestBed.inject(ProjectStore).setStatus(1, 'paused');
+    TestBed.tick();
+    await new Promise((r) => setTimeout(r));
+
+    expect(calls).toEqual([
+      { url: '/api/data/setores/s1', method: 'PATCH', body: { nome: 'Tecnologia' } },
+      { url: '/api/data/pessoas', method: 'PATCH', body: { email: 'beto@x.test', papel: 'GESTOR' } },
+      { url: '/api/data/projetos/p1', method: 'PATCH', body: { situacao: 'PARADO', extra: { status: 'paused', requester: '', docs: [] } } },
+    ]);
+  });
+});
+
+describe('dbStatusOf', () => {
+  it('coluna da sprint ou do backlog → status do banco', () => {
+    expect(dbStatusOf({ status: 'refinement-done', sprintId: 1, sprintStatus: 'done' })).toBe('CONCLUIDO');
+    expect(dbStatusOf({ status: 'refinement-done', sprintId: 1, sprintStatus: undefined })).toBe('PRONTO');
+    expect(dbStatusOf({ status: 'to-refine', sprintId: undefined, sprintStatus: undefined })).toBe('RASCUNHO');
+    expect(dbStatusOf({ status: 'waiting', sprintId: undefined, sprintStatus: undefined })).toBe('PRONTO');
   });
 });
 

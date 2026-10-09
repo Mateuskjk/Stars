@@ -36,16 +36,16 @@ export class Planning {
 
   // Atividades que terminaram o refinamento e ainda não entraram numa sprint
   private readonly candidates = computed(() =>
-    this.backlog.items().filter((item) => item.status === 'refinement-done' && !item.sprintId),
+    this.backlog.ofCompany().filter((item) => item.status === 'refinement-done' && !item.sprintId),
   );
   protected readonly ready = computed(() => this.candidates().filter((item) => (item.planning ?? 'ready') === 'ready'));
   protected readonly waiting = computed(() => this.candidates().filter((item) => item.planning === 'waiting'));
   protected readonly inSprint = computed(() => {
     const sprint = this.active();
-    return sprint ? this.backlog.items().filter((item) => item.sprintId === sprint.id) : [];
+    return sprint ? this.backlog.ofCompany().filter((item) => item.sprintId === sprint.id) : [];
   });
 
-  protected readonly history = computed(() => [...this.sprints.sprints()].filter((s) => s.status !== 'active').reverse());
+  protected readonly history = computed(() => [...this.sprints.ofCompany()].filter((s) => s.status !== 'active').reverse());
 
   protected readonly daysLeft = computed(() => {
     const sprint = this.active();

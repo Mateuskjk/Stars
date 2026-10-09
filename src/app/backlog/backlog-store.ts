@@ -1,6 +1,7 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuditAction, AuditStore, diff } from '../audit/audit-store';
 import { MembersStore } from '../members/members-store';
+import { CompanyStore } from '../companies/company-store';
 import { sprintOf, sprintWindow, today } from '../projects/project-tasks';
 import { CustomColumnId, KanbanColumn, customColumn } from '../kanban/add-column';
 
@@ -54,6 +55,7 @@ export interface BacklogItem {
   planning?: 'ready' | 'waiting'; // padrão: 'ready' (pronta para a sprint)
   sprintId?: number; // definida quando a atividade entra numa sprint
   sectorId?: number; // setor de uma empresa (aparece no kanban da página do setor)
+  companyId?: number; // empresa da atividade (dados do banco); sem empresa = vale para todas
   sharedWith: string[]; // atividade conjunta: conta para o responsável e para cada pessoa daqui
   sprintStatus?: string; // coluna no kanban da sprint do setor (A fazer, Em andamento…); padrão: a primeira
   addedAt?: string; // dia em que entrou na sprint (AAAA-MM-DD)
@@ -186,6 +188,10 @@ export class BacklogStore {
   // Colunas fixas + criadas pelo usuário (ponytail: só em memória, como as atividades)
   readonly columns = signal(BACKLOG_COLUMNS);
 
+  // Atividades da empresa escolhida (Backlog e Planning); sem empresa: exemplos e testes
+  private readonly companyId = inject(CompanyStore).currentId;
+  readonly ofCompany = computed(() => this.items().filter((i) => i.companyId === undefined || this.companyId() === null || i.companyId === this.companyId()));
+
   label(status: BacklogStatus) {
     return this.columns().find((column) => column.id === status)?.label ?? status;
   }
@@ -223,7 +229,8 @@ export class BacklogStore {
         this.audit.log({ action: 'move', entity: 'Atividade da sprint', name: item.name, from: sprintLabel(before), to: sprintLabel(item) });
       }
     } else {
-      this.items.update((list) => [...list, stamp(undefined, { ...item, id: Math.max(0, ...list.map((current) => current.id)) + 1 })]);
+      const companyId = item.companyId ?? this.companyId() ?? undefined; // nasce na empresa escolhida
+      this.items.update((list) => [...list, stamp(undefined, { ...item, companyId, id: Math.max(0, ...list.map((current) => current.id)) + 1 })]);
       this.audit.log({ action: 'create', entity: 'Atividade', name: item.name, to: this.label(item.status) });
     }
   }

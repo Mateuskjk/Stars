@@ -40,7 +40,7 @@ export class Backlog {
   protected readonly board = computed(() =>
     this.columns().map((column) => ({
       ...column,
-      cards: this.store.items().filter((item) => item.status === column.id),
+      cards: this.store.ofCompany().filter((item) => item.status === column.id),
     })),
   );
 

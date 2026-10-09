@@ -6,6 +6,7 @@ import { Assistant } from './ai/assistant';
 import { MigrationWizard } from './migration/migration-wizard';
 import { Login } from './login/login';
 import { SessionStore } from './api/session';
+import { CompanyStore } from './companies/company-store';
 import { ApiSnapshot } from './api-docs/api-snapshot';
 import { AccountStore, NotificationType, greetingFor, hourIn } from './account/account-store';
 import { formatWeekDate } from './home/home';
@@ -30,6 +31,7 @@ export class App {
   // Conta do usuário (Minha conta): nome, foto, fuso e preferências valem para todo o app
   protected readonly account = inject(AccountStore);
   protected readonly session = inject(SessionStore);
+  protected readonly companyStore = inject(CompanyStore);
   protected readonly notificationsEnabled = computed(() => this.account.account().notifications.enabled);
   protected readonly soundEnabled = computed(() => this.account.account().notifications.sound);
   // Nome preenchido em Minha conta; se não houver, o primeiro nome de quem fez login

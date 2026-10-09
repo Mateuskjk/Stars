@@ -179,6 +179,19 @@
           </button>
           @if (openMenu() === 'user') {
             <ul class="nav-menu__dropdown nav-menu__list">
+              @if (companyStore.companies().length > 1) {
+                <!-- Empresa em que a pessoa trabalha agora: Backlog, Planning e sprint ativa seguem ela -->
+                <li>
+                  <label class="center-options__link nav-menu__toggle">
+                    Empresa
+                    <select class="nav-menu__select" (change)="session.selectCompany(+$any($event.target).value)">
+                      @for (c of companyStore.companies(); track c.id) {
+                        <option [value]="c.id" [selected]="c.id === companyStore.currentId()">{{ c.name }}</option>
+                      }
+                    </select>
+                  </label>
+                </li>
+              }
               <li><a class="center-options__link" routerLink="/conta">Minha conta</a></li>
               <li><a class="center-options__link" routerLink="/api-publica">API pública</a></li>
               <li><a class="center-options__link" routerLink="/erros-navegador">Erros do navegador</a></li>
@@ -301,6 +314,14 @@
       </div>
     </div>
   </div>
+
+  <!-- Falha ao gravar no banco -->
+  @if (session.saveError()) {
+    <div class="save-error" role="alert">
+      <span>{{ session.saveError() }} Recarregue a página para ver o que está no banco.</span>
+      <button class="modal__icon-button" type="button" aria-label="Fechar aviso" (click)="session.saveError.set('')">✕</button>
+    </div>
+  }
 
   <!-- Assistente de IA (botão flutuante em todas as telas) -->
   @if (account.account().assistantEnabled) {

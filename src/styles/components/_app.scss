@@ -622,3 +622,36 @@
     }
   }
 }
+
+// Seletor de empresa no menu do usuário
+.nav-menu__select {
+  max-width: 160px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background-color: var(--color-card);
+  color: $color-text;
+  font: inherit;
+  font-size: 13px;
+}
+
+// Aviso de falha ao gravar no banco
+.save-error {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(560px, calc(100vw - 32px));
+  padding: 10px 10px 10px 16px;
+  border-radius: 12px;
+  background-color: color-mix(in srgb, #d03b3b 12%, var(--color-card));
+  box-shadow:
+    var(--shadow-ring),
+    0 6px 20px rgb(var(--shadow-color) / calc(0.18 * var(--shadow-strength)));
+  color: var(--ink-red);
+  font-size: 14px;
+  transform: translateX(-50%);
+}

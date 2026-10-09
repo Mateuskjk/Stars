@@ -10,6 +10,7 @@ import { aiRouter } from './server/ai';
 import { authRouter, requireAuth } from './server/auth';
 import { dataRouter } from './server/data';
 import { migrationRouter } from './server/migration';
+import { writesRouter } from './server/writes';
 import { integrationsRouter } from './server/integrations';
 import { publicApiInternalRouter, publicApiRouter } from './server/public-api';
 
@@ -26,10 +27,11 @@ const app = express();
 const angularApp = new AngularNodeAppEngine();
 
 /**
- * Login com os usuários do banco, API de dados (leitura) e migração (só admins). Tudo exige sessão.
+ * Login com os usuários do banco, API de dados (leitura e gravação) e migração (só admins). Tudo exige sessão.
  */
 app.use('/api/auth', authRouter());
 app.use('/api/data', dataRouter());
+app.use('/api/data', writesRouter());
 app.use('/api/migracao', migrationRouter());
 
 /**

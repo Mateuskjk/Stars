@@ -4,10 +4,10 @@
 import { Request, Response, Router } from 'express';
 import { db, parseJson } from './db';
 import { Session, requireAuth } from './auth';
-import { isInstalled } from './migration';
+import { ensureSchema, isInstalled } from './migration';
 
-const tenantsOf = (s: Session) => s.memberships.map((m) => m.tenantId);
-const meOf = (s: Session) => s.memberships.map((m) => m.usuarioId);
+export const tenantsOf = (s: Session) => s.memberships.map((m) => m.tenantId);
+export const meOf = (s: Session) => s.memberships.map((m) => m.usuarioId);
 
 // Visibilidade das atividades (mesma regra do front, agora garantida no servidor):
 // vê tudo da empresa: DONO e GESTOR, ou empresa com visibilidade 'TUDO' (definida na migração);
@@ -40,7 +40,7 @@ export const visibleActivitySql = (installed: boolean) => `
     )${installed ? SECTOR_MANAGER_SQL : ''}
   )`;
 
-async function seesAllTenants(s: Session, installed: boolean) {
+export async function seesAllTenants(s: Session, installed: boolean) {
   const { rows } = await db().query<{ id: string }>(
     installed
       ? `select t.id from "Tenant" t left join lexagile.empresa_config ec on ec."tenantId" = t.id
@@ -120,7 +120,7 @@ export function dataRouter() {
         `select e.id, e.nome, e.ativa, e."visaoCompartilhada", e."tenantId",
                 coalesce(array_agg(m."usuarioId") filter (where m."usuarioId" is not null), '{}') as membros
            from "Equipe" e left join "EquipeMembro" m on m."equipeId" = e.id
-          where e."tenantId" = any($1::text[]) group by e.id order by e.nome`,
+          where e."tenantId" = any($1::text[]) and e.ativa group by e.id order by e.nome`,
         [tenantsOf(s)],
       );
       return rows;
@@ -158,11 +158,21 @@ export function dataRouter() {
     }),
   );
 
+  // Dados das telas que o banco atual não tem (schema lexagile): descrição da empresa, colunas do setor…
+  router.get(
+    '/extras',
+    route(async (_req, s) => {
+      if (!(await ensureSchema())) return [];
+      const { rows } = await db().query(`select tipo, "registroId", dados from lexagile.extra where "tenantId" = any($1::text[])`, [tenantsOf(s)]);
+      return rows;
+    }),
+  );
+
   // Atividades visíveis para quem está logado. Filtros opcionais: ?sprintId= &projetoId= &arquivadas=1
   router.get(
     '/atividades',
     route(async (req, s) => {
-      const installed = await isInstalled();
+      const installed = await ensureSchema();
       const params: unknown[] = [tenantsOf(s), meOf(s), await seesAllTenants(s, installed)];
       let where = visibleActivitySql(installed);
       const sprintId = str(req.query['sprintId']);
@@ -175,10 +185,15 @@ export function dataRouter() {
                 a."criteriosAceite", a.observacao, a."bloqueioMotivo", a.aceito, a.tags, a."compartilhadoCom",
                 a."responsavelId", a."criadoPorId", a."sprintId", a."projetoId", a."paiId", a."tenantId",
                 a."iniciadoEm", a."arquivadoEm", a."arquivadoTipo", a."criadoEm", a."atualizadoEm",
-                (select count(*)::int from "Subtarefa" st where st."atividadeId" = a.id) as subtarefas,
-                (select count(*)::int from "Subtarefa" st where st."atividadeId" = a.id and st.feito) as "subtarefasFeitas",
-                (select count(*)::int from "Comentario" c where c."atividadeId" = a.id) as comentarios,
-                ${installed ? `(select g."setorId" from lexagile.atividade_setor g where g."atividadeId" = a.id)` : 'null'} as "setorGeral"
+                coalesce((select json_agg(json_build_object('id', st.id, 'titulo', st.titulo, 'feito', st.feito) order by st.ordem)
+                            from "Subtarefa" st where st."atividadeId" = a.id), '[]') as subtarefas,
+                coalesce((select json_agg(json_build_object('id', c.id, 'autor', u.nome, 'texto', c.texto, 'em', c."criadoEm") order by c."criadoEm")
+                            from "Comentario" c left join "Usuario" u on u.id = c."autorId" where c."atividadeId" = a.id), '[]') as comentarios,
+                exists (select 1 from "Favorito" f where f."atividadeId" = a.id and f."usuarioId" = any($2::text[])) as favorito,
+                ${installed ? `(select g."setorId" from lexagile.atividade_setor g where g."atividadeId" = a.id)` : 'null'} as "setorGeral",
+                ${installed ? `(select x."colunaBacklog" from lexagile.atividade_front x where x."atividadeId" = a.id)` : 'null'} as "colunaBacklog",
+                ${installed ? `(select x."colunaSprint" from lexagile.atividade_front x where x."atividadeId" = a.id)` : 'null'} as "colunaSprint",
+                ${installed ? `(select x.planning from lexagile.atividade_front x where x."atividadeId" = a.id)` : 'null'} as planning
            from "Atividade" a where ${where}
           order by a."atualizadoEm" desc limit 2000`,
         params,

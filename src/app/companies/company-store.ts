@@ -73,6 +73,9 @@ export class CompanyStore {
   private readonly projects = inject(ProjectStore);
   private readonly audit = inject(AuditStore);
   readonly companies = signal<Company[]>(SEED);
+  // Empresa em que a pessoa está trabalhando (Backlog, Planning, sprint ativa); null = todas (exemplos)
+  readonly currentId = signal<number | null>(null);
+  readonly current = computed(() => this.companies().find((c) => c.id === this.currentId()) ?? null);
 
   readonly active = computed(() => this.companies().filter((company) => company.active));
   readonly activeNames = computed(() => this.active().map((company) => company.name));
