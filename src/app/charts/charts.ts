@@ -33,8 +33,10 @@ export interface LineSeries {
 
 export function lineChart(labels: string[], series: LineSeries[], max: number, step: number, w: number) {
   const plotW = w - PAD.left - PAD.right;
-  const xOf = (i: number) => PAD.left + (i * plotW) / (labels.length - 1);
-  const band = plotW / (labels.length - 1);
+  // Um ponto só (ex.: empresa com uma sprint): fica no meio, sem dividir por zero
+  const steps = Math.max(1, labels.length - 1);
+  const xOf = (i: number) => (labels.length === 1 ? PAD.left + plotW / 2 : PAD.left + (i * plotW) / steps);
+  const band = plotW / steps;
   return {
     ticks: ticks(max, step),
     xLabels: labels.map((text, i) => ({ text, x: xOf(i) })),
@@ -67,7 +69,7 @@ export function columnChart(
   tipFor: (label: string, value: number) => Tip = (label, value) => ({ heading: label, rows: [{ name: 'valor', value: String(value), color: SERIES[0] }] }),
 ) {
   const plotW = w - PAD.left - PAD.right;
-  const band = plotW / labels.length;
+  const band = plotW / Math.max(1, labels.length); // sem barras: não divide por zero
   const width = Math.min(24, band * 0.6);
   const base = PAD.top + plotH;
   return {
@@ -116,7 +118,7 @@ export function pieChart(slices: { name: string; value: number }[]) {
 // Colunas agrupadas: várias séries lado a lado em cada categoria (ex.: planejado × entregue por sprint)
 export function groupedColumns(labels: string[], series: Series[], max: number, step: number, w: number, unit = '') {
   const plotW = w - PAD.left - PAD.right;
-  const band = plotW / labels.length;
+  const band = plotW / Math.max(1, labels.length); // sem barras: não divide por zero
   const gap = 2; // espaço de 2px entre colunas vizinhas
   const width = Math.min(24, (band * 0.7 - gap * (series.length - 1)) / series.length);
   const groupW = width * series.length + gap * (series.length - 1);

@@ -91,6 +91,12 @@ export class ProjectStore {
   private readonly audit = inject(AuditStore);
   private readonly members = inject(MembersStore);
 
+  // Troca os exemplos pelos projetos do banco (ids 1, 2, 3… na ordem recebida)
+  load(projects: NewProject[]) {
+    this.nextId = 1;
+    this.projects.set(projects.map((project) => this.build(project)));
+  }
+
   label(status: ProjectStatus) {
     return this.statuses().find((s) => s.id === status)?.label ?? status;
   }

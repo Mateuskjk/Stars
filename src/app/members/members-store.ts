@@ -113,11 +113,15 @@ export class MembersStore {
   readonly members = signal<Member[]>(SEED);
   private readonly account = inject(AccountStore);
 
-  // Quem está usando o sistema: o membro com o e-mail de Minha conta.
-  // ponytail: ainda não existe login; sem e-mail que bata, vale o dono do sistema (1º admin ativo).
+  // E-mail de quem fez login (preenchido ao carregar os dados do banco)
+  readonly sessionEmail = signal<string | null>(null);
+
+  // Quem está usando o sistema: quem fez login; sem login (exemplos/testes), o e-mail de Minha conta
+  // ou o dono do sistema (1º admin ativo).
   // SEGURANÇA: isto só esconde botões. Com backend, a permissão tem de ser checada no servidor.
   readonly current = computed(
     () =>
+      this.findByEmail(this.sessionEmail() ?? '') ??
       this.findByEmail(this.account.account().email) ??
       this.members().find((member) => member.role === 'admin' && member.status === 'active') ??
       null,
@@ -139,6 +143,7 @@ export class MembersStore {
 
   findByEmail(email: string) {
     const target = email.trim().toLowerCase();
+    if (!target) return null; // e-mail vazio não identifica ninguém
     return this.members().find((member) => member.email.toLowerCase() === target) ?? null;
   }
 

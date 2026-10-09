@@ -46,3 +46,7 @@ Thumbs.db
 # Claude
 .claude/*
 !.claude/launch.json
+# Segredos locais (conexão com o banco etc.) — nunca vão para o git
+.env
+.env.*
+!.env.example

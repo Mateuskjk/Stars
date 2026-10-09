@@ -1,0 +1,378 @@
+@use '../variables' as *;
+
+// Pop-up de migração do banco (tipo instalação): etapas à esquerda, conteúdo à direita
+.migration {
+  width: min(1180px, calc(100vw - 32px));
+  height: min(820px, calc(100dvh - 32px));
+
+  &__body {
+    display: grid;
+    flex: 1;
+    grid-template-columns: 240px minmax(0, 1fr);
+    min-height: 0;
+
+    // Antes do login não há etapas
+    &:has(> .migration__content:only-child) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__steps {
+    padding: 16px 12px;
+    border-right: 1px solid var(--color-line);
+    overflow-y: auto;
+
+    ol {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      list-style: none;
+    }
+  }
+
+  &__step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    background: none;
+    color: $color-text;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    strong,
+    small {
+      display: block;
+    }
+
+    small {
+      color: var(--color-muted);
+      font-size: 12px;
+    }
+
+    &:hover {
+      background-color: var(--color-soft);
+    }
+
+    &.is-active {
+      background-color: $color-nav-hover;
+      color: $color-nav-text-hover;
+
+      small {
+        color: inherit;
+        opacity: 0.8;
+      }
+    }
+  }
+
+  &__step-number {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 24px 28px;
+    overflow: auto; // tabelas largas rolam para o lado no celular
+
+    &[aria-busy='true'] {
+      cursor: progress;
+    }
+
+    p {
+      line-height: 1.5;
+    }
+  }
+
+  &__title {
+    color: $color-title;
+    font-size: 18px;
+  }
+
+  &__login {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: min(380px, 100%);
+    margin: 24px auto;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-left: 20px;
+    line-height: 1.5;
+  }
+
+  &__notice,
+  &__error {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+
+  &__notice {
+    background-color: color-mix(in srgb, #0ca30c 10%, var(--color-card));
+    color: var(--ink-green);
+  }
+
+  &__error {
+    background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
+    color: var(--ink-red);
+  }
+
+  &__company {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .modal__input {
+      width: auto;
+      min-width: 220px;
+    }
+  }
+
+  &__table {
+    min-width: 0;
+    width: 100%;
+
+    th,
+    td {
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    tr.is-selected td {
+      background-color: color-mix(in srgb, var(--color-accent) 10%, var(--color-card));
+    }
+  }
+
+  &__archived td {
+    opacity: 0.6;
+  }
+
+  &__muted {
+    color: var(--color-muted);
+  }
+
+  &__block {
+    display: block;
+  }
+
+  &__form,
+  &__filters,
+  &__bulk,
+  &__inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__form {
+    padding: 14px;
+    border: 1px dashed var(--color-line);
+    border-radius: 12px;
+
+    h4 {
+      flex-basis: 100%;
+      color: $color-title;
+      font-size: 14px;
+    }
+
+    .modal__input {
+      flex: 1 1 180px;
+      width: auto;
+    }
+  }
+
+  &__inline {
+    flex-wrap: nowrap;
+
+    .project-table__input {
+      flex: 1 1 120px;
+      width: auto;
+      min-width: 0;
+    }
+
+    button {
+      flex: none;
+    }
+  }
+
+  &__short {
+    flex: 0 1 110px !important;
+  }
+
+  &__date {
+    display: flex;
+    flex: 1 1 150px;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__filters .modal__input,
+  &__bulk .modal__input {
+    flex: 1 1 160px;
+    width: auto;
+  }
+
+  &__bulk {
+    position: sticky;
+    top: -20px;
+    z-index: 1;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background-color: var(--color-soft);
+  }
+
+  &__cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    list-style: none;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    background-color: var(--color-card);
+  }
+
+  &__card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+
+    small {
+      flex: 1;
+    }
+  }
+
+  &__dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #2a78d6;
+
+    &[data-color='emerald'] {
+      background-color: #1baf7a;
+    }
+
+    &[data-color='amber'] {
+      background-color: #eda100;
+    }
+
+    &[data-color='rose'] {
+      background-color: #e87ba4;
+    }
+
+    &[data-color='violet'] {
+      background-color: #8a6ee8;
+    }
+  }
+
+  &__people {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 6px 16px;
+    list-style: none;
+
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+  }
+
+  &__gestor {
+    font-size: 12px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  &__chip {
+    display: inline-block;
+    margin: 2px 4px 2px 0;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background-color: var(--color-soft);
+    font-size: 12px;
+
+    &.is-off {
+      opacity: 0.6;
+    }
+  }
+}
+
+@media (max-width: $bp-mobile) {
+  .migration {
+    height: calc(100dvh - 20px);
+
+    &__body {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    // Etapas viram uma faixa com rolagem lateral
+    &__steps {
+      padding: 8px;
+      border-right: none;
+      border-bottom: 1px solid var(--color-line);
+      overflow-x: auto;
+
+      ol {
+        flex-direction: row;
+      }
+
+      small {
+        display: none;
+      }
+    }
+
+    &__step {
+      white-space: nowrap;
+    }
+
+    &__content {
+      padding: 16px;
+    }
+
+    &__company {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+}

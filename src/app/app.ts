@@ -1,8 +1,11 @@
-import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { Assistant } from './ai/assistant';
+import { MigrationWizard } from './migration/migration-wizard';
+import { Login } from './login/login';
+import { SessionStore } from './api/session';
 import { ApiSnapshot } from './api-docs/api-snapshot';
 import { AccountStore, NotificationType, greetingFor, hourIn } from './account/account-store';
 import { formatWeekDate } from './home/home';
@@ -13,7 +16,7 @@ type Menu = 'nav' | 'notifications' | 'user';
 const THEME_KEY = 'stars.theme';
 
 @Component({
-  imports: [Assistant, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [Assistant, Login, MigrationWizard, RouterLink, RouterLinkActive, RouterOutlet],
   selector: 'app-root',
   templateUrl: './app.html',
   host: {
@@ -26,9 +29,14 @@ export class App {
   protected readonly searchOpen = signal(false);
   // Conta do usuário (Minha conta): nome, foto, fuso e preferências valem para todo o app
   protected readonly account = inject(AccountStore);
+  protected readonly session = inject(SessionStore);
   protected readonly notificationsEnabled = computed(() => this.account.account().notifications.enabled);
   protected readonly soundEnabled = computed(() => this.account.account().notifications.sound);
-  protected readonly userName = this.account.name;
+  // Nome preenchido em Minha conta; se não houver, o primeiro nome de quem fez login
+  protected readonly userName = computed(() => {
+    const name = this.account.name();
+    return name !== 'Usuário' ? name : (this.session.me()?.nome.split(' ')[0] ?? name);
+  });
 
   // A saudação usa a hora no fuso escolhido na conta; "now" avança a cada minuto
   private readonly now = signal(new Date());
@@ -50,6 +58,7 @@ export class App {
     const destroyRef = inject(DestroyRef);
     const snapshot = inject(ApiSnapshot);
     afterNextRender(() => {
+      void this.session.check();
       this.account.load();
       this.recentsStore.load();
       this.loadTheme();
@@ -150,7 +159,19 @@ export class App {
   // No celular o menu do meio é um painel: fecha ao escolher uma página
   // Submenus (Projetos, Workspace, Configurações): no tablet/celular abrem e fecham no clique;
   // no computador continuam abrindo ao passar o mouse
+
   protected readonly openSubmenu = signal<string | null>(null);
+  // Pop-up de migração do banco: carregado sob demanda (@defer) na primeira vez que é aberto
+  protected readonly migrationRequested = signal(false);
+  private readonly migration = viewChild<MigrationWizard>('migration');
+
+  protected openMigration() {
+    this.openMenu.set(null);
+    this.openSubmenu.set(null);
+    const wizard = this.migration();
+    if (wizard) void wizard.open();
+    else this.migrationRequested.set(true); // abre sozinho ao terminar de carregar
+  }
 
   protected toggleSubmenu(name: string) {
     this.openSubmenu.update((open) => (open === name ? null : name));

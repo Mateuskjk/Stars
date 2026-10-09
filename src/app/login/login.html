@@ -1,0 +1,27 @@
+<main class="login">
+  <form class="login__card" (submit)="submit($event)">
+    <div class="login__brand">
+      <svg class="login__logo" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M13 1Q13 12 24 12Q13 12 13 23Q13 12 2 12Q13 12 13 1Z" />
+        <path d="M25 18Q25 24 31 24Q25 24 25 30Q25 24 19 24Q25 24 25 18Z" />
+      </svg>
+      <span>LexÁgile</span>
+    </div>
+    <h1 class="login__title">Entrar</h1>
+    <p class="login__hint">Use o e-mail e a senha do sistema atual.</p>
+
+    @if (error() || session.error()) {
+      <p class="login__error" role="alert">{{ error() || session.error() }}</p>
+    }
+
+    <label class="modal__field">
+      <span class="modal__label">E-mail</span>
+      <input class="modal__input" name="email" type="email" autocomplete="username" required autofocus />
+    </label>
+    <label class="modal__field">
+      <span class="modal__label">Senha</span>
+      <input class="modal__input" name="senha" type="password" autocomplete="current-password" required />
+    </label>
+    <button class="modal__primary login__submit" type="submit" [disabled]="busy()">{{ busy() ? 'Entrando…' : 'Entrar' }}</button>
+  </form>
+</main>
