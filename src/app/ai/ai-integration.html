@@ -1,13 +1,13 @@
 <header class="backlog__header">
   <div>
     <h2 class="backlog__title">Integração com IA</h2>
-    <p class="backlog__subtitle">Modelos que alimentam o assistente (chatbot) de dicas do Stars.</p>
+    <p class="backlog__subtitle">Modelos que alimentam o assistente (chatbot) de dicas do LexÁgile.</p>
   </div>
   <button class="backlog__new" type="button" (click)="openNew()">+ Adicionar modelo</button>
 </header>
 
 <p class="ai__security">
-  🔒 As chaves de API ficam guardadas só no servidor do Stars. Esta tela mostra apenas o final de cada chave, e o navegador nunca fala direto com a IA.
+  🔒 As chaves de API ficam guardadas só no servidor do LexÁgile. Esta tela mostra apenas o final de cada chave, e o navegador nunca fala direto com a IA.
 </p>
 
 <ul class="ai__grid">
@@ -141,7 +141,7 @@
             [value]="config.temperature"
             (input)="patch({ temperature: +$any($event.target).value })"
           />
-          <span class="modal__hint">{{ fixedTemperature(config) ? 'Este modelo não aceita ajuste de criatividade; o Stars usa o padrão dele.' : '0 = respostas mais precisas · 1 = mais criativas' }}</span>
+          <span class="modal__hint">{{ fixedTemperature(config) ? 'Este modelo não aceita ajuste de criatividade; o LexÁgile usa o padrão dele.' : '0 = respostas mais precisas · 1 = mais criativas' }}</span>
         </label>
         <label class="modal__field">
           <span class="modal__label">Limite de resposta (tokens)</span>

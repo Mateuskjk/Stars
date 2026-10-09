@@ -254,11 +254,11 @@ export function inviteEmail(member: Member, invitedBy: string, message: string, 
   const role = ROLES.find((r) => r.id === member.role)!.label;
   return {
     to: member.email,
-    subject: `${invitedBy} convidou você para o Stars`,
+    subject: `${invitedBy} convidou você para o LexÁgile`,
     body: [
       `Olá, ${firstName}!`,
       ``,
-      `${invitedBy} convidou você para entrar no Stars como ${role}` + (member.company ? ` na ${member.company}.` : '.'),
+      `${invitedBy} convidou você para entrar no LexÁgile como ${role}` + (member.company ? ` na ${member.company}.` : '.'),
       ...(message.trim() ? [``, `“${message.trim()}”`] : []),
       ``,
       `Seu código de verificação é:`,
@@ -268,7 +268,7 @@ export function inviteEmail(member: Member, invitedBy: string, message: string, 
       `Para ativar sua conta, acesse ${origin}/convite e informe este e-mail e o código acima.`,
       `O código vale por 24 horas. Se você não esperava este convite, é só ignorar esta mensagem.`,
       ``,
-      `Equipe Stars`,
+      `Equipe LexÁgile`,
     ].join('\n'),
   };
 }

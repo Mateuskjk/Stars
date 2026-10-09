@@ -61,7 +61,7 @@ export class App {
 
   // ponytail: notificações fixas de exemplo; trocar por um service/API quando o backend existir
   private readonly allNotifications = signal<{ id: number; text: string; read: boolean; type: NotificationType }[]>([
-    { id: 1, text: 'Bem-vindo ao Stars!', read: false, type: 'system' },
+    { id: 1, text: 'Bem-vindo ao LexÁgile!', read: false, type: 'system' },
     { id: 2, text: 'Seu Daily de hoje está pronto.', read: false, type: 'daily' },
     { id: 3, text: 'Planning da semana atualizado.', read: true, type: 'planning' },
     { id: 4, text: 'Ana Souza mencionou você em Conversas.', read: false, type: 'mentions' },

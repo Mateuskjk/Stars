@@ -6,7 +6,7 @@ export const NOTIFICATION_TYPES: { id: NotificationType; label: string; descript
   { id: 'daily', label: 'Daily', description: 'Lembretes e resumos da daily' },
   { id: 'planning', label: 'Planning e sprints', description: 'Sprint criada, fechada ou atividades enviadas para você' },
   { id: 'mentions', label: 'Menções e conversas', description: 'Quando alguém fala com você ou te menciona' },
-  { id: 'system', label: 'Avisos do sistema', description: 'Novidades e avisos importantes do Stars' },
+  { id: 'system', label: 'Avisos do sistema', description: 'Novidades e avisos importantes do LexÁgile' },
 ];
 
 export interface Account {

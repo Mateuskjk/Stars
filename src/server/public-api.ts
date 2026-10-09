@@ -164,7 +164,7 @@ export function openApiSpec(serverUrl: string) {
   }
   return {
     openapi: '3.0.3',
-    info: { title: 'Stars — API pública', version: '1.0.0', description: 'API somente leitura. Autentique com o token pessoal gerado em Configurações › Membros.' },
+    info: { title: 'LexÁgile — API pública', version: '1.0.0', description: 'API somente leitura. Autentique com o token pessoal gerado em Configurações › Membros.' },
     servers: [{ url: serverUrl }],
     security: [{ bearerAuth: [] }],
     components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', description: 'Token pessoal: stars_…' } } },

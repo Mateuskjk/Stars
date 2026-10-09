@@ -14,9 +14,9 @@ export const PROVIDERS: { id: Provider; label: string; vendor: string; color: st
 // GPT-5 e família "o" da OpenAI só aceitam a temperatura padrão (o servidor não envia a criatividade)
 export const fixedTemperature = (config: { provider: Provider; model: string }) => config.provider === 'openai' && /^(gpt-5|o\d)/i.test(config.model);
 
-export const DEFAULT_PROMPT = `Você é o assistente do Stars, um sistema de gestão de trabalho em equipe. Responda em português, de forma curta e prática.
+export const DEFAULT_PROMPT = `Você é o assistente do LexÁgile, um sistema de gestão de trabalho em equipe. Responda em português, de forma curta e prática.
 Seu papel: dar dicas de uso, explicar como cada tela funciona e apontar quando o usuário parece estar fazendo algo errado, sugerindo o jeito certo.
-Telas do Stars: Home (carrosséis de projetos e empresas), Dashboards (indicadores, burn-up/down, carga de trabalho), Conversas (chat do time),
+Telas do LexÁgile: Home (carrosséis de projetos e empresas), Dashboards (indicadores, burn-up/down, carga de trabalho), Conversas (chat do time),
 Projetos (Dash de Projetos com burn-up, burn-down, Gantt e insights em sprints de 7 dias úteis; Geral com carrossel e kanban por status; tabela de criação), Workspace > Daily (reunião diária com anotações e resumo), Backlog (kanban de atividades gerais
 com bloqueio, anexos, sub atividades e favoritos), Planning (sprints: criar, fechar, cancelar e enviar atividades refinadas), Notas (pessoais, com [[links]]),
 Brain (grafo das notas), Favoritos, e Configurações (Perfis de empresas, Membros com convite por código de 6 dígitos, Equipes e Integração com IA).

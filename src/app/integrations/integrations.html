@@ -14,7 +14,7 @@
   </button>
 </div>
 
-<p class="ai__security">🔒 Segredos de webhook e senhas de banco ficam guardados só no servidor do Stars — esta tela nunca recebe esses valores de volta.</p>
+<p class="ai__security">🔒 Segredos de webhook e senhas de banco ficam guardados só no servidor do LexÁgile — esta tela nunca recebe esses valores de volta.</p>
 @if (loadError()) {
   <p class="planning__error" role="alert">{{ loadError() }}</p>
 }
@@ -66,7 +66,7 @@
       } @empty {
         <li class="favorites__empty teams__empty">
           <p>Nenhum webhook cadastrado.</p>
-          <p class="backlog__subtitle">Um webhook avisa outro sistema (via POST) sempre que algo acontece no Stars.</p>
+          <p class="backlog__subtitle">Um webhook avisa outro sistema (via POST) sempre que algo acontece no LexÁgile.</p>
         </li>
       }
     </ul>
@@ -151,7 +151,7 @@ X-Stars-Signature: sha256=…</pre>
       } @empty {
         <li class="favorites__empty teams__empty">
           <p>Nenhum banco conectado.</p>
-          <p class="backlog__subtitle">Conecte um PostgreSQL externo para usar os dados dele no Stars. Recomendamos um usuário só de leitura.</p>
+          <p class="backlog__subtitle">Conecte um PostgreSQL externo para usar os dados dele no LexÁgile. Recomendamos um usuário só de leitura.</p>
         </li>
       }
     </ul>
@@ -317,7 +317,7 @@ X-Stars-Signature: sha256=…</pre>
         </label>
         <label class="modal__toggle">
           <input type="checkbox" role="switch" [checked]="db.readOnly" (change)="patchDb({ readOnly: $any($event.target).checked })" />
-          <span>Somente leitura (recomendado: o Stars não consegue alterar dados do banco)</span>
+          <span>Somente leitura (recomendado: o LexÁgile não consegue alterar dados do banco)</span>
         </label>
       </details>
 

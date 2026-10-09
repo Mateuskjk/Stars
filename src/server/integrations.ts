@@ -218,7 +218,7 @@ export function integrationsRouter() {
   router.post('/webhooks/:id/test', async (req, res) => {
     const hook = webhooks.get(req.params.id);
     if (!hook) return void res.status(404).json({ error: 'Webhook não encontrado.' });
-    const result = await deliver(hook, 'webhook.test', { message: 'Teste de entrega do Stars', webhook: hook.name });
+    const result = await deliver(hook, 'webhook.test', { message: 'Teste de entrega do LexÁgile', webhook: hook.name });
     res.status(result.ok ? 200 : 502).json(result);
   });
 

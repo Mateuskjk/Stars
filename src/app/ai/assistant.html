@@ -3,7 +3,7 @@
     <header class="assistant__header">
       <span class="assistant__spark"><svg class="assistant__logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 1Q13 12 24 12Q13 12 13 23Q13 12 2 12Q13 12 13 1Z" /><path d="M25 18Q25 24 31 24Q25 24 25 30Q25 24 19 24Q25 24 25 18Z" /></svg></span>
       <div class="assistant__title">
-        <strong>Assistente Stars</strong>
+        <strong>Assistente LexÁgile</strong>
         @if (store.assistant(); as model) {
           <span>{{ vendorLabel() }} · {{ model.model }}</span>
         }
@@ -47,7 +47,7 @@
           #input
           class="assistant__input"
           rows="1"
-          placeholder="Pergunte algo sobre o Stars…"
+          placeholder="Pergunte algo sobre o LexÁgile…"
           aria-label="Pergunta para o assistente"
           (keydown)="onKeydown($event, input)"
         ></textarea>
