@@ -33,6 +33,7 @@
               [class.is-dragging]="dragging() === card.id"
               (dragstart)="dragging.set(card.id)"
               (dragend)="endDrag()"
+              (click)="openProject(card.id, $event)"
             >
               <div class="kanban__card-header">
                 <span class="kanban__cover" [style.background]="card.cover" aria-hidden="true"></span>

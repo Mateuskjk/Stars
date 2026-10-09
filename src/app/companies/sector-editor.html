@@ -1,0 +1,61 @@
+<dialog #dialog class="modal sector-editor" aria-labelledby="sector-editor-title" (click)="closeOnBackdrop($event, dialog)">
+  <form class="sector-editor__form" (submit)="save($event)">
+    <h2 id="sector-editor-title" class="modal__title">{{ editing() ? 'Editar setor' : 'Novo setor' }} · {{ company().name }}</h2>
+
+    @let s = editing();
+    <label class="modal__field">
+      <span class="modal__label">Nome *</span>
+      <input class="modal__input" name="name" required maxlength="60" [value]="s?.name ?? ''" />
+    </label>
+    <label class="modal__field">
+      <span class="modal__label">Descrição</span>
+      <input class="modal__input" name="description" maxlength="160" [value]="s?.description ?? ''" />
+    </label>
+    <label class="modal__field">
+      <span class="modal__label">Gestor</span>
+      <select class="modal__input" name="manager">
+        <option value="">Sem gestor</option>
+        @for (m of people(); track m.id) {
+          <option [value]="m.name" [selected]="m.name === s?.manager">{{ m.name }}</option>
+        }
+      </select>
+      <span class="modal__hint">O gestor vê todas as atividades do setor.</span>
+    </label>
+    <fieldset class="modal__field backlog__share">
+      <legend class="modal__label">Membros do setor</legend>
+      @for (m of people(); track m.id) {
+        <label class="backlog__share-option">
+          <input type="checkbox" [checked]="memberIds().includes(m.id)" (change)="toggleMember(m.id)" />
+          {{ m.name }}
+        </label>
+      } @empty {
+        <span class="modal__hint">Nenhum membro ligado a {{ company().name }}. Ligue membros à empresa em Configurações › Membros.</span>
+      }
+    </fieldset>
+
+    @if (error()) {
+      <p class="company-page__error" role="alert">{{ error() }}</p>
+    }
+    <div class="confirm-dialog__actions">
+      <button class="confirm-dialog__button" type="button" (click)="dialog.close()">Cancelar</button>
+      <button class="backlog__new" type="submit">{{ s ? 'Salvar' : 'Criar setor' }}</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog #confirm class="confirm-dialog" aria-labelledby="sector-confirm-title" (click)="closeOnBackdrop($event, confirm)">
+  <div class="confirm-dialog__box">
+    <span class="confirm-dialog__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" /></svg>
+    </span>
+    <h2 id="sector-confirm-title" class="confirm-dialog__title">Excluir o setor “{{ removing()?.name }}”?</h2>
+    <p class="confirm-dialog__text">
+      {{ linked() ? linked() + (linked() === 1 ? ' atividade continua' : ' atividades continuam') + ' no Backlog, mas sem setor.' : 'O setor não tem atividades.' }}
+      Os projetos não mudam.
+    </p>
+    <div class="confirm-dialog__actions">
+      <button class="confirm-dialog__button" type="button" autofocus (click)="confirm.close()">Cancelar</button>
+      <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDelete()">Excluir</button>
+    </div>
+  </div>
+</dialog>

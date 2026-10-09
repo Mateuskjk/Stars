@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { AuditAction, AuditStore, diff } from '../audit/audit-store';
 import { MembersStore } from '../members/members-store';
+import { sprintOf, sprintWindow, today } from '../projects/project-tasks';
 import { CustomColumnId, KanbanColumn, customColumn } from '../kanban/add-column';
 
 export type BacklogStatus = 'to-refine' | 'refined' | 'waiting' | 'refinement-done' | 'archived' | 'canceled' | CustomColumnId;
@@ -53,6 +54,10 @@ export interface BacklogItem {
   planning?: 'ready' | 'waiting'; // padrão: 'ready' (pronta para a sprint)
   sprintId?: number; // definida quando a atividade entra numa sprint
   sectorId?: number; // setor de uma empresa (aparece no kanban da página do setor)
+  sharedWith: string[]; // atividade conjunta: conta para o responsável e para cada pessoa daqui
+  sprintStatus?: string; // coluna no kanban da sprint do setor (A fazer, Em andamento…); padrão: a primeira
+  addedAt?: string; // dia em que entrou na sprint (AAAA-MM-DD)
+  doneAt?: string; // dia em que chegou em Finalizado (burn-up e burn-down dos Dashboards)
 }
 
 // Cores das tags: cada tag pega sempre a mesma cor (pelo texto), sem precisar configurar
@@ -62,6 +67,15 @@ export function tagColor(tag: string) {
   let hash = 0;
   for (const char of tag) hash = (hash * 31 + char.charCodeAt(0)) | 0;
   return TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
+}
+
+// Quando entrou na sprint (addedAt) e quando chegou em Finalizado (doneAt): alimentam os Dashboards
+function stamp(before: BacklogItem | undefined, after: BacklogItem): BacklogItem {
+  const now = today();
+  const addedAt = !after.sprintId ? undefined : before ? (before.sprintId === after.sprintId ? before.addedAt ?? now : now) : after.addedAt ?? now;
+  const done = !!after.sprintId && !after.locked && after.sprintStatus === 'done';
+  const doneAt = done ? (before?.doneAt ?? (before ? now : after.doneAt ?? now)) : undefined;
+  return { ...after, addedAt, doneAt };
 }
 
 let nextId = 1;
@@ -76,6 +90,7 @@ export function emptyItem(status: BacklogStatus = 'to-refine'): BacklogItem {
     due: '',
     tags: [],
     assignee: '',
+    sharedWith: [],
     comments: [],
     subtasks: [],
     attachments: [],
@@ -88,6 +103,11 @@ const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOS
 const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000);
 
 // ponytail: atividades de exemplo, só em memória (somem ao recarregar; anexos usam object URL da sessão)
+// Dia útil `day` (0 a 6) da sprint da Planning `id` (a 12 é a ativa; sprints de 7 dias úteis)
+function sprintDay(id: number, day: number) {
+  return sprintWindow(sprintOf(today()) + id - 12).days[day];
+}
+
 const SEED: Omit<BacklogItem, 'id'>[] = [
   { ...emptyItem('to-refine'), name: 'Padronizar e-mails de boas-vindas', sectorId: 1, description: 'Revisar textos e layout dos e-mails automáticos.', due: inDays(5), tags: ['comunicação'], assignee: 'Ana Souza', favorite: true },
   { ...emptyItem('to-refine'), name: 'Levantar ferramentas de BI', sectorId: 6, description: 'Comparar opções para os relatórios internos.', tags: ['pesquisa', 'dados'], assignee: 'Gabriela Nunes' },
@@ -108,17 +128,61 @@ const SEED: Omit<BacklogItem, 'id'>[] = [
   { ...emptyItem('refinement-done'), name: 'Rotina de backup dos arquivos', sectorId: 4, tags: ['infra'], assignee: 'Felipe Costa', due: inDays(12) },
   { ...emptyItem('refinement-done'), name: 'Template de relatório mensal', sectorId: 3, tags: ['documentação'], assignee: 'Gabriela Nunes', due: inDays(8) },
   { ...emptyItem('refinement-done'), name: 'Treinamento de segurança', sectorId: 4, tags: ['time', 'infra'], assignee: 'Eva Martins', planning: 'waiting' },
-  { ...emptyItem('refinement-done'), name: 'Automatizar convites da daily', tags: ['time'], assignee: 'Ana Souza', sprintId: 12 },
+  { ...emptyItem('refinement-done'), name: 'Automatizar convites da daily', sectorId: 4, tags: ['time'], assignee: 'Ana Souza', sharedWith: ['Carlos Lima'], sprintId: 12, sprintStatus: 'review', addedAt: sprintDay(12, 0) },
   { ...emptyItem('archived'), name: 'Pesquisa de clima Q2', tags: ['RH'], assignee: 'Ana Souza' },
   { ...emptyItem('canceled'), name: 'Migrar wiki para nova plataforma', tags: ['documentação'], assignee: 'Eva Martins' },
+  { ...emptyItem('refinement-done'), name: 'Atualizar antivírus das máquinas', sectorId: 4, tags: ['infra'], assignee: 'Diego Rocha', sharedWith: ['Felipe Costa'], sprintId: 12, sprintStatus: 'done', addedAt: sprintDay(12, 0), doneAt: sprintDay(12, 1) },
+  { ...emptyItem('refinement-done'), name: 'Revisar acessos do Drive', sectorId: 4, tags: ['segurança'], assignee: 'Carlos Lima', due: inDays(4), sprintId: 12, sprintStatus: 'todo', addedAt: sprintDay(12, 1) }, // entrou com a sprint em andamento
+  // id 14: delegada à equipe Plataforma (aparece para todos os membros dela)
+  { ...emptyItem('refinement-done'), name: 'Monitoramento dos servidores', sectorId: 4, tags: ['infra'], assignee: 'Felipe Costa', sprintId: 12, sprintStatus: 'doing', addedAt: sprintDay(12, 0) },
+  ...history(),
 ];
+
+// [sprint, setor, atividade, responsável, dia da entrega (0 a 6), compartilhada com]
+function history(): Omit<BacklogItem, 'id'>[] {
+  const rows: [number, number, string, string, number, string[]?][] = [
+    [8, 4, 'Atualizar política de senhas', 'Felipe Costa', 3],
+    [8, 4, 'Inventário de notebooks', 'Diego Rocha', 5],
+    [8, 3, 'Conciliação bancária de agosto', 'Diego Rocha', 4],
+    [8, 1, 'Calendário de posts de setembro', 'Ana Souza', 6],
+    [9, 4, 'Trocar roteador do escritório', 'Carlos Lima', 2, ['Diego Rocha']],
+    [9, 4, 'Backup do servidor de arquivos', 'Felipe Costa', 4],
+    [9, 4, 'Padronizar imagens das máquinas', 'Diego Rocha', 6],
+    [9, 3, 'Fechamento contábil de agosto', 'Diego Rocha', 5],
+    [9, 1, 'Briefing da campanha de outubro', 'Ana Souza', 3],
+    [9, 6, 'Pesquisa com clientes do app', 'Bruna Alves', 6],
+    [10, 4, 'Revisar permissões do ERP', 'Carlos Lima', 4],
+    [10, 4, 'Documentar rede interna', 'Felipe Costa', 6, ['Carlos Lima']],
+    [10, 3, 'Orçamento de TI 2027', 'Diego Rocha', 5],
+    [10, 5, 'Base de conhecimento do suporte', 'Eva Martins', 6],
+    [11, 4, 'Configurar VPN para viagens', 'Diego Rocha', 2],
+    [11, 4, 'Auditoria de licenças', 'Felipe Costa', 3],
+    [11, 4, 'Treinar equipe no novo Wi-Fi', 'Carlos Lima', 5],
+    [11, 4, 'Atualizar firmware das impressoras', 'Diego Rocha', 6],
+    [11, 3, 'Fechamento contábil de setembro', 'Diego Rocha', 4],
+    [11, 1, 'Relatório de redes sociais', 'Ana Souza', 5],
+    [11, 6, 'Roadmap do 4º trimestre', 'Bruna Alves', 6, ['Eva Martins']],
+  ];
+  return rows.map(([sprint, sectorId, name, assignee, done, sharedWith = []]) => ({
+    ...emptyItem('archived'),
+    name,
+    sectorId,
+    assignee,
+    sharedWith,
+    sprintId: sprint,
+    sprintStatus: 'done',
+    addedAt: sprintDay(sprint, done >= 5 && name.length % 3 === 0 ? 2 : 0), // algumas entraram no meio da sprint
+    doneAt: sprintDay(sprint, done),
+  }));
+}
 
 // Atividades gerais do backlog (não são atividades de projeto)
 @Injectable({ providedIn: 'root' })
 export class BacklogStore {
   private readonly audit = inject(AuditStore);
   private readonly members = inject(MembersStore);
-  readonly items = signal<BacklogItem[]>(SEED.map((item) => ({ ...item, id: newId() })));
+  // ids fixos (1, 2, 3…) nos exemplos: equipes e favoritos apontam para eles
+  readonly items = signal<BacklogItem[]>(SEED.map((item, i) => ({ ...item, id: i + 1 })));
   // Colunas fixas + criadas pelo usuário (ponytail: só em memória, como as atividades)
   readonly columns = signal(BACKLOG_COLUMNS);
 
@@ -150,20 +214,23 @@ export class BacklogStore {
     this.audit.log({ action: 'create', entity: 'Coluna do backlog', name: label });
   }
 
-  save(item: BacklogItem) {
+  save(item: BacklogItem, sprintLabel: (status: BacklogItem) => string = (i) => i.sprintStatus ?? '—') {
     if (item.id) {
       const before = this.items().find((current) => current.id === item.id);
-      this.items.update((list) => list.map((current) => (current.id === item.id ? item : current)));
+      this.items.update((list) => list.map((current) => (current.id === item.id ? stamp(current, item) : current)));
       if (before) this.logChanges(before, item);
+      if (before?.sprintId && sprintLabel(before) !== sprintLabel(item)) {
+        this.audit.log({ action: 'move', entity: 'Atividade da sprint', name: item.name, from: sprintLabel(before), to: sprintLabel(item) });
+      }
     } else {
-      this.items.update((list) => [...list, { ...item, id: newId() }]);
+      this.items.update((list) => [...list, stamp(undefined, { ...item, id: Math.max(0, ...list.map((current) => current.id)) + 1 })]);
       this.audit.log({ action: 'create', entity: 'Atividade', name: item.name, to: this.label(item.status) });
     }
   }
 
   patch(id: number, changes: Partial<BacklogItem>) {
     const before = this.items().find((item) => item.id === id);
-    this.items.update((list) => list.map((item) => (item.id === id ? { ...item, ...changes } : item)));
+    this.items.update((list) => list.map((item) => (item.id === id ? stamp(item, { ...item, ...changes }) : item)));
     if (before) this.logChanges(before, { ...before, ...changes });
   }
 
@@ -172,6 +239,15 @@ export class BacklogStore {
     if (!before || before.locked || before.status === status) return;
     this.items.update((list) => list.map((item) => (item.id === id ? { ...item, status } : item)));
     this.logChanges(before, { ...before, status });
+  }
+
+  // Status na sprint (kanban do setor). "blocked" = cadeado; sair de Bloqueado desbloqueia o cartão.
+  setSprintStatus(id: number, status: string, labels: { from: string; to: string }) {
+    const before = this.items().find((item) => item.id === id);
+    if (!before || labels.from === labels.to) return;
+    const changes = status === 'blocked' ? { locked: true } : { locked: false, sprintStatus: status };
+    this.items.update((list) => list.map((item) => (item.id === id ? stamp(item, { ...item, ...changes }) : item)));
+    this.audit.log({ action: 'move', entity: 'Atividade da sprint', name: before.name, ...labels });
   }
 
   remove(id: number) {
@@ -208,6 +284,7 @@ const FIELD_LABELS: Record<string, string> = {
   due: 'Prazo',
   tags: 'Tags',
   assignee: 'Responsável',
+  sharedWith: 'Compartilhada com',
   locked: 'Bloqueado',
   favorite: 'Favorito',
   planning: 'Categoria na planning',

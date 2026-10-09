@@ -93,6 +93,14 @@ $info: #2a78d6;
     }
   }
 
+  &__ai-stale {
+    padding: 6px 10px;
+    border-radius: 8px;
+    background-color: #fdf3dc;
+    color: $color-text;
+    font-size: 12px;
+  }
+
   &__ai-button {
     align-self: flex-start;
     margin-top: 12px;

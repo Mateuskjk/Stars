@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Carousel } from '../carousel/carousel';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
@@ -22,6 +22,7 @@ export function initials(name: string) {
 })
 export class Projects {
   private readonly store = inject(ProjectStore);
+  private readonly router = inject(Router);
   protected readonly projects = this.store.carouselItems;
   protected readonly columns = this.store.statuses;
   protected readonly initials = initials;
@@ -39,6 +40,12 @@ export class Projects {
       cards: this.store.projects().filter((project) => project.status === column.id),
     })),
   );
+
+  // Clicar em qualquer parte do card abre o projeto (o seletor "Mover para" e o link do nome cuidam de si)
+  protected openProject(id: number, event: Event) {
+    if ((event.target as HTMLElement).closest('select, a')) return;
+    this.router.navigate(['/projetos', id]);
+  }
 
   protected move(id: number, status: ProjectStatus) {
     this.store.setStatus(id, status);

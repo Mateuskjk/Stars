@@ -1,4 +1,4 @@
-import { Component, DestroyRef, afterNextRender, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, afterNextRender, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { RecentsStore } from '../home/recents-store';
 import { MembersStore } from '../members/members-store';
@@ -7,13 +7,14 @@ import { ProjectStore } from '../projects/project-store';
 import { ProjectTaskStore } from '../projects/project-tasks';
 import { initials } from '../projects/projects';
 import { CompanyStore } from './company-store';
+import { SectorEditor } from './sector-editor';
 import { SectorStore } from './sector-store';
 
 const LOCALES = { 'pt-BR': 'Português (Brasil)', 'en-US': 'Inglês (EUA)', 'es-ES': 'Espanhol' } as const;
 
 // /empresas/:id — cabeçalho com os dados da empresa e os perfis dos setores dela
 @Component({
-  imports: [RouterLink],
+  imports: [RouterLink, SectorEditor],
   selector: 'app-company-page',
   templateUrl: './company-page.html',
   host: { class: 'company-page' },
@@ -91,28 +92,9 @@ export class CompanyPage {
     return this.now().toLocaleTimeString('pt-BR', { timeZone, hour: '2-digit', minute: '2-digit' });
   }
 
-  // ---------- Novo setor ----------
-  protected readonly creating = signal(false);
-  protected readonly error = signal('');
+  protected readonly editor = viewChild(SectorEditor); // só existe para admin
 
-  protected create(event: Event) {
-    event.preventDefault();
-    const company = this.company();
-    const form = event.target as HTMLFormElement;
-    const data = new FormData(form);
-    const name = String(data.get('name') ?? '').trim();
-    if (!company || !name) return;
-    if (this.sectorStore.isNameTaken(company.id, name)) {
-      this.error.set(`Já existe o setor “${name}” nesta empresa.`);
-      return;
-    }
-    this.sectorStore.create(company.id, company.name, {
-      name,
-      description: String(data.get('description') ?? ''),
-      manager: String(data.get('manager') ?? ''),
-    });
-    form.reset();
-    this.error.set('');
-    this.creating.set(false);
+  protected sectorOf(id: number) {
+    return this.sectorStore.byId(id)!;
   }
 }

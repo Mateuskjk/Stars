@@ -154,8 +154,8 @@ export function tipAt(event: Event, data: Tip) {
     x = rect.left + rect.width / 2;
     y = rect.top;
   }
-  // Perto da borda direita, a dica abre para a esquerda
-  return { x, y, flip: x > innerWidth - 220, data };
+  // Perto da borda direita, a dica abre para a esquerda; perto do fim da tela, abre para cima
+  return { x, y, flip: x > innerWidth - 220, above: y > innerHeight - 40 - 24 * (data.rows.length + 1), data };
 }
 
 export type TipState = ReturnType<typeof tipAt>;
@@ -166,16 +166,18 @@ export function watchChartWidth(selector: string, target: WritableSignal<number>
   const host = inject(ElementRef<HTMLElement>).nativeElement as HTMLElement;
   const destroyRef = inject(DestroyRef);
   afterNextRender(() => {
-    const card = host.querySelector(selector);
-    if (!card) return;
+    // Observa a página inteira e procura o card a cada medida: o card pode ser criado depois
+    // (filtros, telas vazias) e o elemento antigo some — observar só ele deixaria a largura velha
     const measure = () => {
+      const card = host.querySelector(selector);
+      if (!card) return;
       const style = getComputedStyle(card);
       const width = card.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-      target.set(Math.max(240, Math.round(width)));
+      if (width > 0) target.set(Math.max(240, Math.round(width)));
     };
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(card);
+    observer.observe(host);
     destroyRef.onDestroy(() => observer.disconnect());
   });
 }

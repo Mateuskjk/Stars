@@ -55,26 +55,10 @@
     <div class="project-page__kanban-head">
       <h2 class="kanban__title">Setores</h2>
       @if (isAdmin()) {
-        <button class="backlog__new" type="button" (click)="creating.set(!creating()); error.set('')">{{ creating() ? 'Cancelar' : '+ Novo setor' }}</button>
+        <button class="backlog__new" type="button" (click)="editor()?.open()">+ Novo setor</button>
+        <app-sector-editor [company]="c" />
       }
     </div>
-
-    @if (creating() && isAdmin()) {
-      <form class="company-page__new" (submit)="create($event)">
-        <input class="modal__input" name="name" placeholder="Nome do setor *" aria-label="Nome do setor" required maxlength="60" />
-        <input class="modal__input" name="description" placeholder="Descrição" aria-label="Descrição do setor" maxlength="160" />
-        <select class="modal__input" name="manager" aria-label="Gestor do setor">
-          <option value="">Sem gestor</option>
-          @for (m of members(); track m.id) {
-            <option [value]="m.name">{{ m.name }}</option>
-          }
-        </select>
-        <button class="backlog__new" type="submit">Criar setor</button>
-        @if (error()) {
-          <p class="company-page__error" role="alert">{{ error() }}</p>
-        }
-      </form>
-    }
 
     <ul class="company-page__grid">
       @for (s of sectors(); track s.id) {
@@ -85,6 +69,16 @@
               <h3><a class="sector-card__link" [routerLink]="['/empresas', c.id, 'setores', s.id]">{{ s.name }}</a></h3>
               <span>{{ s.description || 'Sem descrição' }}</span>
             </div>
+            @if (isAdmin()) {
+              <div class="sector-card__actions">
+                <button class="column-title__action" type="button" title="Editar setor" [attr.aria-label]="'Editar setor ' + s.name" (click)="editor()?.open(sectorOf(s.id))">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="m13 7 4 4" /></svg>
+                </button>
+                <button class="column-title__action" type="button" title="Excluir setor" [attr.aria-label]="'Excluir setor ' + s.name" (click)="editor()?.askDelete(sectorOf(s.id))">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" /></svg>
+                </button>
+              </div>
+            }
           </div>
 
           <dl class="sector-card__facts">

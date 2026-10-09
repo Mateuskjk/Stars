@@ -276,6 +276,14 @@ $status-critical: #d03b3b;
     transform: translate(calc(-100% - 12px), 12px);
   }
 
+  &.is-above {
+    transform: translate(12px, calc(-100% - 12px));
+  }
+
+  &.is-flipped.is-above {
+    transform: translate(calc(-100% - 12px), calc(-100% - 12px));
+  }
+
   &__heading {
     margin-bottom: 4px;
     color: $chart-ink-muted;
@@ -334,4 +342,16 @@ $status-critical: #d03b3b;
       align-self: center;
     }
   }
+}
+
+// Menu de filtros dos Dashboards
+.dashboard__filters {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.dashboard__clear {
+  margin-left: auto;
 }

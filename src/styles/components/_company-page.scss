@@ -314,8 +314,14 @@ $cp-line: #e7e8ea;
     }
 
     .backlog-card__open {
-      padding-right: 44px; // espaço para o seletor "Mover para"
       text-decoration: none;
+    }
+
+    // Só as linhas de cima abrem espaço para o seletor "Mover para";
+    // a linha de baixo vai até a borda, para o avatar ficar alinhado com o botão
+    .backlog-card__tags,
+    .backlog-card__name {
+      padding-right: 36px;
     }
   }
 
@@ -326,8 +332,8 @@ $cp-line: #e7e8ea;
   // Seletor "Mover para" no canto do cartão
   &__move {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 12px;
+    right: 12px; // mesma margem do conteúdo do cartão: alinha com o avatar
   }
 
   &__sprint {
@@ -346,4 +352,141 @@ $cp-line: #e7e8ea;
     height: 64px;
     font-size: 22px;
   }
+}
+
+// Editar/excluir setor (só admin)
+.sector-card__actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.sector-card__head {
+  align-items: flex-start;
+}
+
+.sector-page__admin {
+  gap: 6px;
+}
+
+// Diálogo de criar/editar setor
+.sector-editor {
+  width: min(480px, calc(100vw - 32px));
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    overflow-y: auto;
+  }
+}
+
+// Sprint ativa no cabeçalho do setor
+.sector-page__sprint-box {
+  gap: 8px;
+}
+
+.sector-page__sprint-name {
+  font-size: 20px !important;
+}
+
+.sector-page__period,
+.sector-page__goal {
+  color: $cp-muted;
+  font-size: 12px;
+
+  a {
+    color: $color-title;
+    font-weight: 600;
+  }
+}
+
+// 7 dias úteis: passados, hoje e os que faltam
+.sector-page__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+
+  span {
+    height: 6px;
+    border-radius: 3px;
+    background-color: #e1e0d9;
+
+    &.is-past {
+      background-color: color-mix(in srgb, var(--sector-color) 45%, #fff);
+    }
+
+    &.is-today {
+      background-color: var(--sector-color);
+    }
+  }
+}
+
+.sector-page__notice {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background-color: #eef4fc;
+  color: $color-text;
+  font-size: 13px;
+}
+
+// Contagem por pessoa (atividade conjunta conta para cada um)
+.sector-page__people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px 3px 3px;
+    border: 1px solid $cp-line;
+    border-radius: 20px;
+    color: $color-text;
+    font-size: 12px;
+
+    small {
+      color: $cp-muted;
+    }
+  }
+}
+
+.sector-page__team {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background-color: #efe9fb;
+  color: $color-title;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sector-page__shared-by {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: $cp-muted;
+  font-size: 11px;
+}
+
+.sector-page__avatars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.sector-page__share-icon {
+  color: $cp-muted;
+  font-size: 12px;
+}
+
+.sector-page__avatar-shared {
+  background-color: #5598e7;
+}
+
+.sector-page__share {
+  min-height: 36px;
 }

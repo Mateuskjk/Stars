@@ -65,7 +65,7 @@ export type BurnDown = ReturnType<typeof burnDown>;
 
 // ---------- Burn-up: escopo × concluído por sprint, com plano e projeção de término ----------
 
-export function burnUp(tasks: ProjectTask[], now: string) {
+export function burnUp(tasks: ProjectTask[], now: string, label: (sprint: number) => string = (n) => `S${n}`) {
   if (!tasks.length) return null;
   const current = sprintOf(now);
   const first = Math.min(...tasks.map((task) => Math.min(task.sprint, sprintOf(task.createdAt))));
@@ -115,7 +115,7 @@ export function burnUp(tasks: ProjectTask[], now: string) {
   }
 
   return {
-    labels: numbers.map((n) => `S${n}`),
+    labels: numbers.map(label),
     series,
     scale: niceScale(Math.max(total, 1)),
     current,
@@ -224,29 +224,39 @@ export interface ProjectSummary {
   health: Health;
 }
 
-export function insights(tasks: ProjectTask[], bd: BurnDown, bu: BurnUp | null, now: string, projects: ProjectSummary[] = []): Insight[] {
+export interface InsightOptions {
+  unit?: string; // 'pts' (projetos) ou 'atividades' (atividades gerais, contadas uma a uma)
+  sprintName?: (sprint: number) => string;
+  riskLabel?: string; // 'Projetos em risco' ou 'Setores em risco'
+  scopeGrowth?: boolean; // projetos têm escopo fechado; o trabalho contínuo dos setores cresce a cada sprint (padrão: true)
+}
+
+export function insights(tasks: ProjectTask[], bd: BurnDown, bu: BurnUp | null, now: string, projects: ProjectSummary[] = [], options: InsightOptions = {}): Insight[] {
+  const u = options.unit ?? 'pts';
+  const q = (n: number) => `${n} ${n === 1 && u === 'atividades' ? 'atividade' : u}`; // 1 atividade, 2 atividades
+  const sn = options.sprintName ?? ((n: number) => `Sprint ${n}`);
   const list: Insight[] = [];
   const isCurrent = bd.sprint.number === sprintOf(now);
 
   // Sprint (burn-down)
   if (bd.scope === 0) {
-    list.push({ tone: 'info', text: `Nenhuma atividade comprometida na Sprint ${bd.sprint.number}.` });
+    list.push({ tone: 'info', text: `Nenhuma atividade comprometida na ${sn(bd.sprint.number)}.` });
   } else if (bd.left === 0) {
-    list.push({ tone: 'good', text: `Sprint ${bd.sprint.number}: tudo entregue (${bd.done} pts).` });
+    list.push({ tone: 'good', text: `${sn(bd.sprint.number)}: tudo entregue (${q(bd.done)}).` });
   } else if (isCurrent && bd.daysLeft > 0) {
     if (bd.leftover === 0) {
-      list.push({ tone: 'good', text: `No ritmo atual (${bd.pace} pts/dia), a Sprint ${bd.sprint.number} fecha no prazo: faltam ${bd.left} pts em ${bd.daysLeft} dias úteis.` });
+      list.push({ tone: 'good', text: `No ritmo atual (${bd.pace} ${u}/dia), a ${sn(bd.sprint.number)} fecha no prazo: faltam ${q(bd.left)} em ${bd.daysLeft} dias úteis.` });
     } else {
       list.push({
         tone: 'bad',
-        text: `Faltam ${bd.left} pts em ${bd.daysLeft} dias úteis: é preciso ${bd.needed} pts/dia e o time entrega ${bd.pace} pts/dia. Cerca de ${bd.leftover} pts devem ficar para a próxima sprint — priorize ou renegocie o escopo.`,
+        text: `Faltam ${q(bd.left)} em ${bd.daysLeft} dias úteis: é preciso ${bd.needed} ${u}/dia e o time entrega ${bd.pace} ${u}/dia. Cerca de ${q(bd.leftover)} ${bd.leftover === 1 ? 'deve' : 'devem'} ficar para a próxima sprint — priorize ou renegocie o escopo.`,
       });
     }
   } else if (bd.lived === SPRINT_DAYS) {
-    list.push({ tone: 'warn', text: `A Sprint ${bd.sprint.number} fechou com ${bd.left} de ${bd.scope} pts sem entregar (${Math.round((bd.done / bd.scope) * 100)}% concluído).` });
+    list.push({ tone: 'warn', text: `A ${sn(bd.sprint.number)} fechou com ${bd.left} de ${q(bd.scope)} sem entregar (${Math.round((bd.done / bd.scope) * 100)}% concluído).` });
   }
   if (bd.added > 0) {
-    list.push({ tone: 'warn', text: `${bd.added} pts entraram com a Sprint ${bd.sprint.number} já em andamento (${Math.round((bd.added / Math.max(bd.committed, 1)) * 100)}% a mais que o compromisso). Mudança de escopo no meio da sprint derruba a previsibilidade.` });
+    list.push({ tone: 'warn', text: `${q(bd.added)} ${bd.added === 1 ? 'entrou' : 'entraram'} com a ${sn(bd.sprint.number)} já em andamento (${Math.round((bd.added / Math.max(bd.committed, 1)) * 100)}% a mais que o compromisso). Mudança de escopo no meio da sprint derruba a previsibilidade.` });
   }
 
   // Projeto / geral (burn-up)
@@ -256,25 +266,25 @@ export function insights(tasks: ProjectTask[], bd: BurnDown, bu: BurnUp | null, 
     } else if (bu.forecast === null) {
       list.push({ tone: 'bad', text: 'Sem velocidade nas últimas sprints: não dá para prever o término.' });
     } else if (bu.delay! > 0) {
-      list.push({ tone: bu.delay! > 1 ? 'bad' : 'warn', text: `Previsão de término na Sprint ${bu.forecast} (${shortDate(bu.forecastDate!)}), ${bu.delay} ${bu.delay === 1 ? 'sprint' : 'sprints'} depois do planejado (Sprint ${bu.plannedEnd}, ${shortDate(bu.plannedDate)}).` });
+      list.push({ tone: bu.delay! > 1 ? 'bad' : 'warn', text: `Previsão de término na ${sn(bu.forecast!)} (${shortDate(bu.forecastDate!)}), ${bu.delay} ${bu.delay === 1 ? 'sprint' : 'sprints'} depois do planejado (${sn(bu.plannedEnd)}, ${shortDate(bu.plannedDate)}).` });
     } else {
-      list.push({ tone: 'good', text: `Previsão de término na Sprint ${bu.forecast} (${shortDate(bu.forecastDate!)}), dentro do planejado (Sprint ${bu.plannedEnd}).` });
+      list.push({ tone: 'good', text: `Previsão de término na ${sn(bu.forecast!)} (${shortDate(bu.forecastDate!)}), dentro do planejado (${sn(bu.plannedEnd)}).` });
     }
-    if (!projects.length && bu.scopeGrowth >= 15) { // no geral os projetos começam em datas diferentes: crescimento não se compara
-      list.push({ tone: 'warn', text: `O escopo cresceu ${bu.scopeGrowth}% desde o início (${bu.initial} → ${bu.total} pts). Cada ponto novo empurra a data de entrega.` });
+    if (options.scopeGrowth !== false && !projects.length && bu.scopeGrowth >= 15) { // no geral os projetos começam em datas diferentes: crescimento não se compara
+      list.push({ tone: 'warn', text: `O escopo cresceu ${bu.scopeGrowth}% desde o início (${bu.initial} → ${q(bu.total)}). Cada item novo empurra a data de entrega.` });
     }
     const [previous, last] = [bu.deltas.slice(0, -1), bu.deltas.at(-1)];
     if (last !== undefined && previous.length) {
       const average = previous.reduce((a, b) => a + b, 0) / previous.length;
-      if (average > 0 && last < average * 0.75) list.push({ tone: 'warn', text: `A velocidade caiu na última sprint: ${last} pts contra a média de ${round1(average)} pts.` });
-      if (average > 0 && last > average * 1.25) list.push({ tone: 'good', text: `A velocidade subiu na última sprint: ${last} pts contra a média de ${round1(average)} pts.` });
+      if (average > 0 && last < average * 0.75) list.push({ tone: 'warn', text: `A velocidade caiu na última sprint: ${q(last)} contra a média de ${q(round1(average))}.` });
+      if (average > 0 && last > average * 1.25) list.push({ tone: 'good', text: `A velocidade subiu na última sprint: ${q(last)} contra a média de ${q(round1(average))}.` });
     }
   }
 
   // Projetos atrasados (visão geral)
   const late = projects.filter((p) => p.health === 'late' || p.health === 'stalled');
   if (late.length) {
-    list.push({ tone: 'bad', text: `Projetos em risco: ${late.map((p) => `${p.name} (${HEALTH[p.health].label.toLowerCase()})`).join(', ')}.` });
+    list.push({ tone: 'bad', text: `${options.riskLabel ?? 'Projetos em risco'}: ${late.map((p) => `${p.name} (${HEALTH[p.health].label.toLowerCase()})`).join(', ')}.` });
   }
 
   // Atividades atrasadas
@@ -292,12 +302,12 @@ export function insights(tasks: ProjectTask[], bd: BurnDown, bu: BurnUp | null, 
     const [name, points] = [...byPerson].sort((a, b) => b[1] - a[1])[0];
     const share = points / sum(open);
     if (share > 1.5 / byPerson.size && share >= 0.35) {
-      list.push({ tone: 'warn', text: `${name} concentra ${points} pts em aberto na sprint (${Math.round(share * 100)}% do que falta). Redistribuir reduz o risco de gargalo.` });
+      list.push({ tone: 'warn', text: `${name} concentra ${q(points)} em aberto na sprint (${Math.round(share * 100)}% do que falta). Redistribuir reduz o risco de gargalo.` });
     }
   }
   const review = sum(open.filter((task) => task.status === 'review'));
   if (review >= 5 && review / Math.max(sum(open), 1) >= 0.35) {
-    list.push({ tone: 'warn', text: `${review} pts parados em ${TASK_STATUSES.review.label}: a revisão virou gargalo.` });
+    list.push({ tone: 'warn', text: `${q(review)} parados em ${TASK_STATUSES.review.label}: a revisão virou gargalo.` });
   }
 
   return list;

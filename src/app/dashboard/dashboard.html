@@ -1,134 +1,313 @@
-<!-- Indicadores -->
-<section class="dashboard__stats">
-  @for (stat of stats; track stat.label) {
-    <div class="dash-card stat">
-      <span class="stat__label">{{ stat.label }}</span>
-      <span class="stat__value">{{ stat.value }}</span>
-      <span class="stat__delta" [class.is-good]="stat.delta > 0 === stat.upIsGood">
-        {{ stat.delta > 0 ? '↑' : '↓' }} {{ stat.delta > 0 ? '+' : '' }}{{ stat.delta }} vs semana passada
-      </span>
-    </div>
+<header class="project-dash__header">
+  <div>
+    <h2 class="backlog__title">Dashboards</h2>
+    <p class="backlog__subtitle">Atividades gerais dos setores (kanban da sprint) · sprints de 7 dias úteis · {{ scopeLabel() }}</p>
+  </div>
+</header>
+
+<!-- Menu de filtros -->
+<section class="dash-card dashboard__filters" aria-label="Filtros">
+  <label class="project-dash__filter">
+    <span>Empresa</span>
+    <select class="modal__input" (change)="selectCompany($any($event.target).value)">
+      <option value="0" [selected]="!companyId()">Todas</option>
+      @for (c of companies(); track c.id) {
+        <option [value]="c.id" [selected]="c.id === companyId()">{{ c.name }}</option>
+      }
+    </select>
+  </label>
+  <label class="project-dash__filter">
+    <span>Setor</span>
+    <select class="modal__input" (change)="sectorId.set(+$any($event.target).value)">
+      <option value="0" [selected]="!sectorId()">Todos</option>
+      @for (s of sectorOptions(); track s.id) {
+        <option [value]="s.id" [selected]="s.id === sectorId()">{{ s.name }}{{ companyId() ? '' : ' · ' + companyName(s.companyId) }}</option>
+      }
+    </select>
+  </label>
+  <label class="project-dash__filter">
+    <span>Sprint (burn-down e Gantt)</span>
+    <select class="modal__input" (change)="sprintId.set(+$any($event.target).value)">
+      @for (sp of sprintOptions(); track sp.id) {
+        <option [value]="sp.id" [selected]="sp.id === sprint()?.id">
+          {{ sp.name }} · {{ shortDate(sp.start) }} – {{ shortDate(sp.end) }}{{ sp.status === 'active' ? ' (ativa)' : '' }}
+        </option>
+      }
+    </select>
+  </label>
+  <label class="project-dash__filter">
+    <span>Pessoa</span>
+    <select class="modal__input" (change)="person.set($any($event.target).value)">
+      <option value="" [selected]="!person()">Todas</option>
+      @for (p of people(); track p) {
+        <option [value]="p" [selected]="p === person()">{{ p }}</option>
+      }
+    </select>
+  </label>
+  @if (hasFilters()) {
+    <button class="modal__ghost planning__small dashboard__clear" type="button" (click)="clearFilters()">Limpar filtros</button>
   }
 </section>
 
-<section class="dashboard__charts">
-  <!-- Taxa de conclusão de projeto -->
+@if (restricted()) {
+  <p class="sector-page__notice">👁 Você vê só as suas atividades, as compartilhadas com você, as das suas equipes e as dos setores que você gerencia.</p>
+}
+
+@if (!activities().length) {
+  <div class="dash-card favorites__empty">
+    <p>Nenhuma atividade geral em sprint com estes filtros.</p>
+    <p class="backlog__subtitle">As atividades entram aqui quando vão para uma sprint pela Planning e têm um setor.</p>
+  </div>
+} @else {
+  <!-- Indicadores da sprint escolhida -->
+  @let s = stats();
+  <section class="dashboard__stats">
+    <div class="dash-card stat">
+      <span class="stat__label">Finalizadas · {{ sprint()?.name }}</span>
+      <span class="stat__value">{{ s.done }}</span>
+      <span class="reports__vs-average">de {{ s.total }} na sprint</span>
+    </div>
+    <div class="dash-card stat">
+      <span class="stat__label">Em andamento</span>
+      <span class="stat__value">{{ s.doing }}</span>
+      <span class="reports__vs-average">Andamento + Revisão</span>
+    </div>
+    <div class="dash-card stat">
+      <span class="stat__label">Bloqueadas</span>
+      <span class="stat__value" [class.project-dash__bad]="s.blocked">{{ s.blocked }}</span>
+      <span class="reports__vs-average">com o cadeado ligado</span>
+    </div>
+    <div class="dash-card stat">
+      <span class="stat__label">Previsão de término</span>
+      <span class="stat__value">{{ forecastText() }}</span>
+      <span class="reports__vs-average">
+        {{ s.overdue }} {{ s.overdue === 1 ? 'atrasada' : 'atrasadas' }} · velocidade {{ bu()?.velocity ?? 0 }}/sprint
+      </span>
+    </div>
+  </section>
+
+  <!-- Insights + análise da IA -->
+  <section class="project-dash__insights">
   <div class="dash-card">
-    <h2 class="dash-card__title">Taxa de conclusão de projeto</h2>
-    <p class="dash-card__hero">{{ completion.total }}%</p>
-    <p class="dash-card__subtitle">média dos projetos ativos</p>
-    <ul class="meter-list">
-      @for (project of completion.projects; track project.name) {
-        <li class="meter-list__item">
-          <span class="meter-list__name">{{ project.name }}</span>
-          <span class="meter" role="img" [attr.aria-label]="project.name + ': ' + project.value + '%'">
-            <span class="meter__fill" [style.width.%]="project.value"></span>
-          </span>
-          <span class="meter-list__value">{{ project.value }}%</span>
+    <h2 class="dash-card__title">Insights</h2>
+    <p class="dash-card__subtitle">calculados a partir do burn-down, do burn-up e das atividades</p>
+    <ul class="insights">
+      @for (insight of insights(); track insight.text) {
+        <li [class]="'insights__item insights__item--' + insight.tone">
+          <span class="insights__tone">{{ tones[insight.tone] }}</span>
+          {{ insight.text }}
         </li>
+      } @empty {
+        <li class="insights__item insights__item--good"><span class="insights__tone">Bom sinal</span> Nada fora do normal por aqui.</li>
       }
     </ul>
   </div>
 
-  <!-- Entrega de atividades -->
-  <div class="dash-card">
-    <h2 class="dash-card__title">Entrega de atividades</h2>
-    <p class="dash-card__subtitle">atividades entregues por semana</p>
-    <svg class="chart" [attr.viewBox]="viewBox()" role="img" aria-label="Atividades entregues nas últimas 8 semanas">
-      @for (tick of deliveries().ticks; track tick.value) {
-        <line class="chart__grid" [attr.x1]="plot().left" [attr.x2]="plot().right" [attr.y1]="tick.y" [attr.y2]="tick.y" />
-        <text class="chart__tick" [attr.x]="plot().left - 6" [attr.y]="tick.y" text-anchor="end">{{ tick.value }}</text>
-      }
-      @for (col of deliveries().columns; track col.label) {
-        <g
-          class="chart__hit"
-          tabindex="0"
-          [attr.aria-label]="col.tip.heading + ': ' + col.tip.rows[0].value"
-          (pointermove)="showTip($event, col.tip)"
-          (pointerleave)="hideTip()"
-          (focus)="showTip($event, col.tip)"
-          (blur)="hideTip()"
-        >
-          <rect [attr.x]="col.hit.x" y="0" [attr.width]="col.hit.width" [attr.height]="plot().bottom" fill="transparent" />
-          <path class="chart__column" [attr.d]="col.path" />
-        </g>
-        <text class="chart__tick" [attr.x]="col.x" [attr.y]="plot().labelY" text-anchor="middle">{{ col.label }}</text>
-        @if (col.isLast) {
-          <text class="chart__value" [attr.x]="col.x" [attr.y]="col.y - 6" text-anchor="middle">{{ col.value }}</text>
+  <div class="dash-card project-dash__ai">
+    <h2 class="dash-card__title">Análise da IA</h2>
+    <p class="dash-card__subtitle">diagnóstico, riscos e sugestões de melhoria para {{ scopeLabel() }}</p>
+    @if (analysis(); as a) {
+      @if (a.loading) {
+        <p class="project-dash__ai-text is-loading">Analisando {{ a.scope }}…</p>
+      } @else {
+        @if (a.scope !== analysisScope()) {
+          <p class="project-dash__ai-stale">Esta análise é de {{ a.scope }}. Os filtros mudaram: clique em “Analisar de novo”.</p>
         }
+        <p class="project-dash__ai-text" [class.is-error]="a.error">{{ a.text }}</p>
       }
-    </svg>
+    } @else if (!aiReady()) {
+      <p class="project-dash__ai-text">
+        Nenhum modelo de IA configurado. <a routerLink="/configuracoes/integracao-ia">Configurar em Integração com IA</a>
+      </p>
+    } @else {
+      <p class="project-dash__ai-text">A IA recebe os números deste painel (sprint, ritmo, velocidade, previsão, bloqueios, atrasos e carga por pessoa) e devolve sugestões de melhoria.</p>
+    }
+    <button class="backlog__new project-dash__ai-button" type="button" [disabled]="!aiReady() || analysis()?.loading" (click)="analyze()">
+      {{ analysis() && !analysis()!.loading ? 'Analisar de novo' : 'Analisar com IA' }}
+    </button>
   </div>
+  </section>
 
-  <!-- Burn-up -->
-  <div class="dash-card">
-    <h2 class="dash-card__title">Burn-up da sprint</h2>
-    <ng-container *ngTemplateOutlet="lineChart; context: { $implicit: burnUp(), label: 'Burn-up: escopo e pontos concluídos por dia' }" />
-  </div>
+  <!-- Burn-down e burn-up -->
+  <section class="dashboard__charts project-dash__charts">
+    <div class="dash-card">
+      @let d = bd();
+      <h2 class="dash-card__title">Burn-down · {{ sprint()?.name }}</h2>
+      <p class="dash-card__subtitle">
+        atividades que faltam, dia útil a dia útil ({{ shortDate(d.sprint.start) }} – {{ shortDate(d.sprint.end) }}). Abaixo da linha ideal = adiantado; acima = atrasado.
+      </p>
+      @if (d.scope) {
+        <ng-container *ngTemplateOutlet="lineChartTpl; context: { $implicit: burnDownChart, label: 'Burn-down: atividades restantes da sprint contra a linha ideal' }" />
+      } @else {
+        <p class="project-dash__ai-text">Nenhuma atividade de {{ scopeLabel() }} na {{ sprint()?.name }}. Escolha outra sprint no filtro.</p>
+      }
+      <dl class="project-dash__facts">
+        <div><dt>Comprometidas</dt><dd>{{ d.committed }}</dd></div>
+        <div><dt>Entraram no meio</dt><dd>{{ d.added }}</dd></div>
+        <div><dt>Ritmo</dt><dd>{{ d.pace }}/dia</dd></div>
+        <div><dt>Necessário</dt><dd>{{ d.daysLeft ? d.needed + '/dia' : '—' }}</dd></div>
+      </dl>
+    </div>
 
-  <!-- Burn-down -->
-  <div class="dash-card">
-    <h2 class="dash-card__title">Burn-down da sprint</h2>
-    <ng-container *ngTemplateOutlet="lineChart; context: { $implicit: burnDown(), label: 'Burn-down: pontos restantes, ideal e real' }" />
-  </div>
+    <div class="dash-card">
+      <h2 class="dash-card__title">Burn-up · {{ scopeLabel() }}</h2>
+      <p class="dash-card__subtitle">
+        escopo × finalizadas por sprint. A projeção segue a velocidade média das últimas 3 sprints; onde ela encontra o escopo é a previsão de término.
+      </p>
+      @if (burnUpChart()) {
+        <ng-container *ngTemplateOutlet="lineChartTpl; context: { $implicit: burnUpChart, label: 'Burn-up: escopo, finalizadas, planejado e projeção por sprint' }" />
+      }
+      @if (bu(); as b) {
+        <dl class="project-dash__facts">
+          <div><dt>Escopo</dt><dd>{{ b.total }}</dd></div>
+          <div><dt>Finalizadas</dt><dd>{{ b.doneNow }}</dd></div>
+          <div><dt>Velocidade</dt><dd>{{ b.velocity }}/sprint</dd></div>
+          <div><dt>Término</dt><dd>{{ b.forecast ? sprintName(b.forecast) : '—' }}</dd></div>
+        </dl>
+      }
+    </div>
 
-  <!-- Carga de trabalho -->
-  <div class="dash-card">
-    <h2 class="dash-card__title">Carga de trabalho</h2>
-    <p class="dash-card__subtitle">atividades em aberto por pessoa</p>
-    <div class="pie">
-      <svg class="pie__chart" viewBox="0 0 180 180" role="img" aria-label="Distribuição das atividades em aberto por pessoa">
-        @for (slice of workload; track slice.name) {
-          <path
-            class="pie__slice"
-            [attr.d]="slice.path"
-            [attr.fill]="slice.color"
-            tabindex="0"
-            [attr.aria-label]="slice.tip.heading + ': ' + slice.tip.rows[0].value"
-            (pointermove)="showTip($event, slice.tip)"
-            (pointerleave)="hideTip()"
-            (focus)="showTip($event, slice.tip)"
-            (blur)="hideTip()"
-          />
-        }
-      </svg>
-      <ul class="legend legend--column">
-        @for (slice of workload; track slice.name) {
-          <li class="legend__item">
-            <span class="legend__swatch" [style.background]="slice.color"></span>
-            {{ slice.name }}
-            <span class="legend__value">{{ slice.value }} · {{ slice.percent }}%</span>
+    <!-- Carga de trabalho -->
+    <div class="dash-card">
+      <h2 class="dash-card__title">Carga de trabalho · {{ sprint()?.name }}</h2>
+      <p class="dash-card__subtitle">atividades em aberto por pessoa; a compartilhada conta para cada envolvido</p>
+      @if (workload().length) {
+        <div class="pie">
+          <svg class="pie__chart" viewBox="0 0 180 180" role="img" aria-label="Atividades em aberto por pessoa">
+            @for (slice of workload(); track slice.name) {
+              <path
+                class="pie__slice"
+                [attr.d]="slice.path"
+                [attr.fill]="slice.color"
+                tabindex="0"
+                [attr.aria-label]="slice.tip.heading + ': ' + slice.tip.rows[0].value"
+                (pointermove)="showTip($event, slice.tip)"
+                (pointerleave)="hideTip()"
+                (focus)="showTip($event, slice.tip)"
+                (blur)="hideTip()"
+              />
+            }
+          </svg>
+          <ul class="legend legend--column">
+            @for (slice of workload(); track slice.name) {
+              <li class="legend__item">
+                <span class="legend__swatch" [style.background]="slice.color"></span>
+                {{ slice.name }}
+                <span class="legend__value">{{ slice.value }} · {{ slice.percent }}%</span>
+              </li>
+            }
+          </ul>
+        </div>
+      } @else {
+        <p class="project-dash__ai-text">Nada em aberto nesta sprint. 🎉</p>
+      }
+    </div>
+
+    <!-- Por status -->
+    <div class="dash-card">
+      <h2 class="dash-card__title">Status na sprint · {{ sprint()?.name }}</h2>
+      <p class="dash-card__subtitle">como as atividades estão distribuídas no kanban dos setores</p>
+      <ul class="meter-list">
+        @for (col of statusColumns; track col.id) {
+          @let count = col.id === 'done' ? s.done : col.id === 'blocked' ? s.blocked : inSprintBy(col.id);
+          <li class="meter-list__item">
+            <span class="meter-list__name">{{ col.label }}</span>
+            <span class="meter" role="img" [attr.aria-label]="col.label + ': ' + count">
+              <span class="meter__fill" [style.width.%]="s.total ? (count / s.total) * 100 : 0" [style.background]="col.color"></span>
+            </span>
+            <span class="meter-list__value">{{ count }}</span>
           </li>
         }
       </ul>
     </div>
-  </div>
+  </section>
 
-  <!-- Indo para a segunda sprint -->
-  <div class="dash-card">
-    <h2 class="dash-card__title">Atividades indo para a 2ª sprint</h2>
-    <p class="dash-card__subtitle">progresso das atividades que não fecharam na sprint atual</p>
-    <ul class="meter-list">
-      @for (activity of secondSprint; track activity.name) {
-        <li class="meter-list__item">
-          <span class="meter-list__name">{{ activity.name }}</span>
-          <span class="meter" role="img" [attr.aria-label]="activity.name + ': ' + activity.value + '% concluída'">
-            <span class="meter__fill" [style.width.%]="activity.value"></span>
-          </span>
-          <span class="meter-list__value">{{ activity.value }}%</span>
-        </li>
-      }
-    </ul>
-  </div>
-</section>
+  <!-- Gantt -->
+  @if (ganttChart(); as g) {
+    <section class="dash-card">
+      <h2 class="dash-card__title">Gantt · {{ sector() ? 'atividades de ' + sector()!.name + ' na ' + sprint()?.name : 'setores' }}</h2>
+      <p class="dash-card__subtitle">
+        @if (sector()) {
+          cada barra vai de quando a atividade entrou na sprint até o prazo (ou o fim da sprint); contorno vermelho = passou do prazo.
+        } @else {
+          cada barra vai da primeira à última atividade do setor; a parte cheia é o que já foi finalizado e o ◆ é a previsão de término.
+        }
+      </p>
+      <ul class="legend">
+        @if (sector()) {
+          @for (col of sector()!.columns; track col.id) {
+            <li class="legend__item"><span class="legend__swatch" [style.background]="col.color"></span>{{ col.label }}</li>
+          }
+        } @else {
+          @for (h of ['on-track', 'attention', 'late', 'stalled', 'done']; track h) {
+            <li class="legend__item"><span class="legend__swatch" [style.background]="$any(healthInfo)[h].color"></span>{{ $any(healthInfo)[h].label }}</li>
+          }
+          <li class="legend__item"><span class="gantt__diamond-key">◆</span>Previsão de término</li>
+        }
+        <li class="legend__item"><span class="gantt__today-key"></span>Hoje</li>
+      </ul>
+
+      <div class="gantt">
+        <div class="gantt__inner">
+          <div class="gantt__head">
+            <span class="gantt__label">{{ sector() ? 'Atividade' : 'Setor' }}</span>
+            <div class="gantt__timeline">
+              @for (band of g.sprints; track band.number) {
+                <span class="gantt__sprint" [class.is-current]="band.current" [style.left.%]="band.left" [style.width.%]="band.width">{{ shortSprint(band.number) }}</span>
+              }
+            </div>
+          </div>
+          <div class="gantt__body">
+            <div class="gantt__grid" aria-hidden="true">
+              @for (band of g.sprints; track band.number) {
+                <span class="gantt__band" [class.is-current]="band.current" [style.left.%]="band.left" [style.width.%]="band.width"></span>
+              }
+              <span class="gantt__today" [style.left.%]="g.today"></span>
+            </div>
+            @for (row of g.rows; track row.id) {
+              <div class="gantt__row">
+                <div class="gantt__label">
+                  <span class="gantt__name" [title]="row.label">{{ row.label }}</span>
+                  <span class="gantt__detail">{{ row.detail }}</span>
+                </div>
+                <div class="gantt__track">
+                  <span
+                    class="gantt__bar"
+                    tabindex="0"
+                    [class.is-late]="row.late"
+                    [style.left.%]="row.left"
+                    [style.width.%]="row.width"
+                    [style.--bar-color]="row.color"
+                    [attr.aria-label]="row.label + ': ' + row.tip.rows[0].value + ', ' + row.tip.rows[1].value + ' concluído'"
+                    (pointermove)="showTip($event, row.tip)"
+                    (pointerleave)="hideTip()"
+                    (focus)="showTip($event, row.tip)"
+                    (blur)="hideTip()"
+                  >
+                    <span class="gantt__fill" [style.width.%]="row.progress * 100"></span>
+                  </span>
+                  @if (row.forecastLeft !== null) {
+                    <span class="gantt__forecast" [style.left.%]="row.forecastLeft" aria-hidden="true">◆</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+  }
+}
 
 <!-- Gráfico de linhas (burn-up e burn-down) -->
-<ng-template #lineChart let-chart let-label="label">
+<!-- Recebe o signal do gráfico: lido aqui dentro, o desenho acompanha a largura medida do card -->
+<ng-template #lineChartTpl let-chartSignal let-label="label">
+  @let chart = chartSignal()!;
   <ul class="legend">
     @for (line of chart.lines; track line.name) {
       <li class="legend__item">
-        <span class="legend__line" [style.background]="line.color"></span>
-        {{ line.name }}
+        <span class="legend__line" [class.is-dashed]="line.dashed" [style.--line-color]="line.color"></span>
+        {{ line.name === 'Concluído' ? 'Finalizadas' : line.name }}
       </li>
     }
   </ul>
@@ -137,17 +316,19 @@
       <line class="chart__grid" [attr.x1]="plot().left" [attr.x2]="plot().right" [attr.y1]="tick.y" [attr.y2]="tick.y" />
       <text class="chart__tick" [attr.x]="plot().left - 6" [attr.y]="tick.y" text-anchor="end">{{ tick.value }}</text>
     }
-    @for (x of chart.xLabels; track x.text) {
-      <text class="chart__tick" [attr.x]="x.x" [attr.y]="plot().labelY" text-anchor="middle">{{ x.text }}</text>
-    }
-    @for (line of chart.lines; track line.name) {
-      <path class="chart__line" [attr.d]="line.path" [attr.stroke]="line.color" />
-      @if (line.end) {
-        <circle class="chart__dot" [attr.cx]="line.end.x" [attr.cy]="line.end.y" r="4" [attr.fill]="line.color" />
-        <text class="chart__value" [attr.x]="line.end.x + 8" [attr.y]="line.end.y">{{ line.name }} {{ line.end.value }}</text>
+    @for (x of chart.xLabels; track $index) {
+      @if (chart.xLabels.length <= 10 || $index % 2 === 0 || $last) {
+        <text class="chart__tick" [attr.x]="x.x" [attr.y]="plot().labelY" text-anchor="middle">{{ x.text }}</text>
       }
     }
-    @for (hit of chart.hits; track hit.x) {
+    @for (line of chart.lines; track line.name) {
+      <path class="chart__line" [attr.d]="line.path" [attr.stroke]="line.color" [attr.stroke-dasharray]="line.dashed ? '5 4' : null" />
+      @if (line.end && !line.dashed) {
+        <circle class="chart__dot" [attr.cx]="line.end.x" [attr.cy]="line.end.y" r="4" [attr.fill]="line.color" />
+        <text class="chart__value" [attr.x]="line.end.x + 8" [attr.y]="line.end.y">{{ line.end.value }}</text>
+      }
+    }
+    @for (hit of chart.hits; track $index) {
       <g
         class="chart__hit"
         tabindex="0"
@@ -166,7 +347,7 @@
 
 <!-- Dica do hover (uma só para a página toda) -->
 @if (tip(); as t) {
-  <div class="chart-tip" [class.is-flipped]="t.flip" [style.left.px]="t.x" [style.top.px]="t.y" role="tooltip">
+  <div class="chart-tip" [class.is-flipped]="t.flip" [class.is-above]="t.above" [style.left.px]="t.x" [style.top.px]="t.y" role="tooltip">
     <p class="chart-tip__heading">{{ t.data.heading }}</p>
     @for (row of t.data.rows; track row.name) {
       <p class="chart-tip__row">

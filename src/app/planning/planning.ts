@@ -3,10 +3,10 @@ import { Component, ElementRef, computed, inject, signal, viewChild } from '@ang
 import { initials } from '../chat/chat';
 import { BacklogItem, BacklogStore, tagColor } from '../backlog/backlog-store';
 import { formatWeekDate } from '../home/home';
+import { SPRINT_DAYS, businessDay, businessIndex } from '../projects/project-tasks';
 import { SPRINT_STATUS, Sprint, SprintStore } from './sprint-store';
 
 const today = () => new Date().toISOString().slice(0, 10);
-const DAY = 86_400_000;
 
 interface PendingConfirm {
   title: string;
@@ -49,7 +49,8 @@ export class Planning {
   protected readonly daysLeft = computed(() => {
     const sprint = this.active();
     if (!sprint) return 0;
-    return Math.max(0, Math.round((Date.parse(sprint.end) - Date.parse(today())) / DAY));
+    // dias úteis que faltam (a sprint tem 7 dias úteis)
+    return Math.max(0, businessIndex(sprint.end) - businessIndex(today()));
   });
 
   protected formatDay(iso: string) {
@@ -151,7 +152,7 @@ export class Planning {
   }
 
   protected readonly defaultStart = today();
-  protected readonly defaultEnd = new Date(Date.now() + 13 * DAY).toISOString().slice(0, 10);
+  protected readonly defaultEnd = businessDay(businessIndex(today()) + SPRINT_DAYS - 1); // 7 dias úteis
 
   // ---------- Confirmação (uma janela para todas as ações destrutivas) ----------
   private readonly confirmDialog = viewChild.required<ElementRef<HTMLDialogElement>>('confirmDialog');

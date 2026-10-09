@@ -3,38 +3,58 @@ import { provideRouter } from '@angular/router';
 import { CompanyPage } from './company-page';
 import { SectorStore } from './sector-store';
 
+// jsdom não implementa showModal/close do <dialog>
+HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+  this.open = true;
+};
+HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
+  this.open = false;
+};
+
 describe('CompanyPage', () => {
-  it('shows the company header, its sector profiles and creates a sector', async () => {
+  it('shows the company header, its sector profiles and creates, edits and deletes sectors', async () => {
     await TestBed.configureTestingModule({ imports: [CompanyPage], providers: [provideRouter([])] }).compileComponents();
     const fixture = TestBed.createComponent(CompanyPage);
     fixture.componentRef.setInput('id', '1'); // Acme Ltda
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     const sectors = () => [...el.querySelectorAll('.sector-card h3')].map((h) => h.textContent);
+    const submit = (name: string) => {
+      const form = el.querySelector<HTMLFormElement>('.sector-editor__form')!;
+      form.querySelector<HTMLInputElement>('[name="name"]')!.value = name;
+      form.dispatchEvent(new Event('submit', { cancelable: true }));
+      fixture.detectChanges();
+    };
 
     expect(el.querySelector('.project-page__title')!.textContent).toBe('Acme Ltda');
     expect(sectors()).toEqual(['Marketing', 'Comercial', 'Financeiro', 'TI']);
-    // o perfil do setor lista os projetos da empresa naquele setor
-    const marketing = el.querySelector('.sector-card')!;
-    expect(marketing.textContent).toContain('Redesign do site');
+    expect(el.querySelector('.sector-card')!.textContent).toContain('Redesign do site');
 
+    // criar
     el.querySelector<HTMLButtonElement>('.company-page__sectors .backlog__new')!.click();
     fixture.detectChanges();
-    const form = el.querySelector<HTMLFormElement>('.company-page__new')!;
-    form.querySelector<HTMLInputElement>('[name="name"]')!.value = 'RH';
-    form.dispatchEvent(new Event('submit', { cancelable: true }));
-    fixture.detectChanges();
+    submit('RH');
     expect(sectors()).toContain('RH');
-    expect(TestBed.inject(SectorStore).isNameTaken(1, 'rh')).toBe(true);
 
     // nome repetido na mesma empresa não cria outro
     el.querySelector<HTMLButtonElement>('.company-page__sectors .backlog__new')!.click();
     fixture.detectChanges();
-    const again = el.querySelector<HTMLFormElement>('.company-page__new')!;
-    again.querySelector<HTMLInputElement>('[name="name"]')!.value = 'Marketing';
-    again.dispatchEvent(new Event('submit', { cancelable: true }));
-    fixture.detectChanges();
+    submit('Marketing');
     expect(el.querySelector('.company-page__error')!.textContent).toContain('Já existe');
-    expect(sectors().filter((s) => s === 'Marketing')).toHaveLength(1);
+
+    // editar
+    const store = TestBed.inject(SectorStore);
+    const rh = store.sectors().find((s) => s.name === 'RH')!;
+    el.querySelector<HTMLButtonElement>('[aria-label="Editar setor RH"]')!.click();
+    fixture.detectChanges();
+    submit('Pessoas');
+    expect(store.byId(rh.id)!.name).toBe('Pessoas');
+
+    // excluir
+    el.querySelector<HTMLButtonElement>('[aria-label="Excluir setor Pessoas"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLButtonElement>('.confirm-dialog__button--danger')!.click();
+    fixture.detectChanges();
+    expect(sectors()).not.toContain('Pessoas');
   });
 });

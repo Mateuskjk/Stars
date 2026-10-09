@@ -16,7 +16,7 @@ export type TeamData = Omit<Team, 'id'>;
 // ponytail: equipes de exemplo, só em memória (somem ao recarregar); trocar por API quando o backend existir
 const SEED: Team[] = [
   { id: 1, name: 'Produto', focus: 'Experiência do cliente no site e no app', memberIds: [1, 2, 3], projectIds: [1, 2], activityIds: [1, 4] },
-  { id: 2, name: 'Plataforma', focus: 'Dados, infraestrutura e segurança', memberIds: [4, 6], projectIds: [6], activityIds: [6] },
+  { id: 2, name: 'Plataforma', focus: 'Dados, infraestrutura e segurança', memberIds: [4, 6], projectIds: [6], activityIds: [6, 14] },
 ];
 
 @Injectable({ providedIn: 'root' })

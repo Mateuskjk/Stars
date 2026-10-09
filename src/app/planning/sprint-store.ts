@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuditStore } from '../audit/audit-store';
+import { sprintOf, sprintWindow, today } from '../projects/project-tasks';
 
 export type SprintStatus = 'active' | 'closed' | 'archived' | 'canceled';
 
@@ -19,20 +20,17 @@ export interface Sprint {
   status: SprintStatus;
 }
 
-const isoDay = (offset: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  return date.toISOString().slice(0, 10);
-};
+// Sprints de 7 dias úteis (mesmo calendário do Dash de Projetos): a atual contém hoje
+const businessSprint = (offset: number) => sprintWindow(sprintOf(today()) + offset);
 
 // ponytail: sprints de exemplo, só em memória (somem ao recarregar); trocar por API quando o backend existir
-// Sprints semanais: 4 sprints ≈ 1 mês (é o período do relatório)
+// Sprints de 7 dias úteis: 4 sprints ≈ 1 mês e meio (é o período do relatório)
 const SEED: Sprint[] = [
-  { id: 8, name: 'Sprint 8', start: isoDay(-31), end: isoDay(-25), goal: 'Primeira versão do CRM interno', status: 'archived' },
-  { id: 9, name: 'Sprint 9', start: isoDay(-24), end: isoDay(-18), goal: 'Relatórios do funil de vendas', status: 'closed' },
-  { id: 10, name: 'Sprint 10', start: isoDay(-17), end: isoDay(-11), goal: 'Login com biometria no app', status: 'closed' },
-  { id: 11, name: 'Sprint 11', start: isoDay(-10), end: isoDay(-4), goal: 'Estabilizar o portal do cliente', status: 'closed' },
-  { id: 12, name: 'Sprint 12', start: isoDay(-3), end: isoDay(3), goal: 'Organizar processos internos do time', status: 'active' },
+  { id: 8, name: 'Sprint 8', start: businessSprint(-4).start, end: businessSprint(-4).end, goal: 'Primeira versão do CRM interno', status: 'archived' },
+  { id: 9, name: 'Sprint 9', start: businessSprint(-3).start, end: businessSprint(-3).end, goal: 'Relatórios do funil de vendas', status: 'closed' },
+  { id: 10, name: 'Sprint 10', start: businessSprint(-2).start, end: businessSprint(-2).end, goal: 'Login com biometria no app', status: 'closed' },
+  { id: 11, name: 'Sprint 11', start: businessSprint(-1).start, end: businessSprint(-1).end, goal: 'Estabilizar o portal do cliente', status: 'closed' },
+  { id: 12, name: 'Sprint 12', start: businessSprint(0).start, end: businessSprint(0).end, goal: 'Organizar processos internos do time', status: 'active' },
 ];
 
 // Uma sprint ativa por vez: para criar outra, a atual precisa ser fechada ou cancelada
@@ -43,6 +41,10 @@ export class SprintStore {
   readonly nextNumber = computed(() => Math.max(0, ...this.sprints().map((sprint) => sprint.id)) + 1);
 
   private readonly audit = inject(AuditStore);
+
+  byId(id: number | undefined) {
+    return this.sprints().find((sprint) => sprint.id === id) ?? null;
+  }
 
   create(sprint: Omit<Sprint, 'id' | 'status'>) {
     if (this.active()) return;

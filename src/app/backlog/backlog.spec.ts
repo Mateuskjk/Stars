@@ -12,7 +12,7 @@ HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
 };
 
 describe('Backlog', () => {
-  it('creates, edits, advances, locks and deletes an activity through the modal', async () => {
+  it('creates, edits, changes status, locks and deletes an activity through the modal', async () => {
     await TestBed.configureTestingModule({ imports: [Backlog], providers: [provideRouter([])] }).compileComponents();
     const store = TestBed.inject(BacklogStore);
     const fixture = TestBed.createComponent(Backlog);
@@ -49,11 +49,14 @@ describe('Backlog', () => {
     submit();
     expect(find()).toMatchObject({ status: 'to-refine', tags: ['jurídico'], subtasks: [{ title: 'Separar contratos vencidos', done: false }] });
 
-    // Editar: avançar uma coluna e salvar
+    // Editar: mudar o status pelo seletor e salvar
     const card = [...el.querySelectorAll<HTMLElement>('.backlog-card__open')].find((c) => c.textContent!.includes('Revisar contratos'))!;
     card.click();
     fixture.detectChanges();
-    click('.modal__steps button:last-child'); // Avançar
+    const status = el.querySelector<HTMLSelectElement>('.modal__side select')!;
+    status.value = 'refined';
+    status.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
     submit();
     expect(find().status).toBe('refined');
 

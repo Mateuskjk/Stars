@@ -124,7 +124,7 @@
         pontos que faltam, dia útil a dia útil ({{ shortDate(d.sprint.start) }} – {{ shortDate(d.sprint.end) }}).
         Abaixo da linha ideal = adiantado; acima = atrasado.
       </p>
-      <ng-container *ngTemplateOutlet="lineChartTpl; context: { $implicit: burnDownChart(), label: 'Burn-down: pontos restantes da sprint contra a linha ideal' }" />
+      <ng-container *ngTemplateOutlet="lineChartTpl; context: { $implicit: burnDownChart, label: 'Burn-down: pontos restantes da sprint contra a linha ideal' }" />
       <dl class="project-dash__facts">
         <div><dt>Comprometido</dt><dd>{{ d.committed }} pts</dd></div>
         <div><dt>Entrou no meio</dt><dd>{{ d.added }} pts</dd></div>
@@ -138,8 +138,8 @@
       <p class="dash-card__subtitle">
         escopo × concluído por sprint. A projeção segue a velocidade média das últimas 3 sprints; onde ela encontra o escopo é a previsão de término.
       </p>
-      @if (burnUpChart(); as chart) {
-        <ng-container *ngTemplateOutlet="lineChartTpl; context: { $implicit: chart, label: 'Burn-up: escopo, concluído, planejado e projeção por sprint' }" />
+      @if (burnUpChart()) {
+        <ng-container *ngTemplateOutlet="lineChartTpl; context: { $implicit: burnUpChart, label: 'Burn-up: escopo, concluído, planejado e projeção por sprint' }" />
       }
       @if (bu(); as b) {
         <dl class="project-dash__facts">
@@ -230,7 +230,9 @@
 }
 
 <!-- Gráfico de linhas (burn-up e burn-down) -->
-<ng-template #lineChartTpl let-chart let-label="label">
+<!-- Recebe o signal do gráfico: lido aqui dentro, o desenho acompanha a largura medida do card -->
+<ng-template #lineChartTpl let-chartSignal let-label="label">
+  @let chart = chartSignal()!;
   <ul class="legend">
     @for (line of chart.lines; track line.name) {
       <li class="legend__item">
@@ -275,7 +277,7 @@
 
 <!-- Dica do hover (uma só para a página toda) -->
 @if (tip(); as t) {
-  <div class="chart-tip" [class.is-flipped]="t.flip" [style.left.px]="t.x" [style.top.px]="t.y" role="tooltip">
+  <div class="chart-tip" [class.is-flipped]="t.flip" [class.is-above]="t.above" [style.left.px]="t.x" [style.top.px]="t.y" role="tooltip">
     <p class="chart-tip__heading">{{ t.data.heading }}</p>
     @for (row of t.data.rows; track row.name) {
       <p class="chart-tip__row">

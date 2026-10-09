@@ -1,20 +1,26 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { BacklogItem, BacklogStatus, BacklogStore, emptyItem, tagColor } from '../backlog/backlog-store';
+import { Router, RouterLink } from '@angular/router';
+import { BacklogEditor } from '../backlog/backlog-editor';
+import { BacklogItem, BacklogStore, emptyItem, tagColor } from '../backlog/backlog-store';
 import { USERS } from '../chat/users';
 import { RecentsStore } from '../home/recents-store';
+import { AddColumn } from '../kanban/add-column';
+import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
+import { MembersStore } from '../members/members-store';
+import { PeoplePicker } from '../members/people-picker';
 import { SprintStore } from '../planning/sprint-store';
+import { SPRINT_DAYS, businessIndex, today } from '../projects/project-tasks';
 import { ProjectStore } from '../projects/project-store';
 import { initials } from '../projects/projects';
+import { ActivityAccess } from './activity-access';
 import { CompanyStore } from './company-store';
-import { SectorStore } from './sector-store';
+import { SectorEditor } from './sector-editor';
+import { SectorStore, SprintColumnId, sprintColumnOf } from './sector-store';
 
-const today = () => new Date().toISOString().slice(0, 10);
-
-// /empresas/:id/setores/:sectorId — cabeçalho do setor, projetos ligados e o kanban das atividades gerais
-// (as mesmas do Backlog e da Planning: mover aqui move lá também)
+// /empresas/:id/setores/:sectorId — cabeçalho do setor (com a sprint ativa) e o kanban da sprint:
+// só as atividades gerais do setor que estão na sprint ativa da Planning
 @Component({
-  imports: [RouterLink],
+  imports: [RouterLink, AddColumn, ColumnTitle, SectorEditor, BacklogEditor, PeoplePicker],
   selector: 'app-sector-page',
   templateUrl: './sector-page.html',
   host: { class: 'sector-page' },
@@ -27,18 +33,26 @@ export class SectorPage {
   private readonly companyStore = inject(CompanyStore);
   private readonly projectStore = inject(ProjectStore);
   private readonly backlog = inject(BacklogStore);
-  private readonly sprints = inject(SprintStore);
+  private readonly membersStore = inject(MembersStore);
+  private readonly router = inject(Router);
 
   protected readonly initials = initials;
   protected readonly tagColor = tagColor;
   protected readonly people = USERS.map((user) => user.name);
-  protected readonly columns = this.backlog.columns;
+  protected readonly isAdmin = this.membersStore.isAdmin;
+  private readonly sprints = inject(SprintStore);
+  protected readonly sprint = this.sprints.active;
 
   protected readonly sector = computed(() => {
     const sector = this.sectorStore.byId(Number(this.sectorId()));
     return sector && sector.companyId === Number(this.id()) ? sector : null;
   });
   protected readonly company = computed(() => this.companyStore.companies().find((c) => c.id === this.sector()?.companyId) ?? null);
+  protected readonly columns = computed(() => this.sector()?.columns ?? []);
+  protected readonly sectorMembers = computed(() => {
+    const ids = new Set(this.sector()?.memberIds ?? []);
+    return this.membersStore.members().filter((m) => ids.has(m.id));
+  });
 
   // Projetos da empresa com este setor
   protected readonly projects = computed(() => {
@@ -52,22 +66,64 @@ export class SectorPage {
       .map((p) => ({ ...p, statusInfo: statuses.find((s) => s.id === p.status) }));
   });
 
-  protected readonly items = computed(() => this.backlog.items().filter((item) => item.sectorId === this.sector()?.id));
-
-  protected readonly board = computed(() =>
-    this.columns().map((column) => ({ ...column, cards: this.items().filter((item) => item.status === column.id) })),
-  );
-
-  protected readonly summary = computed(() => {
-    const items = this.items();
-    const open = items.filter((i) => !['refinement-done', 'archived', 'canceled'].includes(i.status));
-    return {
-      open: open.length,
-      inSprint: items.filter((i) => i.sprintId && !['archived', 'canceled'].includes(i.status)).length,
-      ready: items.filter((i) => i.status === 'refinement-done' && !i.sprintId).length,
-      overdue: items.filter((i) => this.isOverdue(i)).length,
-    };
+  // ---------- Sprint ativa (7 dias úteis) ----------
+  protected readonly sprintDays = SPRINT_DAYS;
+  protected readonly sprintDay = computed(() => {
+    const sprint = this.sprint();
+    if (!sprint) return 0;
+    return Math.min(SPRINT_DAYS, Math.max(1, businessIndex(today()) - businessIndex(sprint.start) + 1));
   });
+  protected readonly daysLeft = computed(() => {
+    const sprint = this.sprint();
+    return sprint ? Math.max(0, businessIndex(sprint.end) - businessIndex(today())) : 0;
+  });
+
+  // ---------- Quem vê o quê (mesma regra dos Dashboards: ActivityAccess) ----------
+  private readonly access = inject(ActivityAccess);
+  protected readonly viewer = this.access.viewer;
+  protected readonly seesAll = computed(() => this.access.seesAllOf(this.sector()?.id));
+
+  protected teamOf(item: BacklogItem) {
+    return this.access.teamOf(item);
+  }
+
+  // Atividades gerais do setor na sprint ativa, já filtradas pelo que a pessoa pode ver
+  protected readonly items = computed(() => {
+    const sector = this.sector();
+    const sprint = this.sprint();
+    if (!sector || !sprint) return [];
+    return this.backlog
+      .items()
+      .filter((item) => item.sectorId === sector.id && item.sprintId === sprint.id && !['archived', 'canceled'].includes(item.status))
+      .filter((item) => this.access.canSee(item));
+  });
+
+  protected readonly board = computed(() => {
+    const sector = this.sector();
+    if (!sector) return [];
+    return this.columns().map((column) => ({
+      ...column,
+      cards: this.items().filter((item) => sprintColumnOf(sector.columns, item).id === column.id),
+    }));
+  });
+
+  // Atividade conjunta conta para cada pessoa envolvida (responsável + compartilhadas)
+  protected readonly perPerson = computed(() => {
+    const counts = new Map<string, { total: number; shared: number }>();
+    for (const item of this.items()) {
+      const people = new Set([item.assignee, ...item.sharedWith].filter(Boolean));
+      for (const person of people) {
+        const entry = counts.get(person) ?? { total: 0, shared: 0 };
+        entry.total++;
+        if (item.sharedWith.length) entry.shared++;
+        counts.set(person, entry);
+      }
+    }
+    return [...counts].map(([name, c]) => ({ name, ...c })).sort((a, b) => b.total - a.total);
+  });
+
+  protected readonly doneCount = computed(() => this.board().find((c) => c.id === 'done')?.cards.length ?? 0);
+  protected readonly doneLabel = computed(() => this.columns().find((c) => c.id === 'done')?.label ?? 'Finalizado');
 
   constructor() {
     const recents = inject(RecentsStore);
@@ -77,40 +133,40 @@ export class SectorPage {
     });
   }
 
-  // Situação na Planning: em qual sprint está, ou se está pronta/aguardando para entrar
-  protected planning(item: BacklogItem) {
-    if (item.sprintId) {
-      const sprint = this.sprints.sprints().find((s) => s.id === item.sprintId);
-      return sprint ? `${sprint.name}${sprint.status === 'active' ? ' (ativa)' : ''}` : `Sprint ${item.sprintId}`;
-    }
-    if (item.status === 'refinement-done') return item.planning === 'waiting' ? 'Planning: aguardando' : 'Planning: pronta';
-    return null;
+  protected sprintOf(item: BacklogItem) {
+    return this.sprints.byId(item.sprintId);
   }
 
   protected isOverdue(item: BacklogItem) {
-    return !!item.due && item.due < today() && !['refinement-done', 'archived', 'canceled'].includes(item.status);
+    const sector = this.sector();
+    return !!item.due && item.due < today() && !!sector && sprintColumnOf(sector.columns, item).id !== 'done';
   }
 
-  protected formatDue(due: string) {
-    const [, month, day] = due.split('-');
-    return `${day}/${month}`;
+  protected formatDay(day: string) {
+    const [, month, date] = day.split('-');
+    return `${date}/${month}`;
   }
 
-  // ---------- Mover (arrastar ou seletor) — cartão bloqueado não se move ----------
+  // ---------- Mover (arrastar ou seletor). Para Bloqueado = bloquear; sair de Bloqueado = desbloquear ----------
   protected readonly dragging = signal<number | null>(null);
-  protected readonly dropTarget = signal<BacklogStatus | null>(null);
+  protected readonly dropTarget = signal<string | null>(null);
 
-  protected move(id: number, status: BacklogStatus) {
-    this.backlog.move(id, status);
+  protected move(id: number, status: string) {
+    const sector = this.sector();
+    const item = this.backlog.items().find((i) => i.id === id);
+    if (!sector || !item) return;
+    const from = sprintColumnOf(sector.columns, item).label;
+    const to = sector.columns.find((c) => c.id === status)?.label ?? from;
+    this.backlog.setSprintStatus(id, status, { from, to });
   }
 
-  protected onDragOver(event: DragEvent, status: BacklogStatus) {
+  protected onDragOver(event: DragEvent, status: string) {
     if (this.dragging() === null) return;
     event.preventDefault();
     this.dropTarget.set(status);
   }
 
-  protected onDrop(event: DragEvent, status: BacklogStatus) {
+  protected onDrop(event: DragEvent, status: string) {
     event.preventDefault();
     const id = this.dragging();
     if (id !== null) this.move(id, status);
@@ -122,24 +178,51 @@ export class SectorPage {
     this.dropTarget.set(null);
   }
 
-  // ---------- Nova atividade geral já ligada ao setor ----------
+  // ---------- Colunas (só admin) ----------
+  protected readonly isCustom = (id: string) => this.isAdmin() && isCustomColumn(id);
+
+  protected addColumn(label: string) {
+    this.sectorStore.addColumn(this.sector()!.id, label);
+  }
+
+  protected renameColumn(id: SprintColumnId, label: string) {
+    this.sectorStore.renameColumn(this.sector()!.id, id, label);
+  }
+
+  protected removeColumn(id: SprintColumnId) {
+    this.sectorStore.removeColumn(this.sector()!.id, id);
+  }
+
+  protected onDeleted() {
+    this.router.navigate(['/empresas', this.id()]);
+  }
+
+  // ---------- Nova atividade: entra na sprint ativa, já ligada ao setor ----------
   protected readonly creating = signal(false);
+  protected readonly newShared = signal<string[]>([]);
 
   protected create(event: Event) {
     event.preventDefault();
     const sector = this.sector();
+    const sprint = this.sprint();
     const form = event.target as HTMLFormElement;
     const data = new FormData(form);
     const name = String(data.get('name') ?? '').trim();
-    if (!sector || !name) return;
+    if (!sector || !sprint || !name) return;
+    const assignee = String(data.get('assignee') ?? '');
     this.backlog.save({
-      ...emptyItem(String(data.get('status') ?? 'to-refine') as BacklogStatus),
+      ...emptyItem('refinement-done'),
       name,
-      assignee: String(data.get('assignee') ?? ''),
+      assignee,
+      sharedWith: this.newShared().filter((p) => p !== assignee),
       due: String(data.get('due') ?? ''),
       sectorId: sector.id,
+      sprintId: sprint.id,
+      // criada direto em Bloqueado já nasce com o cadeado
+      ...(data.get('column') === 'blocked' ? { locked: true } : { sprintStatus: String(data.get('column') ?? sector.columns[0].id) }),
     });
     form.reset();
+    this.newShared.set([]);
     this.creating.set(false);
   }
 }

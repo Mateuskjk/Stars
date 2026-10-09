@@ -544,3 +544,8 @@ $table-head: #f0f2f3;
     min-width: 150px;
   }
 }
+
+// Kanban da Visão Geral: o card inteiro abre o projeto
+.projects .kanban__card {
+  cursor: pointer;
+}

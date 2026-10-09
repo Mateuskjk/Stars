@@ -161,7 +161,7 @@
 
 <!-- Dica do hover dos gráficos -->
 @if (tip(); as t) {
-  <div class="chart-tip" [class.is-flipped]="t.flip" [style.left.px]="t.x" [style.top.px]="t.y" role="tooltip">
+  <div class="chart-tip" [class.is-flipped]="t.flip" [class.is-above]="t.above" [style.left.px]="t.x" [style.top.px]="t.y" role="tooltip">
     <p class="chart-tip__heading">{{ t.data.heading }}</p>
     @for (row of t.data.rows; track row.name) {
       <p class="chart-tip__row">

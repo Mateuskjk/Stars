@@ -1,0 +1,109 @@
+<dialog #dialog class="modal project-task-editor" aria-labelledby="task-editor-title" (click)="closeOnBackdrop($event, dialog)">
+  @if (draft(); as task) {
+    <form class="modal__form" (submit)="save($event)">
+      <header class="modal__header">
+        <h2 id="task-editor-title" class="modal__title">Atividade do projeto</h2>
+        <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="close()">✕</button>
+      </header>
+
+      <div class="modal__body">
+        <div class="modal__main">
+          <label class="modal__field">
+            <span class="modal__label">Nome *</span>
+            <input class="modal__input" required maxlength="120" [value]="task.title" (input)="patch({ title: $any($event.target).value })" />
+          </label>
+          <label class="modal__field">
+            <span class="modal__label">Descrição</span>
+            <textarea
+              class="modal__input modal__textarea"
+              rows="4"
+              placeholder="Detalhes, critérios de aceite, links…"
+              [value]="task.description ?? ''"
+              (input)="patch({ description: $any($event.target).value })"
+            ></textarea>
+          </label>
+          <dl class="project-page__numbers project-task-editor__facts">
+            <div><dt>Período planejado</dt><dd>{{ shortDate(task.start) }} – {{ shortDate(task.end) }}</dd></div>
+            <div><dt>Entrou no escopo</dt><dd>{{ shortDate(task.createdAt) }}</dd></div>
+            <div><dt>Entregue</dt><dd>{{ task.doneAt ? shortDate(task.doneAt) : '—' }}</dd></div>
+            <div>
+              <dt>Situação</dt>
+              <dd [class.project-dash__bad]="isLate(task)">{{ isLate(task) ? 'Passou do prazo' : task.status === 'done' ? 'Concluída' : 'No prazo' }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <aside class="modal__side">
+          <label class="modal__field">
+            <span class="modal__label">Status</span>
+            <select class="modal__input" (change)="patch({ status: $any($event.target).value })">
+              @for (column of columns(); track column.id) {
+                <option [value]="column.id" [selected]="column.id === task.status">{{ column.label }}</option>
+              }
+            </select>
+          </label>
+          <div class="modal__steps">
+            <button class="modal__ghost" type="button" [disabled]="statusIndex() <= 0" (click)="step(-1)">← Recuar</button>
+            <button class="modal__ghost" type="button" [disabled]="statusIndex() === columns().length - 1" (click)="step(1)">Avançar →</button>
+          </div>
+
+          <label class="modal__field">
+            <span class="modal__label">Sprint</span>
+            <select class="modal__input" (change)="patch({ sprint: +$any($event.target).value })">
+              @for (s of sprints(); track s.number) {
+                <option [value]="s.number" [selected]="s.number === task.sprint">{{ s.label }}</option>
+              }
+            </select>
+            <span class="modal__hint">Sprints de 7 dias úteis. Trocar a sprint move o período planejado.</span>
+          </label>
+
+          <label class="modal__field">
+            <span class="modal__label">Prazo</span>
+            <input class="modal__input" type="date" required [value]="task.end" (input)="patch({ end: $any($event.target).value || task.end })" />
+          </label>
+
+          <label class="modal__field">
+            <span class="modal__label">Responsável</span>
+            <select class="modal__input" (change)="patch({ assignee: $any($event.target).value })">
+              @for (person of people; track person) {
+                <option [value]="person" [selected]="person === task.assignee">{{ person }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="modal__field">
+            <span class="modal__label">Pontos</span>
+            <select class="modal__input" (change)="patch({ points: +$any($event.target).value })">
+              @for (n of points; track n) {
+                <option [value]="n" [selected]="n === task.points">{{ n }} pts</option>
+              }
+            </select>
+          </label>
+
+          <div class="modal__danger-zone">
+            <button class="modal__ghost modal__ghost--danger" type="button" (click)="askDelete()">Excluir</button>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="modal__footer">
+        <button class="modal__ghost" type="button" (click)="close()">Cancelar</button>
+        <button class="modal__primary" type="submit" [disabled]="!changed()">Salvar atividade</button>
+      </footer>
+    </form>
+  }
+</dialog>
+
+<dialog #confirm class="confirm-dialog" aria-labelledby="task-confirm-title" (click)="closeOnBackdrop($event, confirm)">
+  <div class="confirm-dialog__box">
+    <span class="confirm-dialog__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" /></svg>
+    </span>
+    <h2 id="task-confirm-title" class="confirm-dialog__title">Excluir “{{ draft()?.title }}”?</h2>
+    <p class="confirm-dialog__text">A atividade sai do kanban do projeto e dos gráficos do Dash de Projetos.</p>
+    <div class="confirm-dialog__actions">
+      <button class="confirm-dialog__button" type="button" autofocus (click)="confirm.close()">Cancelar</button>
+      <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDelete()">Excluir</button>
+    </div>
+  </div>
+</dialog>

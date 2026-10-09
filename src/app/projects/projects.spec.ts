@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { AccountStore } from '../account/account-store';
 import { Projects } from './projects';
 
@@ -70,5 +70,19 @@ describe('Projects kanban', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-add-column')).toBeNull();
     expect(el.querySelector('.column-title__action')).toBeNull();
+  });
+
+  it('clicking a project card opens the project page (the "Mover para" select does not)', async () => {
+    await TestBed.configureTestingModule({ imports: [Projects], providers: [provideRouter([])] }).compileComponents();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(Projects);
+    fixture.detectChanges();
+    const card = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.kanban__card')!;
+
+    card.querySelector('select')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(navigate).not.toHaveBeenCalled();
+
+    card.querySelector<HTMLElement>('.kanban__description, .kanban__card-footer')!.click();
+    expect(navigate).toHaveBeenCalledWith(['/projetos', expect.any(Number)]);
   });
 });

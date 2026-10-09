@@ -1,38 +1,26 @@
-import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
-import { DomSanitizer } from '@angular/platform-browser';
+import { Component, DestroyRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { USERS, formatTime, initials } from '../chat/chat';
-import { CompanyStore } from '../companies/company-store';
-import { SectorStore } from '../companies/sector-store';
-import { RecentsStore } from '../home/recents-store';
+import { initials } from '../chat/chat';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
-import {
-  Attachment,
-  BacklogItem,
-  BacklogStatus,
-  BacklogStore,
-  emptyItem,
-  newId,
-  tagColor,
-} from './backlog-store';
+import { SprintStore } from '../planning/sprint-store';
+import { BacklogEditor } from './backlog-editor';
+import { BacklogItem, BacklogStatus, BacklogStore, tagColor } from './backlog-store';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 @Component({
-  imports: [AddColumn, ColumnTitle],
+  imports: [AddColumn, ColumnTitle, BacklogEditor],
   selector: 'app-backlog',
   templateUrl: './backlog.html',
   host: { class: 'backlog' },
 })
 export class Backlog {
   private readonly store = inject(BacklogStore);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly recents = inject(RecentsStore);
 
   constructor() {
     // Vindo dos Favoritos ou dos Recentes: /workspace/backlog?cartao=ID abre o cartão direto
@@ -46,18 +34,8 @@ export class Backlog {
 
   protected readonly columns = this.store.columns;
 
-  // Setores agrupados por empresa, para o campo Setor do cartão
-  private readonly sectorStore = inject(SectorStore);
-  private readonly companyStore = inject(CompanyStore);
-  protected readonly sectorGroups = computed(() =>
-    this.companyStore
-      .companies()
-      .map((company) => ({ company: company.name, sectors: this.sectorStore.ofCompany(company.id) }))
-      .filter((group) => group.sectors.length),
-  );
-  protected readonly people = USERS.map((user) => user.name);
   protected readonly initials = initials;
-  protected readonly formatTime = formatTime;
+  protected readonly tagColor = tagColor;
 
   protected readonly board = computed(() =>
     this.columns().map((column) => ({
@@ -104,155 +82,15 @@ export class Backlog {
     this.dropTarget.set(null);
   }
 
-  // ---------- Modal de criação e edição ----------
-  private readonly editor = viewChild.required<ElementRef<HTMLDialogElement>>('editor');
-  // Rascunho: as mudanças só valem ao clicar em "Salvar atividade"
-  protected readonly draft = signal<BacklogItem>(emptyItem());
-  protected readonly isNew = computed(() => !this.draft().id);
-  protected readonly statusIndex = computed(() => this.columns().findIndex((c) => c.id === this.draft().status));
+  // ---------- Modal do cartão ----------
+  private readonly editor = viewChild.required(BacklogEditor);
 
   protected openNew(status: BacklogStatus = 'to-refine') {
-    this.draft.set(emptyItem(status));
-    this.editor().nativeElement.showModal();
+    this.editor().openNew(status);
   }
 
   protected openEdit(item: BacklogItem) {
-    this.recents.visit('card', item.id);
-    this.draft.set({
-      ...item,
-      tags: [...item.tags],
-      comments: [...item.comments],
-      subtasks: item.subtasks.map((subtask) => ({ ...subtask })),
-      attachments: [...item.attachments],
-    });
-    this.editor().nativeElement.showModal();
-  }
-
-  protected closeEditor() {
-    this.editor().nativeElement.close();
-  }
-
-  protected patch(changes: Partial<BacklogItem>) {
-    this.draft.update((item) => ({ ...item, ...changes }));
-  }
-
-  protected save(event: Event) {
-    event.preventDefault();
-    const item = this.draft();
-    if (!item.name.trim()) return;
-    this.store.save({ ...item, name: item.name.trim() });
-    this.closeEditor();
-  }
-
-  protected step(direction: 1 | -1) {
-    const next = this.columns()[this.statusIndex() + direction];
-    if (next && !this.draft().locked) this.patch({ status: next.id });
-  }
-
-  protected archive() {
-    this.patch({ status: 'archived' });
-    this.save(new Event('submit'));
-  }
-
-  // Tags personalizadas: digita e aperta Enter
-  protected addTag(input: HTMLInputElement, event?: Event) {
-    event?.preventDefault();
-    const tag = input.value.trim().toLowerCase();
-    if (tag && !this.draft().tags.includes(tag)) this.patch({ tags: [...this.draft().tags, tag] });
-    input.value = '';
-  }
-
-  protected removeTag(tag: string) {
-    this.patch({ tags: this.draft().tags.filter((t) => t !== tag) });
-  }
-
-  protected readonly tagColor = tagColor;
-
-  // Sub atividades
-  protected addSubtask(input: HTMLInputElement, event?: Event) {
-    event?.preventDefault();
-    const title = input.value.trim();
-    if (title) this.patch({ subtasks: [...this.draft().subtasks, { id: newId(), title, done: false }] });
-    input.value = '';
-  }
-
-  protected toggleSubtask(id: number) {
-    this.patch({ subtasks: this.draft().subtasks.map((s) => (s.id === id ? { ...s, done: !s.done } : s)) });
-  }
-
-  protected removeSubtask(id: number) {
-    this.patch({ subtasks: this.draft().subtasks.filter((s) => s.id !== id) });
-  }
-
-  // Comentários
-  protected addComment(input: HTMLTextAreaElement) {
-    const text = input.value.trim();
-    if (!text) return;
-    // ponytail: autor fixo até existir login
-    this.patch({ comments: [...this.draft().comments, { id: newId(), author: 'Você', text, time: new Date() }] });
-    input.value = '';
-  }
-
-  // Anexos: só imagens e PDF
-  protected addFiles(input: HTMLInputElement) {
-    const files = [...(input.files ?? [])].filter((file) => file.type.startsWith('image/') || file.type === 'application/pdf');
-    const attachments = files.map((file) => ({
-      id: newId(),
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      url: URL.createObjectURL(file),
-    }));
-    this.patch({ attachments: [...this.draft().attachments, ...attachments] });
-    input.value = '';
-  }
-
-  protected removeAttachment(file: Attachment) {
-    this.patch({ attachments: this.draft().attachments.filter((a) => a.id !== file.id) });
-  }
-
-  protected fileSize(bytes: number) {
-    return bytes < 1_048_576 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1_048_576).toFixed(1)} MB`;
-  }
-
-  // ---------- Visualizador de anexos ----------
-  private readonly viewer = viewChild.required<ElementRef<HTMLDialogElement>>('viewer');
-  protected readonly viewing = signal<Attachment | null>(null);
-  // O PDF abre no visualizador do próprio navegador; o object URL foi criado aqui, então é confiável
-  protected readonly viewingUrl = computed(() => {
-    const file = this.viewing();
-    return file ? this.sanitizer.bypassSecurityTrustResourceUrl(file.url) : null;
-  });
-
-  protected view(file: Attachment) {
-    this.viewing.set(file);
-    this.viewer().nativeElement.showModal();
-  }
-
-  protected closeViewer() {
-    this.viewer().nativeElement.close();
-  }
-
-  // ---------- Exclusão (com confirmação) ----------
-  private readonly confirm = viewChild.required<ElementRef<HTMLDialogElement>>('confirmDelete');
-
-  protected askDelete() {
-    this.confirm().nativeElement.showModal();
-  }
-
-  protected cancelDelete() {
-    this.confirm().nativeElement.close();
-  }
-
-  protected confirmDeletion() {
-    this.store.remove(this.draft().id);
-    this.confirm().nativeElement.close();
-    this.closeEditor();
-  }
-
-  // Clique no fundo escurecido fecha a janela
-  protected closeOnBackdrop(event: MouseEvent, dialog: HTMLDialogElement) {
-    if (event.target === dialog) dialog.close();
+    this.editor().openEdit(item);
   }
 
   // ---------- Exibição nos cartões ----------
@@ -263,6 +101,12 @@ export class Backlog {
 
   protected isOverdue(item: BacklogItem) {
     return !!item.due && item.due < today() && !['refinement-done', 'archived', 'canceled'].includes(item.status);
+  }
+
+  private readonly sprints = inject(SprintStore);
+
+  protected sprintOf(item: BacklogItem) {
+    return item.sprintId ? this.sprints.byId(item.sprintId) : null;
   }
 
   protected doneSubtasks(item: BacklogItem) {

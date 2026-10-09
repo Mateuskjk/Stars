@@ -5,7 +5,7 @@ import { AiStore, ChatTurn, PROVIDERS } from './ai-store';
 // Nome amigável da tela atual, enviado junto com a pergunta para a IA dar dicas no contexto certo
 const PAGES: [RegExp, string][] = [
   [/^\/$/, 'Home'],
-  [/^\/dashboards/, 'Dashboards'],
+  [/^\/dashboards/, 'Dashboards (atividades gerais dos setores: burn-up, burn-down, Gantt, insights e análise da IA)'],
   [/^\/conversas/, 'Conversas'],
   [/^\/projetos\/novo/, 'Criar novo projeto (tabela de projetos)'],
   [/^\/projetos\/?$/, 'Dash de Projetos (burn-up, burn-down, Gantt, insights; sprints de 7 dias úteis)'],

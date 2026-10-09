@@ -206,3 +206,22 @@ $page-line: #e7e8ea;
     }
   }
 }
+
+// Cartão de atividade do projeto: clicar abre o modal
+.project-page .kanban__card {
+  cursor: pointer;
+}
+
+.project-page__open {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-task-editor__facts {
+  margin-top: 8px;
+}

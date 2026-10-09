@@ -7,7 +7,8 @@ import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
 import { HEALTH, burnUp, health, shortDate } from './project-metrics';
 import { ProjectStore } from './project-store';
-import { SPRINT_DAYS, ProjectTaskStore, TaskStatus, sprintOf, sprintWindow, today } from './project-tasks';
+import { ProjectTask, SPRINT_DAYS, ProjectTaskStore, TaskStatus, sprintOf, sprintWindow, today } from './project-tasks';
+import { ProjectTaskEditor } from './project-task-editor';
 import { initials } from './projects';
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -15,7 +16,7 @@ const POINTS = [1, 2, 3, 5, 8, 13];
 
 // /projetos/:id — cabeçalho com os dados do projeto e o kanban só com as atividades dele
 @Component({
-  imports: [RouterLink, AddColumn, ColumnTitle],
+  imports: [RouterLink, AddColumn, ColumnTitle, ProjectTaskEditor],
   selector: 'app-project-page',
   templateUrl: './project-page.html',
   host: { class: 'project-page' },
@@ -92,6 +93,12 @@ export class ProjectPage {
 
   protected readonly dragging = signal<number | null>(null);
   protected readonly dropTarget = signal<TaskStatus | null>(null);
+
+  // Abre o modal do cartão; o seletor "Mover para" do próprio cartão não abre
+  protected openCard(task: ProjectTask, event: Event, editor: ProjectTaskEditor) {
+    if ((event.target as HTMLElement).closest('select')) return;
+    editor.open(task);
+  }
 
   protected move(id: number, status: TaskStatus) {
     this.taskStore.setStatus(id, status);

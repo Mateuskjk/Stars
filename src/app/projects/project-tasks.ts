@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { AuditStore } from '../audit/audit-store';
+import { AuditStore, diff } from '../audit/audit-store';
 import { CustomColumnId, KanbanColumn, customColumn } from '../kanban/add-column';
 import { MembersStore } from '../members/members-store';
 
@@ -66,6 +66,7 @@ export interface ProjectTask {
   id: number;
   projectId: number;
   title: string;
+  description?: string;
   assignee: string;
   points: number; // story points
   status: TaskStatus;
@@ -232,6 +233,32 @@ export class ProjectTaskStore {
     const id = Math.max(0, ...this.tasks().map((t) => t.id)) + 1;
     this.tasks.update((list) => [...list, { ...task, id, createdAt: now, doneAt: task.status === 'done' ? now : null }]);
     this.audit.log({ action: 'create', entity: 'Atividade de projeto', name: task.title, to: this.column(task.status).label, details: `Projeto: ${projectName} · ${task.points} pts · Sprint ${task.sprint}` });
+  }
+
+  // Editar pelo modal do cartão. Mudar a sprint move o período planejado junto; chegar em Concluída marca a entrega.
+  update(id: number, changes: Partial<Pick<ProjectTask, 'title' | 'description' | 'assignee' | 'points' | 'sprint' | 'status' | 'end'>>) {
+    const before = this.tasks().find((task) => task.id === id);
+    if (!before) return;
+    const after: ProjectTask = { ...before, ...changes };
+    if (changes.sprint !== undefined && changes.sprint !== before.sprint) {
+      const window = sprintWindow(changes.sprint);
+      after.start = window.start;
+      if (changes.end === undefined || changes.end === before.end) after.end = after.points >= 8 ? sprintWindow(changes.sprint + 1).end : window.end;
+    }
+    if (after.status !== before.status) after.doneAt = after.status === 'done' ? today() : null;
+    this.tasks.update((list) => list.map((task) => (task.id === id ? after : task)));
+    if (after.status !== before.status) {
+      this.audit.log({ action: 'move', entity: 'Atividade de projeto', name: after.title, from: this.column(before.status).label, to: this.column(after.status).label });
+    }
+    const details = diff(before, after, { title: 'Nome', description: 'Descrição', assignee: 'Responsável', points: 'Pontos', sprint: 'Sprint', end: 'Prazo' });
+    if (details) this.audit.log({ action: 'update', entity: 'Atividade de projeto', name: after.title, details });
+  }
+
+  remove(id: number) {
+    const task = this.tasks().find((t) => t.id === id);
+    if (!task) return;
+    this.tasks.update((list) => list.filter((t) => t.id !== id));
+    this.audit.log({ action: 'delete', entity: 'Atividade de projeto', name: task.title, from: this.column(task.status).label });
   }
 
   setStatus(id: number, status: TaskStatus) {

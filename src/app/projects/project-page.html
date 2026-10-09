@@ -130,6 +130,7 @@
                 [class.is-dragging]="dragging() === card.id"
                 (dragstart)="dragging.set(card.id)"
                 (dragend)="endDrag()"
+                (click)="openCard(card, $event, taskEditor)"
               >
                 <div class="kanban__card-header">
                   <span class="kanban__project" [class.is-current]="card.sprint === currentSprint">Sprint {{ card.sprint }}</span>
@@ -140,7 +141,8 @@
                     }
                   </select>
                 </div>
-                <p class="kanban__card-title">{{ card.title }}</p>
+                <!-- Clicar no cartão (ou no nome, pelo teclado) abre o modal da atividade -->
+                <button class="kanban__card-title project-page__open" type="button">{{ card.title }}</button>
                 <div class="kanban__card-footer">
                   <span class="kanban__avatar" aria-hidden="true">{{ initials(card.assignee) }}</span>
                   <span class="kanban__assignee">{{ card.assignee }}</span>
@@ -160,6 +162,7 @@
       }
     </div>
   </section>
+  <app-project-task-editor #taskEditor />
 } @else {
   <div class="dash-card favorites__empty">
     <p>Projeto não encontrado.</p>
