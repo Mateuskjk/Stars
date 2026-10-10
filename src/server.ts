@@ -25,7 +25,23 @@ try {
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
-const angularApp = new AngularNodeAppEngine();
+// Na Vercel há um proxy na frente: confia nele para saber o IP real (limite de tentativas) e se é HTTPS
+if (process.env['VERCEL']) app.set('trust proxy', 1);
+// Endereços aceitos pelo SSR do Angular (proteção contra SSRF): o do APP_URL, os que a Vercel informa
+// (produção, preview e branch) e o computador local. NG_ALLOWED_HOSTS acrescenta outros, separados por vírgula.
+const hostOf = (url?: string) => {
+  try {
+    return url ? new URL(url.includes('://') ? url : `https://${url}`).hostname : null;
+  } catch {
+    return null;
+  }
+};
+const allowedHosts = [
+  ...['APP_URL', 'VERCEL_URL', 'VERCEL_BRANCH_URL', 'VERCEL_PROJECT_PRODUCTION_URL'].map((name) => hostOf(process.env[name])),
+  ...(process.env['NG_ALLOWED_HOSTS'] ?? '').split(',').map((h) => h.trim()),
+  'localhost',
+].filter((h): h is string => !!h);
+const angularApp = new AngularNodeAppEngine({ allowedHosts });
 
 /**
  * Login com os usuários do banco, API de dados (leitura e gravação) e migração (só admins). Tudo exige sessão.

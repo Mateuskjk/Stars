@@ -20,6 +20,7 @@ export function roleOf(papel: string): Role {
 export const isReadOnly = (papel: string) => papel === 'OBSERVADOR';
 
 export interface Session {
+  key: string; // hash do token (é o que fica guardado; o token mesmo só existe no cookie)
   nome: string;
   email: string;
   memberships: Membership[];
@@ -34,8 +35,32 @@ declare module 'express-serve-static-core' {
 
 const COOKIE = 'lex_session';
 const SESSION_MS = 12 * 60 * 60 * 1000;
-// ponytail: sessões em memória (somem ao reiniciar o servidor); quando gravarmos no banco, viram uma tabela
+// Sessões no banco (lexagile.sessao): valem em qualquer cópia do servidor (Vercel e afins) e sobrevivem a reinícios.
+// A memória é só um atalho para não ir ao banco a cada requisição.
 const sessions = new Map<string, Session>();
+const CACHE_MS = 60_000;
+
+let sessionTable: Promise<boolean> | null = null;
+function ensureSessionTable() {
+  sessionTable ??= db()
+    .query(
+      `create schema if not exists lexagile;
+       create table if not exists lexagile.sessao (
+         "tokenHash" text primary key,
+         nome text not null,
+         email text not null,
+         memberships jsonb not null,
+         "expiraEm" timestamptz not null
+       )`,
+    )
+    .then(() => true)
+    .catch((error) => {
+      console.error('[auth] sem tabela de sessões, usando só a memória:', (error as Error).message);
+      sessionTable = null;
+      return false;
+    });
+  return sessionTable;
+}
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 // ---------- Senha ----------
@@ -82,13 +107,34 @@ function recordFailure(keys: string[], now = Date.now()) {
 }
 
 // ---------- Sessão ----------
-export function readSession(req: Request): Session | undefined {
+const cachedAt = new Map<string, number>();
+
+export async function readSession(req: Request): Promise<Session | undefined> {
   const token = parseCookie(req.headers.cookie)[COOKIE];
   if (!token) return undefined;
   const key = hashToken(token);
-  const session = sessions.get(key);
-  if (session && session.expiresAt < Date.now()) sessions.delete(key);
-  return session && session.expiresAt >= Date.now() ? session : undefined;
+  const cached = sessions.get(key);
+  if (cached && cached.expiresAt >= Date.now() && Date.now() - (cachedAt.get(key) ?? 0) < CACHE_MS) return cached;
+  sessions.delete(key);
+  if (!(await ensureSessionTable())) return cached && cached.expiresAt >= Date.now() ? cached : undefined;
+  const { rows } = await db().query<{ nome: string; email: string; memberships: Membership[]; expira: string }>(
+    `select nome, email, memberships, "expiraEm" as expira from lexagile.sessao where "tokenHash" = $1 and "expiraEm" > now()`,
+    [key],
+  );
+  if (!rows[0]) return undefined;
+  const session: Session = { key, nome: rows[0].nome, email: rows[0].email, memberships: rows[0].memberships, expiresAt: new Date(rows[0].expira).getTime() };
+  sessions.set(key, session);
+  cachedAt.set(key, Date.now());
+  return session;
+}
+
+// Grava as empresas da sessão de novo (ex.: depois de criar uma empresa, quem criou passa a ser Dono dela)
+export async function saveSession(session: Session) {
+  sessions.set(session.key, session);
+  cachedAt.set(session.key, Date.now());
+  if (await ensureSessionTable()) {
+    await db().query(`update lexagile.sessao set memberships = $1 where "tokenHash" = $2`, [JSON.stringify(session.memberships), session.key]);
+  }
 }
 
 export function parseCookie(header = ''): Record<string, string> {
@@ -108,20 +154,37 @@ export function setCookie(res: Response, value: string, maxAgeMs: number, name =
 }
 
 // Abre a sessão com os usuários (um por empresa) que provaram ser a pessoa — por senha ou pelo Google
-export function startSession(res: Response, email: string, users: { id: string; nome: string; papel: string; tenantId: string }[]) {
+export async function startSession(res: Response, email: string, users: { id: string; nome: string; papel: string; tenantId: string }[]) {
   const token = randomBytes(32).toString('base64url');
-  sessions.set(hashToken(token), {
+  const session: Session = {
+    key: hashToken(token),
     nome: users[0].nome,
     email,
     memberships: users.map((u) => ({ usuarioId: u.id, tenantId: u.tenantId, papel: u.papel })),
     expiresAt: Date.now() + SESSION_MS,
-  });
+  };
+  if (await ensureSessionTable()) {
+    await db().query(`delete from lexagile.sessao where "expiraEm" < now()`); // limpa as vencidas
+    await db().query(
+      `insert into lexagile.sessao ("tokenHash", nome, email, memberships, "expiraEm") values ($1, $2, $3, $4, to_timestamp($5 / 1000.0))`,
+      [session.key, session.nome, email, JSON.stringify(session.memberships), session.expiresAt],
+    );
+  }
+  sessions.set(session.key, session);
+  cachedAt.set(session.key, Date.now());
   setCookie(res, token, SESSION_MS);
 }
 
 // Rotas protegidas: sem sessão válida, 401
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const session = readSession(req);
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  let session: Session | undefined;
+  try {
+    session = await readSession(req);
+  } catch (error) {
+    console.error('[auth] falha ao ler a sessão:', (error as Error).message);
+    res.status(503).json({ error: 'Não foi possível conferir o login agora. Tente de novo.' });
+    return;
+  }
   if (!session) {
     res.status(401).json({ error: 'Faça login para continuar.' });
     return;
@@ -163,7 +226,7 @@ export function authRouter() {
         res.status(401).json({ error: 'E-mail ou senha incorretos.' });
         return;
       }
-      startSession(res, email, matched);
+      await startSession(res, email, matched);
       res.json({ nome: matched[0].nome, empresas: matched.length });
     } catch (error) {
       console.error('[auth] falha no login:', (error as Error).message);
@@ -171,9 +234,14 @@ export function authRouter() {
     }
   });
 
-  router.post('/logout', (req, res) => {
+  router.post('/logout', async (req, res) => {
     const token = parseCookie(req.headers.cookie)[COOKIE];
-    if (token) sessions.delete(hashToken(token));
+    if (token) {
+      sessions.delete(hashToken(token));
+      if (await ensureSessionTable().catch(() => false)) {
+        await db().query(`delete from lexagile.sessao where "tokenHash" = $1`, [hashToken(token)]).catch(() => undefined);
+      }
+    }
     setCookie(res, '', 0);
     res.status(204).end();
   });

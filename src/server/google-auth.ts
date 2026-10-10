@@ -90,7 +90,7 @@ export function googleRouter() {
         [info.sub, email, info.email_verified === true && !!email],
       );
       if (!rows.length) return fail(res, 'sem-conta');
-      startSession(res, email, rows);
+      await startSession(res, email, rows);
       res.redirect('/');
     } catch (error) {
       console.error('[auth] falha no login com Google:', (error as Error).message);

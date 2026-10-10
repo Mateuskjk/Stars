@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { NextFunction, Request, Response, Router, json } from 'express';
 import type { PoolClient } from 'pg';
 import { db } from './db';
-import { Session, requireAuth } from './auth';
+import { Session, requireAuth, saveSession } from './auth';
 
 export const INSTALL_SQL = `
 create schema if not exists lexagile;
@@ -103,6 +103,7 @@ export async function createTenant(client: PoolClient, s: Session, data: { nome:
     [usuarioId, id, source.usuarioId],
   );
   s.memberships.push({ usuarioId, tenantId: id, papel: 'DONO' });
+  await saveSession(s);
   return id;
 }
 
