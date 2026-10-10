@@ -7,6 +7,7 @@ import { db } from './db';
 import { Session, requireAuth } from './auth';
 import { HttpError, createTenant, ensureSchema, newId } from './migration';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql } from './data';
+import { isAllowedEmail } from './domains';
 
 const STATUSES = ['RASCUNHO', 'PRONTO', 'EM_EXECUCAO', 'EM_REVISAO', 'CONCLUIDO'];
 const SPRINT_SITUACOES = ['ATIVA', 'FECHADA', 'PREPARACAO'];
@@ -462,6 +463,7 @@ function configRoutes(router: Router) {
       owner(s, tenantId);
       const email = nonEmpty(body['email'], 200, 'e-mail').toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'E-mail inválido.');
+      if (!(await isAllowedEmail(email))) throw new HttpError(400, 'Esse domínio de e-mail não está entre os permitidos (Configurações › Membros › Domínios).');
       const papel = PAPEIS.includes(body['papel'] as string) ? body['papel'] : 'ATENDENTE';
       const { rows: dup } = await client.query(`select 1 from "Usuario" where lower(email) = $1 and "tenantId" = $2 and "removidoEm" is null`, [email, tenantId]);
       if (dup.length) throw new HttpError(409, 'Essa pessoa já está nessa empresa.');

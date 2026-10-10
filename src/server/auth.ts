@@ -4,6 +4,7 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { NextFunction, Request, Response, Router, json } from 'express';
 import { db } from './db';
+import { isAllowedEmail } from './domains';
 
 // Uma pessoa (e-mail) pode ter um usuário em cada empresa (Tenant)
 export interface Membership {
@@ -207,6 +208,10 @@ export function authRouter() {
     }
     if (tooManyAttempts(keys)) {
       res.status(429).json({ error: 'Muitas tentativas. Tente de novo em alguns minutos.' });
+      return;
+    }
+    if (!(await isAllowedEmail(email))) {
+      res.status(403).json({ error: 'Esse e-mail não tem acesso ao LexÁgile. Use o e-mail da sua empresa.' });
       return;
     }
     try {

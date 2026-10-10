@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { initials } from '../chat/chat';
 import { RecentsStore } from '../home/recents-store';
 import { ResponsiveTable } from '../responsive-table';
+import { AllowedDomains } from './allowed-domains';
 import {
   ACCESS_LEVELS,
   Access,
@@ -24,7 +25,7 @@ import { AccountStore } from '../account/account-store';
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 @Component({
-  imports: [ResponsiveTable, NgTemplateOutlet, RouterLink],
+  imports: [AllowedDomains, ResponsiveTable, NgTemplateOutlet, RouterLink],
   selector: 'app-members',
   templateUrl: './members.html',
   host: { class: 'members' },

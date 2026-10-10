@@ -300,3 +300,68 @@ $members-soft: var(--color-soft);
     grid-template-columns: 1fr;
   }
 }
+
+// Domínios de e-mail permitidos (Configurações › Membros)
+.domains {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background-color: var(--color-card);
+
+  &__title {
+    color: $color-title;
+    font-size: 15px;
+  }
+
+  &__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+  }
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px 4px 12px;
+    border-radius: 20px;
+    background-color: var(--color-soft);
+    color: $color-title;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  &__remove {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--color-muted);
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-soft-strong);
+      color: var(--ink-red);
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .modal__input {
+      flex: 1 1 220px;
+      width: auto;
+    }
+  }
+}

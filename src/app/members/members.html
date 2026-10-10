@@ -11,6 +11,8 @@
   <button class="backlog__new" type="button" (click)="openInvite()">+ Convidar membro</button>
 </header>
 
+<app-allowed-domains />
+
 @if (tokenError()) {
   <p class="planning__error" role="alert">{{ tokenError() }}</p>
 }

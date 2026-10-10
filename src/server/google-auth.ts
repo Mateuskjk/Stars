@@ -7,6 +7,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Request, Response, Router } from 'express';
 import { db } from './db';
 import { parseCookie, setCookie, startSession } from './auth';
+import { isAllowedEmail } from './domains';
 
 const STATE_COOKIE = 'lex_google';
 const STATE_MS = 10 * 60 * 1000;
@@ -24,7 +25,11 @@ function redirectUri(req: Request) {
 }
 
 const b64url = (buf: Buffer) => buf.toString('base64url');
-const fail = (res: Response, motivo: string) => res.redirect(`/?erro=google-${motivo}`);
+// Volta para a tela de login com o motivo; o detalhe técnico vai só para o log do servidor
+const fail = (res: Response, motivo: string, detalhe?: string) => {
+  if (detalhe) console.error(`[auth] login com Google falhou (${motivo}): ${detalhe}`);
+  res.redirect(`/?erro=google-${motivo}`);
+};
 
 export function googleRouter() {
   const router = Router();
@@ -55,10 +60,11 @@ export function googleRouter() {
     setCookie(res, '', 0, STATE_COOKIE); // o state vale uma vez só
     const returned = String(req.query['state'] ?? '');
     const code = String(req.query['code'] ?? '');
-    if (req.query['error']) return fail(res, 'cancelado');
+    if (req.query['error']) return fail(res, 'cancelado', `Google devolveu "${String(req.query['error'])}"`);
     // O state precisa bater com o do cookie (impede que alguém force um login na sua sessão)
-    if (!state || !verifier || !code || returned.length !== state.length || !timingSafeEqual(Buffer.from(returned), Buffer.from(state))) {
-      return fail(res, 'falha');
+    if (!state || !verifier) return fail(res, 'falha', 'sem o cookie do state (expirou, outro navegador ou cookie bloqueado)');
+    if (!code || returned.length !== state.length || !timingSafeEqual(Buffer.from(returned), Buffer.from(state))) {
+      return fail(res, 'falha', 'state diferente do enviado');
     }
     try {
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -73,13 +79,18 @@ export function googleRouter() {
           code_verifier: verifier,
         }),
       });
-      if (!tokenRes.ok) return fail(res, 'falha');
+      if (!tokenRes.ok) {
+        // Ex.: redirect_uri_mismatch (APP_URL ou URI cadastrada diferente), invalid_client (ID/segredo errados)
+        const body = (await tokenRes.json().catch(() => ({}))) as { error?: string; error_description?: string };
+        return fail(res, 'falha', `troca do código: ${tokenRes.status} ${body.error ?? ''} ${body.error_description ?? ''} · redirect_uri=${redirectUri(req)}`);
+      }
       const { access_token } = (await tokenRes.json()) as { access_token?: string };
       const infoRes = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers: { authorization: `Bearer ${access_token}` } });
-      if (!infoRes.ok) return fail(res, 'falha');
+      if (!infoRes.ok) return fail(res, 'falha', `userinfo: ${infoRes.status}`);
       const info = (await infoRes.json()) as { sub?: string; email?: string; email_verified?: boolean };
-      if (!info.sub) return fail(res, 'falha');
+      if (!info.sub) return fail(res, 'falha', 'userinfo sem sub');
       const email = (info.email ?? '').trim().toLowerCase();
+      if (!(await isAllowedEmail(email))) return fail(res, 'dominio');
 
       // Mesmo usuário do sistema atual: pelo Google já ligado, ou pelo e-mail verificado (se ainda não ligou outro Google)
       const { rows } = await db().query<{ id: string; nome: string; papel: string; tenantId: string }>(
@@ -93,8 +104,7 @@ export function googleRouter() {
       await startSession(res, email, rows);
       res.redirect('/');
     } catch (error) {
-      console.error('[auth] falha no login com Google:', (error as Error).message);
-      fail(res, 'falha');
+      fail(res, 'falha', (error as Error).message);
     }
   });
 

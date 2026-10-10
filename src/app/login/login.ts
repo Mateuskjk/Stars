@@ -5,6 +5,7 @@ import { api } from '../api/http';
 // Volta do "Entrar com o Google" com erro (o servidor redireciona para /?erro=google-…)
 const GOOGLE_ERRORS: Record<string, string> = {
   'google-cancelado': 'O login com o Google foi cancelado.',
+  'google-dominio': 'Essa conta do Google não é de um e-mail com acesso ao LexÁgile. Use o e-mail da sua empresa.',
   'google-sem-conta': 'Essa conta do Google não tem acesso ao LexÁgile. Use o e-mail cadastrado no sistema ou fale com o administrador.',
   'google-desligado': 'O login com o Google ainda não foi configurado.',
   'google-falha': 'Não foi possível entrar com o Google. Tente de novo.',
