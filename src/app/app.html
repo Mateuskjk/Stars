@@ -332,7 +332,10 @@
     <app-migration-wizard #migration />
   }
 } @else if (session.status() === 'out') {
-  <app-login />
+  <!-- Carregada à parte: só quem está sem sessão baixa a tela de entrada -->
+  @defer (on immediate) {
+    <app-login />
+  }
 } @else {
-  <main class="login"><p class="login__checking">Carregando…</p></main>
+  <main class="login login--checking"><p class="login__checking">Carregando…</p></main>
 }

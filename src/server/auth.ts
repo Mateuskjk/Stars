@@ -91,7 +91,7 @@ export function readSession(req: Request): Session | undefined {
   return session && session.expiresAt >= Date.now() ? session : undefined;
 }
 
-function parseCookie(header = ''): Record<string, string> {
+export function parseCookie(header = ''): Record<string, string> {
   return Object.fromEntries(
     header
       .split(';')
@@ -101,9 +101,22 @@ function parseCookie(header = ''): Record<string, string> {
   );
 }
 
-function setCookie(res: Response, token: string, maxAgeMs: number) {
+// Cookie httpOnly (o JavaScript da página não lê); em produção só trafega em HTTPS
+export function setCookie(res: Response, value: string, maxAgeMs: number, name = COOKIE) {
   const secure = process.env['NODE_ENV'] === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(maxAgeMs / 1000)}${secure}`);
+  res.append('Set-Cookie', `${name}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(maxAgeMs / 1000)}${secure}`);
+}
+
+// Abre a sessão com os usuários (um por empresa) que provaram ser a pessoa — por senha ou pelo Google
+export function startSession(res: Response, email: string, users: { id: string; nome: string; papel: string; tenantId: string }[]) {
+  const token = randomBytes(32).toString('base64url');
+  sessions.set(hashToken(token), {
+    nome: users[0].nome,
+    email,
+    memberships: users.map((u) => ({ usuarioId: u.id, tenantId: u.tenantId, papel: u.papel })),
+    expiresAt: Date.now() + SESSION_MS,
+  });
+  setCookie(res, token, SESSION_MS);
 }
 
 // Rotas protegidas: sem sessão válida, 401
@@ -150,14 +163,7 @@ export function authRouter() {
         res.status(401).json({ error: 'E-mail ou senha incorretos.' });
         return;
       }
-      const token = randomBytes(32).toString('base64url');
-      sessions.set(hashToken(token), {
-        nome: matched[0].nome,
-        email,
-        memberships: matched.map((m) => ({ usuarioId: m.id, tenantId: m.tenantId, papel: m.papel })),
-        expiresAt: Date.now() + SESSION_MS,
-      });
-      setCookie(res, token, SESSION_MS);
+      startSession(res, email, matched);
       res.json({ nome: matched[0].nome, empresas: matched.length });
     } catch (error) {
       console.error('[auth] falha no login:', (error as Error).message);
