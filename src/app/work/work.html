@@ -1,7 +1,7 @@
 <header class="backlog__header">
   <div>
     <h2 class="backlog__title">Work</h2>
-    <p class="backlog__subtitle">Suas atividades gerais e de projetos num lugar só. Mover aqui move também no Backlog e no kanban do projeto.</p>
+    <p class="backlog__subtitle">Suas atividades gerais e de projetos da sprint atual. Mover aqui move também no Backlog e no kanban do projeto.</p>
   </div>
 </header>
 
@@ -44,7 +44,7 @@
                   </select>
                 }
               </div>
-              <a class="kanban__card-title kanban__card-link" [routerLink]="card.link" [queryParams]="card.query">{{ card.title }}</a>
+              <span class="kanban__card-title">{{ card.title }}</span>
               <div class="kanban__card-footer">
                 <span class="work__origin" [title]="'Coluna no kanban de origem'">{{ card.kind === 'task' ? 'No projeto' : 'No Backlog' }}: {{ originLabel(card) }}</span>
                 @if (card.locked) {

@@ -1,10 +1,10 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { BacklogStatus, BacklogStore } from '../backlog/backlog-store';
 import { initials } from '../chat/chat';
 import { MembersStore } from '../members/members-store';
+import { SprintStore } from '../planning/sprint-store';
 import { ProjectStore } from '../projects/project-store';
-import { ProjectTaskStore, TASK_STATUSES, TaskStatus, today } from '../projects/project-tasks';
+import { ProjectTaskStore, TASK_STATUSES, TaskStatus, sprintOf, today } from '../projects/project-tasks';
 
 // Colunas do Work. Cada kanban de origem tem as suas; aqui o cartão aparece na equivalente.
 type WorkColumn = 'todo' | 'doing' | 'review' | 'done';
@@ -24,8 +24,6 @@ interface WorkCard {
   column: WorkColumn;
   due: string;
   locked: boolean;
-  link: unknown[];
-  query?: Record<string, number>;
 }
 
 interface PendingMove {
@@ -34,11 +32,10 @@ interface PendingMove {
   choice: string;
 }
 
-// Work: todas as atividades da pessoa (gerais + de projetos) num kanban só.
-// Não cria atividades; mover aqui move no Backlog ou no kanban do projeto.
+// Work: as atividades da pessoa na sprint atual (gerais + de projetos) num kanban só.
+// Não cria atividades nem leva para outros kanbans; mover aqui move no Backlog ou no kanban do projeto.
 @Component({
   selector: 'app-work',
-  imports: [RouterLink],
   templateUrl: './work.html',
   host: { class: 'work' },
 })
@@ -47,6 +44,7 @@ export class Work {
   private readonly tasks = inject(ProjectTaskStore);
   private readonly projects = inject(ProjectStore);
   private readonly members = inject(MembersStore);
+  private readonly sprints = inject(SprintStore);
   protected readonly initials = initials;
   protected readonly columns = WORK_COLUMNS;
   protected readonly me = computed(() => this.members.current()?.name ?? '');
@@ -54,8 +52,12 @@ export class Work {
   protected readonly cards = computed<WorkCard[]>(() => {
     const me = this.me();
     if (!me) return [];
+    // Sprint atual: a ativa da empresa (gerais pela sprint; de projetos pelo número da sprint em que começa)
+    const active = this.sprints.active();
+    const sprintNumber = sprintOf(active?.start ?? today());
     const general = this.backlog
       .ofCompany()
+      .filter((i) => !!active && i.sprintId === active.id)
       .filter((i) => (i.assignee === me || i.sharedWith.includes(me)) && i.status !== 'archived' && i.status !== 'canceled')
       .map<WorkCard>((i) => ({
         key: `b-${i.id}`,
@@ -67,13 +69,11 @@ export class Work {
         column: FROM_BACKLOG[i.status] ?? 'todo',
         due: i.due,
         locked: i.locked,
-        link: ['/workspace/backlog'],
-        query: { cartao: i.id },
       }));
     const projects = new Map(this.projects.visible().map((p) => [p.id, p.name]));
     const fromProjects = this.tasks
       .tasks()
-      .filter((t) => t.assignee === me && projects.has(t.projectId))
+      .filter((t) => t.assignee === me && t.sprint === sprintNumber && projects.has(t.projectId))
       .map<WorkCard>((t) => ({
         key: `t-${t.id}`,
         id: t.id,
@@ -84,7 +84,6 @@ export class Work {
         column: fromTask(t.status),
         due: t.status === 'done' ? '' : t.end,
         locked: false,
-        link: ['/projetos', t.projectId],
       }));
     return [...general, ...fromProjects];
   });

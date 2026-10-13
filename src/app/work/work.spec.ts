@@ -3,7 +3,8 @@ import { provideRouter } from '@angular/router';
 import { Work } from './work';
 import { BacklogStore } from '../backlog/backlog-store';
 import { MembersStore } from '../members/members-store';
-import { ProjectTaskStore } from '../projects/project-tasks';
+import { ProjectTaskStore, sprintOf } from '../projects/project-tasks';
+import { SprintStore } from '../planning/sprint-store';
 
 // jsdom não implementa showModal/close do <dialog>
 HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
@@ -14,19 +15,25 @@ HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
 };
 
 describe('Work', () => {
-  it('shows only my general and project activities and moves them in the origin kanban through the pop-up', async () => {
+  it('shows only my current-sprint general and project activities and moves them in the origin kanban through the pop-up', async () => {
     await TestBed.configureTestingModule({ imports: [Work], providers: [provideRouter([])] }).compileComponents();
     const me = TestBed.inject(MembersStore).current()!.name;
     const backlog = TestBed.inject(BacklogStore);
     const tasks = TestBed.inject(ProjectTaskStore);
     // Uma atividade geral minha em "Para refinar", uma de outra pessoa e uma de projeto minha em "A fazer"
-    const base = backlog.items()[0];
+    const active = TestBed.inject(SprintStore).active()!;
+    const base = { ...backlog.items()[0], sprintId: active.id };
     backlog.items.set([
       { ...base, id: 1, name: 'Geral minha', assignee: me, status: 'to-refine', locked: false, companyId: undefined },
+      { ...base, id: 3, name: 'Geral fora da sprint', assignee: me, sprintId: undefined, status: 'to-refine', locked: false, companyId: undefined },
       { ...base, id: 2, name: 'Geral de outro', assignee: 'Outra Pessoa', sharedWith: [], status: 'to-refine', companyId: undefined },
     ]);
     const task = tasks.tasks()[0];
-    tasks.tasks.set([{ ...task, id: 7, title: 'Projeto minha', assignee: me, status: 'todo' }]);
+    const n = sprintOf(active.start);
+    tasks.tasks.set([
+      { ...task, id: 7, title: 'Projeto minha', assignee: me, status: 'todo', sprint: n },
+      { ...task, id: 8, title: 'Projeto sprint passada', assignee: me, status: 'todo', sprint: n - 1 },
+    ]);
 
     const fixture = TestBed.createComponent(Work);
     fixture.detectChanges();
@@ -35,6 +42,9 @@ describe('Work', () => {
     expect(titles).toContain('Geral minha');
     expect(titles).not.toContain('Geral de outro');
     expect(titles).toContain('Projeto minha');
+    expect(titles).not.toContain('Geral fora da sprint');
+    expect(titles).not.toContain('Projeto sprint passada');
+    expect(el.querySelector('a')).toBeNull(); // não leva para outros kanbans
 
     // Mover a geral para "Em andamento" abre o pop-up sugerindo "Refinado" no Backlog; confirmar move lá
     const select = el.querySelector<HTMLSelectElement>('.kanban__move')!;
