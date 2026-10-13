@@ -1,11 +1,12 @@
 // API pública v1 (somente leitura) + registro de tokens e trilha de acesso — roda SOMENTE no servidor.
 import { createHash, randomUUID } from 'node:crypto';
-import { NextFunction, Request, Response, Router, json } from 'express';
+import { NextFunction, Request, RequestHandler, Response, Router, json } from 'express';
 
 type Access = 'none' | 'view' | 'edit';
 type Feature = 'dashboards' | 'chat' | 'projects' | 'daily' | 'backlog' | 'planning' | 'notes' | 'settings';
 
 interface TokenOwner {
+  issuer: string; // e-mail do Admin que gerou: o token só lê o retrato enviado por ele (dados que ele já vê)
   memberId: number;
   name: string;
   role: string;
@@ -16,13 +17,23 @@ interface TokenOwner {
 const tokens = new Map<string, TokenOwner>();
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
-// Retrato dos dados enviado pelo app (sem segredos).
-// ponytail: até existir backend com banco, a API lê o último retrato que o app enviou
-let snapshot: Record<string, unknown[]> = { projects: [], activities: [], sprints: [], teams: [], members: [] };
+// Retrato dos dados enviado pelo app (sem segredos), um por pessoa logada: ninguém lê nem sobrescreve o de outro.
+// ponytail: até a API ler direto do banco (filtrando pela empresa do token), ela lê o retrato de quem emitiu o token
+const snapshots = new Map<string, Record<string, unknown[]>>();
+const EMPTY: Record<string, unknown[]> = { projects: [], activities: [], sprints: [], teams: [], members: [] };
+
+const FEATURES: Feature[] = ['dashboards', 'chat', 'projects', 'daily', 'backlog', 'planning', 'notes', 'settings'];
+const ROLES = ['admin', 'supervisor', 'member'];
+// Só as funcionalidades conhecidas, só "view"/"edit"; qualquer outra coisa vira "none"
+function cleanPermissions(raw: unknown) {
+  const p = (typeof raw === 'object' && raw ? raw : {}) as Record<string, unknown>;
+  return Object.fromEntries(FEATURES.map((f) => [f, p[f] === 'view' || p[f] === 'edit' ? p[f] : 'none'])) as Record<Feature, Access>;
+}
 
 // Trilha de acesso à API (vai para a tela de Auditorias)
 export interface AccessEntry {
   id: string;
+  issuer: string;
   at: string;
   actor: string;
   method: string;
@@ -188,6 +199,7 @@ export function publicApiRouter() {
     res.on('finish', () => {
       accessLog.unshift({
         id: randomUUID(),
+        issuer: owner?.issuer ?? '',
         at: new Date().toISOString(),
         actor: owner?.name ?? (token ? 'Token inválido' : 'Sem token'),
         method: req.method,
@@ -209,10 +221,11 @@ export function publicApiRouter() {
     const expressPath = endpoint.path.replace(/\{(\w+)\}/g, ':$1');
     router.get(expressPath, (req, res) => {
       const owner = res.locals['owner'] as TokenOwner;
-      if (endpoint.feature && owner.permissions[endpoint.feature] === 'none') {
+      // Nega por padrão: só passa com permissão explícita de ver ou editar
+      if (endpoint.feature && !['view', 'edit'].includes(owner.permissions[endpoint.feature])) {
         return void res.status(403).json({ error: `Sem permissão para ${endpoint.tag.toLowerCase()}.` });
       }
-      const items = (snapshot[endpoint.collection!] ?? []) as { id: number; status?: string }[];
+      const items = ((snapshots.get(owner.issuer) ?? EMPTY)[endpoint.collection!] ?? []) as { id: number; status?: string }[];
       if (req.params['id'] !== undefined) {
         const item = items.find((i) => String(i.id) === req.params['id']);
         return void (item ? res.json(item) : res.status(404).json({ error: 'Não encontrado.' }));
@@ -226,50 +239,59 @@ export function publicApiRouter() {
   return router;
 }
 
-// ---------- Rotas internas usadas pelo próprio app ----------
-// ponytail: sem login, estas rotas ficam abertas; protegê-las quando o login existir
+// ---------- Rotas internas usadas pelo próprio app (montadas com login: requireAuth) ----------
+const issuerOf = (req: Request) => req.session!.email.toLowerCase();
+// Tokens e trilha de acesso são configuração: só Admin (Dono), e cada Admin só mexe nos tokens que ele gerou
+const onlyOwner: RequestHandler = (req, res, next) =>
+  req.session?.memberships.some((m) => m.papel === 'DONO') ? next() : void res.status(403).json({ error: 'Só Admin gerencia tokens de API.' });
+const sameToken = (req: Request, owner: TokenOwner) => owner.issuer === issuerOf(req) && owner.memberId === Number(req.params['memberId']);
+
 export function publicApiInternalRouter() {
   const router = Router();
   router.use(json({ limit: '2mb' }));
 
-  // Registrar token (o app gera; aqui guardamos só o hash + dono + permissões)
-  router.put('/tokens/:memberId', (req, res) => {
-    const memberId = Number(req.params.memberId);
+  // Registrar token (o app gera; aqui guardamos só o hash + quem emitiu + permissões limpas)
+  router.put('/tokens/:memberId', onlyOwner, (req, res) => {
+    const memberId = Number(req.params['memberId']);
     const token = String(req.body?.token ?? '');
     if (!Number.isInteger(memberId) || !/^stars_[0-9a-f]{48}$/.test(token)) return void res.status(400).json({ error: 'Token inválido.' });
-    for (const [hash, owner] of tokens) if (owner.memberId === memberId) tokens.delete(hash); // o token anterior deixa de valer
+    for (const [hash, owner] of tokens) if (sameToken(req, owner)) tokens.delete(hash); // o token anterior deixa de valer
     tokens.set(hashToken(token), {
+      issuer: issuerOf(req),
       memberId,
       name: String(req.body?.name ?? '').slice(0, 120),
-      role: String(req.body?.role ?? 'member'),
-      permissions: req.body?.permissions ?? {},
+      role: ROLES.includes(req.body?.role) ? req.body.role : 'member',
+      permissions: cleanPermissions(req.body?.permissions),
     });
     res.json({ ok: true });
   });
 
   // Revogar (ou atualizar permissões, se o cargo/permissões mudaram)
-  router.delete('/tokens/:memberId', (req, res) => {
-    const memberId = Number(req.params.memberId);
-    for (const [hash, owner] of tokens) if (owner.memberId === memberId) tokens.delete(hash);
+  router.delete('/tokens/:memberId', onlyOwner, (req, res) => {
+    for (const [hash, owner] of tokens) if (sameToken(req, owner)) tokens.delete(hash);
     res.json({ ok: true });
   });
 
-  router.patch('/tokens/:memberId', (req, res) => {
-    const memberId = Number(req.params.memberId);
+  router.patch('/tokens/:memberId', onlyOwner, (req, res) => {
     for (const owner of tokens.values()) {
-      if (owner.memberId === memberId) Object.assign(owner, { name: req.body?.name ?? owner.name, role: req.body?.role ?? owner.role, permissions: req.body?.permissions ?? owner.permissions });
+      if (!sameToken(req, owner)) continue;
+      if (req.body?.name !== undefined) owner.name = String(req.body.name).slice(0, 120);
+      if (ROLES.includes(req.body?.role)) owner.role = req.body.role;
+      if (req.body?.permissions !== undefined) owner.permissions = cleanPermissions(req.body.permissions);
     }
     res.json({ ok: true });
   });
 
+  // Cada pessoa grava só o próprio retrato (o que ela já vê no app)
   router.put('/snapshot', (req, res) => {
     const body = req.body ?? {};
     const pick = (key: string) => (Array.isArray(body[key]) ? body[key].slice(0, 5000) : []);
-    snapshot = { projects: pick('projects'), activities: pick('activities'), sprints: pick('sprints'), teams: pick('teams'), members: pick('members') };
+    snapshots.set(issuerOf(req), { projects: pick('projects'), activities: pick('activities'), sprints: pick('sprints'), teams: pick('teams'), members: pick('members') });
     res.json({ ok: true });
   });
 
-  router.get('/api-access', (_req, res) => void res.json(accessLog));
+  // Trilha de acesso: só dos tokens que este Admin gerou
+  router.get('/api-access', onlyOwner, (req, res) => void res.json(accessLog.filter((e) => e.issuer === issuerOf(req)).map(({ issuer: _i, ...e }) => e)));
 
   return router;
 }

@@ -123,7 +123,14 @@ export async function readSession(req: Request): Promise<Session | undefined> {
     [key],
   );
   if (!rows[0]) return undefined;
-  const session: Session = { key, nome: rows[0].nome, email: rows[0].email, memberships: rows[0].memberships, expiresAt: new Date(rows[0].expira).getTime() };
+  // Empresas e cargos de AGORA (relidos a cada minuto): removido, rebaixado, empresa desativada ou domínio
+  // retirado perde o acesso na hora, sem esperar a sessão de 12h vencer
+  const memberships = await liveMemberships(rows[0].email, rows[0].memberships);
+  if (!memberships.length) {
+    await db().query(`delete from lexagile.sessao where "tokenHash" = $1`, [key]);
+    return undefined;
+  }
+  const session: Session = { key, nome: rows[0].nome, email: rows[0].email, memberships, expiresAt: new Date(rows[0].expira).getTime() };
   sessions.set(key, session);
   cachedAt.set(key, Date.now());
   return session;
@@ -184,6 +191,19 @@ export async function usersForEmail(email: string) {
        from "Usuario" u join "Tenant" t on t.id = u."tenantId"
       where lower(u.email) = $1 and u.situacao = 'ATIVO' and u."removidoEm" is null and t.ativo`,
     [email.trim().toLowerCase()],
+  );
+  return rows;
+}
+
+// Recalcula as empresas e cargos de quem já está logado (site ou Claude): pelos usuários da sessão (o login
+// pelo Google acha a conta pelo vínculo, e o e-mail do Google pode ser outro) e pelo e-mail (empresas novas)
+export async function liveMemberships(email: string, before: Membership[]): Promise<Membership[]> {
+  if (!(await isAllowedEmail(email))) return [];
+  const { rows } = await db().query<Membership>(
+    `select u.id as "usuarioId", u."tenantId", u.papel
+       from "Usuario" u join "Tenant" t on t.id = u."tenantId"
+      where (u.id = any($1::text[]) or lower(u.email) = $2) and u.situacao = 'ATIVO' and u."removidoEm" is null and t.ativo`,
+    [before.map((m) => m.usuarioId), email.trim().toLowerCase()],
   );
   return rows;
 }

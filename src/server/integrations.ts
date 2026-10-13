@@ -2,25 +2,27 @@
 // Segredos de webhook e senhas de banco ficam aqui e nunca voltam para o navegador.
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
-import { isIP } from 'node:net';
-import { Router, json } from 'express';
+import { BlockList, isIP } from 'node:net';
+import { Request, Router, json } from 'express';
 import pg from 'pg';
 
 // ---------- Proteção contra SSRF ----------
 // Webhook só pode apontar para a internet pública: nada de localhost, rede interna ou metadados de nuvem.
+// BlockList do Node entende IPv4 escrito como IPv6 em qualquer forma ([::ffff:127.0.0.1], [::ffff:7f00:1]…)
+const blocked = new BlockList();
+for (const [net, prefix] of [
+  ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], // CGNAT e loopback
+  ['169.254.0.0', 16], // link-local / metadados de nuvem
+  ['172.16.0.0', 12], ['192.168.0.0', 16], ['224.0.0.0', 3], // privadas, multicast e reservados
+] as const) blocked.addSubnet(net, prefix, 'ipv4');
+for (const [net, prefix] of [
+  ['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10],
+  ['::', 96], ['64:ff9b::', 96], ['2002::', 16], // IPv4 embutido (compatível, NAT64, 6to4); o mapeado (::ffff:) o Node confere nas regras IPv4
+] as const) blocked.addSubnet(net, prefix, 'ipv6');
+
 export function isPrivateAddress(ip: string): boolean {
-  if (ip.startsWith('::ffff:')) ip = ip.slice(7); // IPv4 escrito como IPv6
-  if (isIP(ip) === 4) {
-    const [a, b] = ip.split('.').map(Number);
-    return (
-      a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || // CGNAT
-      (a === 169 && b === 254) || // link-local / metadados de nuvem
-      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
-      a >= 224 // multicast e reservados
-    );
-  }
-  const v6 = ip.toLowerCase();
-  return v6 === '::' || v6 === '::1' || v6.startsWith('fc') || v6.startsWith('fd') || v6.startsWith('fe80');
+  const version = isIP(ip);
+  return version === 0 || blocked.check(ip, version === 6 ? 'ipv6' : 'ipv4'); // o que não é IP válido também é recusado
 }
 
 export async function checkWebhookUrl(raw: string): Promise<string | null> {
@@ -46,6 +48,7 @@ export async function checkWebhookUrl(raw: string): Promise<string | null> {
 // ---------- Webhooks ----------
 interface Webhook {
   id: string;
+  owner: string; // e-mail do Admin que criou: só ele vê, edita, testa e dispara
   name: string;
   url: string;
   events: string[]; // ex.: ['activity.move', 'sprint.close'] ou ['*'] para todos
@@ -54,12 +57,12 @@ interface Webhook {
   lastDelivery: { at: string; ok: boolean; status?: number; error?: string; event: string } | null;
 }
 
-// ponytail: guardados na memória do servidor (somem ao reiniciar); em produção, banco com os segredos cifrados.
-// Antes de expor o servidor, proteger estas rotas com login — hoje qualquer um que acesse o servidor gerencia as integrações.
+// ponytail: guardados na memória do servidor (somem ao reiniciar); em produção, banco com os segredos cifrados e empresa (tenantId).
+// Cada webhook/conexão tem dono: só quem criou (Admin) enxerga e mexe.
 const webhooks = new Map<string, Webhook>();
 const EVENT_PATTERN = /^(\*|[a-z_]+\.[a-z_]+)$/;
 
-const publicWebhook = ({ secret, ...rest }: Webhook) => ({ ...rest, secretHint: secret.slice(-4) });
+const publicWebhook = ({ secret, owner: _o, ...rest }: Webhook) => ({ ...rest, secretHint: secret.slice(-4) });
 
 export function sign(secret: string, timestamp: string, body: string) {
   return 'sha256=' + createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex');
@@ -97,6 +100,7 @@ async function deliver(hook: Webhook, event: string, data: unknown) {
 // ---------- Bancos PostgreSQL ----------
 interface DbConnection {
   id: string;
+  owner: string; // e-mail do Admin que criou
   name: string;
   host: string;
   port: number;
@@ -114,12 +118,12 @@ interface DbConnection {
 }
 
 const databases = new Map<string, DbConnection>();
-const publicDb = ({ password, ...rest }: DbConnection) => ({ ...rest, hasPassword: !!password });
+const publicDb = ({ password, owner: _o, ...rest }: DbConnection) => ({ ...rest, hasPassword: !!password });
 
 const HOST_PATTERN = /^[a-zA-Z0-9.\-:\[\]]{1,253}$/;
 const NAME_PATTERN = /^[\w$-]{1,63}$/; // nomes de banco, usuário e schema
 
-function parseDb(body: any, existing?: DbConnection): Omit<DbConnection, 'id' | 'lastTest'> | string {
+function parseDb(body: any, existing?: DbConnection): Omit<DbConnection, 'id' | 'owner' | 'lastTest'> | string {
   const name = String(body?.name ?? '').trim().slice(0, 80);
   const host = String(body?.host ?? '').trim();
   const port = Number(body?.port ?? 5432);
@@ -153,7 +157,7 @@ function parseDb(body: any, existing?: DbConnection): Omit<DbConnection, 'id' | 
   };
 }
 
-export function clientConfig(db: Omit<DbConnection, 'id' | 'lastTest'>): pg.ClientConfig {
+export function clientConfig(db: Omit<DbConnection, 'id' | 'owner' | 'lastTest'>): pg.ClientConfig {
   return {
     host: db.host,
     port: db.port,
@@ -183,12 +187,22 @@ function dbError(error: unknown) {
 }
 
 // ---------- Rotas ----------
+// Integrações são configuração: só Admin (Dono) mexe, e cada um só nas suas
+const ownerOf = (req: Request) => req.session!.email.toLowerCase();
+const mine = <T extends { owner: string }>(map: Map<string, T>, req: Request, id: string) => {
+  const item = map.get(id);
+  return item && item.owner === ownerOf(req) ? item : undefined;
+};
+
 export function integrationsRouter() {
   const router = Router();
   router.use(json({ limit: '100kb' }));
+  router.use((req, res, next) =>
+    req.session?.memberships.some((m) => m.papel === 'DONO') ? next() : void res.status(403).json({ error: 'Só Admin gerencia integrações.' }),
+  );
   const validId = (id: string) => /^[\w-]{1,64}$/.test(id);
 
-  router.get('/webhooks', (_req, res) => void res.json([...webhooks.values()].map(publicWebhook)));
+  router.get('/webhooks', (req, res) => void res.json([...webhooks.values()].filter((h) => h.owner === ownerOf(req)).map(publicWebhook)));
 
   // Criar ou atualizar. Na criação o segredo é gerado aqui e devolvido UMA vez.
   router.put('/webhooks/:id', async (req, res) => {
@@ -203,57 +217,67 @@ export function integrationsRouter() {
     if (!events.length) return void res.status(400).json({ error: 'Escolha ao menos um evento.' });
     const problem = await checkWebhookUrl(url);
     if (problem) return void res.status(400).json({ error: problem });
+    if (webhooks.has(id) && !mine(webhooks, req, id)) return void res.status(404).json({ error: 'Webhook não encontrado.' });
     const existing = webhooks.get(id);
     const secret = existing?.secret ?? 'whsec_' + randomBytes(24).toString('hex');
-    const hook: Webhook = { id, name, url, events, active: req.body?.active !== false, secret, lastDelivery: existing?.lastDelivery ?? null };
+    const hook: Webhook = { id, owner: ownerOf(req), name, url, events, active: req.body?.active !== false, secret, lastDelivery: existing?.lastDelivery ?? null };
     webhooks.set(id, hook);
     res.json({ ...publicWebhook(hook), secret: existing ? undefined : secret });
   });
 
   router.delete('/webhooks/:id', (req, res) => {
-    webhooks.delete(req.params.id);
+    if (mine(webhooks, req, req.params.id)) webhooks.delete(req.params.id);
     res.json({ ok: true });
   });
 
   router.post('/webhooks/:id/test', async (req, res) => {
-    const hook = webhooks.get(req.params.id);
+    const hook = mine(webhooks, req, req.params.id);
     if (!hook) return void res.status(404).json({ error: 'Webhook não encontrado.' });
     const result = await deliver(hook, 'webhook.test', { message: 'Teste de entrega do LexÁgile', webhook: hook.name });
     res.status(result.ok ? 200 : 502).json(result);
   });
 
-  // Eventos do sistema (vindos das ações registradas na auditoria): entrega a quem se inscreveu
+  // Eventos do sistema (vindos das ações registradas na auditoria): entrega só aos webhooks de quem fez a ação.
+  // ponytail: o evento vem do navegador; o certo é o servidor emitir depois de gravar (fase 2)
   router.post('/events', (req, res) => {
     const event = String(req.body?.event ?? '');
     if (!EVENT_PATTERN.test(event) || event === '*') return void res.status(400).json({ error: 'Evento inválido.' });
     const data = req.body?.data ?? {};
-    const targets = [...webhooks.values()].filter((hook) => hook.active && (hook.events.includes('*') || hook.events.includes(event)));
+    const targets = [...webhooks.values()].filter((hook) => hook.owner === ownerOf(req) && hook.active && (hook.events.includes('*') || hook.events.includes(event)));
     for (const hook of targets) void deliver(hook, event, data); // não espera: a tela não fica travada
     res.status(202).json({ queued: targets.length });
   });
 
-  router.get('/databases', (_req, res) => void res.json([...databases.values()].map(publicDb)));
+  router.get('/databases', (req, res) => void res.json([...databases.values()].filter((d) => d.owner === ownerOf(req)).map(publicDb)));
 
   // Senha em branco na atualização = manter a atual
   router.put('/databases/:id', (req, res) => {
     const id = req.params.id;
     if (!validId(id)) return void res.status(400).json({ error: 'Id inválido.' });
+    if (databases.has(id) && !mine(databases, req, id)) return void res.status(404).json({ error: 'Conexão não encontrada.' });
     const existing = databases.get(id);
     const parsed = parseDb(req.body, existing);
     if (typeof parsed === 'string') return void res.status(400).json({ error: parsed });
-    const db: DbConnection = { ...parsed, id, lastTest: existing?.lastTest ?? null };
+    const db: DbConnection = { ...parsed, id, owner: ownerOf(req), lastTest: existing?.lastTest ?? null };
     databases.set(id, db);
     res.json(publicDb(db));
   });
 
   router.delete('/databases/:id', (req, res) => {
-    databases.delete(req.params.id);
+    if (mine(databases, req, req.params.id)) databases.delete(req.params.id);
     res.json({ ok: true });
   });
 
   router.post('/databases/:id/test', async (req, res) => {
-    const db = databases.get(req.params.id);
+    const db = mine(databases, req, req.params.id);
     if (!db) return void res.status(404).json({ error: 'Conexão não encontrada.' });
+    // Sem varredura da rede interna: o host precisa resolver para um endereço público
+    try {
+      const addrs = isIP(db.host) ? [{ address: db.host }] : await lookup(db.host, { all: true });
+      if (!addrs.length || addrs.some((a) => isPrivateAddress(a.address))) return void res.status(400).json({ error: 'Endereços internos não são permitidos.' });
+    } catch {
+      return void res.status(400).json({ error: 'Host não encontrado.' });
+    }
     const client = new pg.Client(clientConfig(db));
     const started = Date.now();
     try {

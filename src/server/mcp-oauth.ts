@@ -8,10 +8,10 @@ import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprot
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
-import { InvalidGrantError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import { InvalidClientMetadataError, InvalidGrantError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { redirectUriMatches } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
 import { db } from './db';
-import { Membership, Session, readSession, usersForEmail } from './auth';
+import { Membership, Session, liveMemberships, readSession, usersForEmail } from './auth';
 
 const ACCESS_S = 60 * 60; // token de acesso: 1 hora
 const REFRESH_S = 30 * 24 * 60 * 60; // renovação: 30 dias (cada uso gera um novo)
@@ -20,6 +20,21 @@ export const SCOPE = 'lexagile';
 
 const sha = (v: string) => createHash('sha256').update(v).digest('hex');
 const random = () => randomBytes(32).toString('base64url');
+
+// Para onde o código de autorização pode voltar: o Claude (site/app) ou um programa no próprio computador
+// da pessoa (Claude Code no terminal). Sem isso, qualquer um cadastraria um "Claude" falso com retorno para o
+// site dele e pegaria o acesso de quem clicasse em "Permitir".
+const CLAUDE_CALLBACKS = ['https://claude.ai/api/mcp/auth_callback', 'https://claude.com/api/mcp/auth_callback'];
+export function allowedRedirect(raw: string) {
+  if (CLAUDE_CALLBACKS.includes(raw)) return true;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+const clientAllowed = (c: OAuthClientInformationFull) => c.redirect_uris.length > 0 && c.redirect_uris.every((u) => allowedRedirect(String(u)));
 
 // Endereço público do app (o mesmo cadastrado como APP_URL)
 export const appUrl = () => (process.env['APP_URL'] || `http://localhost:${process.env['PORT'] || 4200}`).replace(/\/$/, '');
@@ -51,13 +66,16 @@ const clientsStore: OAuthRegisteredClientsStore = {
   async getClient(clientId) {
     await ensureTables();
     const { rows } = await db().query<{ dados: OAuthClientInformationFull }>(`select dados from lexagile.oauth_cliente where "clientId" = $1`, [clientId]);
-    return rows[0]?.dados;
+    // Cliente antigo com retorno fora da lista deixa de valer
+    return rows[0]?.dados && clientAllowed(rows[0].dados) ? rows[0].dados : undefined;
   },
   async registerClient(client) {
-    await ensureTables();
     const full = client as OAuthClientInformationFull;
+    if (!clientAllowed(full)) throw new InvalidClientMetadataError('Endereço de retorno não permitido: use o Claude (claude.ai) ou o Claude Code.');
+    if (JSON.stringify(full).length > 8000) throw new InvalidClientMetadataError('Cadastro grande demais.');
+    await ensureTables();
     await db().query(`insert into lexagile.oauth_cliente ("clientId", dados) values ($1, $2)`, [full.client_id, JSON.stringify(full)]);
-    console.log(`[mcp] cliente OAuth registrado: ${full.client_name ?? full.client_id}`);
+    console.log('[mcp] cliente OAuth registrado:', JSON.stringify(full.client_name ?? full.client_id));
     return full;
   },
 };
@@ -145,12 +163,18 @@ export const oauthProvider: OAuthServerProvider = {
     );
     if (!rows[0]) throw new InvalidTokenError('Token inválido ou vencido.');
     const r = rows[0];
+    // Cargos de agora, não os do momento em que o token foi emitido
+    const memberships = await liveMemberships(r.email, r.memberships);
+    if (!memberships.length) {
+      await db().query(`delete from lexagile.oauth_token where lower(email) = lower($1)`, [r.email]); // perdeu o acesso: derruba tudo
+      throw new InvalidTokenError('Essa conta não tem mais acesso ao LexÁgile.');
+    }
     return {
       token,
       clientId: r.clientId,
       scopes: [SCOPE],
       expiresAt: Math.floor(new Date(r.expira).getTime() / 1000),
-      extra: { email: r.email, nome: r.nome, memberships: r.memberships },
+      extra: { email: r.email, nome: r.nome, memberships },
     };
   },
 
@@ -163,7 +187,11 @@ export const oauthProvider: OAuthServerProvider = {
 // ---------- Tela "Permitir acesso" ----------
 // Os dados do pedido vão num formulário assinado (HMAC com a LEXAGILE_SECRET e a sessão): ninguém consegue
 // trocar o endereço de retorno ou montar um "Permitir" em nome de outra pessoa.
-const secret = () => process.env['LEXAGILE_SECRET'] || 'lexagile-dev-secret';
+const secret = () => {
+  const value = process.env['LEXAGILE_SECRET'];
+  if (!value && (process.env['VERCEL'] || process.env['NODE_ENV'] === 'production')) throw new Error('LEXAGILE_SECRET não configurada.');
+  return value || 'lexagile-dev-secret';
+};
 const FIELDS = ['client_id', 'redirect_uri', 'state', 'code_challenge'] as const;
 type ConsentFields = Record<(typeof FIELDS)[number], string>;
 const sign = (f: ConsentFields, sessionKey: string) => createHmac('sha256', secret()).update(JSON.stringify([...FIELDS.map((k) => f[k]), sessionKey])).digest('hex');
@@ -172,7 +200,10 @@ const esc = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 function consentPage(client: OAuthClientInformationFull, params: AuthorizationParams, session: Session) {
   const fields: ConsentFields = { client_id: client.client_id, redirect_uri: params.redirectUri, state: params.state ?? '', code_challenge: params.codeChallenge };
   const hidden = FIELDS.map((k) => `<input type="hidden" name="${k}" value="${esc(fields[k])}">`).join('');
-  const app = esc(client.client_name || 'Claude');
+  const app = esc(client.client_name || 'Um aplicativo');
+  // Mostra para onde o acesso vai: "claude.ai" ou "este computador" (Claude Code)
+  const target = new URL(params.redirectUri);
+  const destination = target.protocol === 'https:' ? esc(target.host) : 'um programa neste computador (Claude Code)';
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Autorizar acesso · LexÁgile</title>
 <style>
@@ -189,6 +220,7 @@ function consentPage(client: OAuthClientInformationFull, params: AuthorizationPa
 </style></head><body><main>
 <h1>${app} quer acessar o LexÁgile</h1>
 <div class="who">Como <strong>${esc(session.nome)}</strong> (${esc(session.email)})</div>
+<p>O acesso será entregue para <strong>${destination}</strong>. Se você não reconhece, clique em Cancelar.</p>
 <p>Com a sua permissão, o ${app} poderá, com os <strong>mesmos acessos que você tem</strong> no LexÁgile:</p>
 <ul>
   <li>consultar empresas, projetos, sprints, atividades e pessoas que você pode ver;</li>
@@ -227,7 +259,7 @@ export function consentRouter() {
          values ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(secs => $8))`,
         [sha(code), f.client_id, f.redirect_uri, f.code_challenge, session.email, session.nome, JSON.stringify(session.memberships), CODE_S],
       );
-      console.log(`[mcp] ${session.email} autorizou ${client.client_name ?? client.client_id}`);
+      console.log('[mcp] autorização concedida a', JSON.stringify(client.client_name ?? client.client_id));
       back.searchParams.set('code', code);
       res.redirect(303, back.toString()); // 303 (não 302/307): segue com GET, como o callback do Claude exige
     } catch (error) {
