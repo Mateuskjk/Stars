@@ -1,4 +1,4 @@
-import { AiConfig, buildRequest, readError, readReply } from './ai';
+import { AiConfig, buildRequest, decryptKey, encryptKey, readError, readReply } from './ai';
 
 const base: AiConfig = { provider: 'openai', model: 'm', apiKey: 'sk-test', temperature: 0.5, maxTokens: 100, systemPrompt: 'Seja útil.' };
 const messages = [
@@ -46,5 +46,19 @@ describe('AI providers', () => {
     expect(readError(401, {})).toContain('Chave de API inválida');
     expect(readError(404, {})).toContain('Modelo não encontrado');
     expect(readError(500, { error: { message: 'boom' } })).toContain('boom');
+  });
+});
+
+describe('chave de API cifrada no banco', () => {
+  it('cifra e decifra; cada cifra sai diferente; dado adulterado é recusado', () => {
+    const a = encryptKey('sk-segredo-123');
+    const b = encryptKey('sk-segredo-123');
+    expect(a).not.toContain('sk-segredo');
+    expect(a).not.toBe(b); // IV aleatório
+    expect(decryptKey(a)).toBe('sk-segredo-123');
+    const [iv, tag, data] = a.split('.');
+    const flipped = Buffer.from(data, 'base64');
+    flipped[0] ^= 1;
+    expect(() => decryptKey([iv, tag, flipped.toString('base64')].join('.'))).toThrow();
   });
 });

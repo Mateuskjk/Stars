@@ -41,8 +41,6 @@ export interface ChatTurn {
   content: string;
 }
 
-const KEY = 'stars.ai-configs';
-
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, { ...init, headers: { 'content-type': 'application/json', ...init.headers } });
   const data = await response.json().catch(() => ({}));
@@ -50,54 +48,46 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-// Configurações dos modelos de IA. No navegador fica só o que não é segredo (nome, modelo, ajustes, final da chave);
-// a chave de API vai uma única vez para o servidor (/api/ai) ao salvar.
+// Configurações dos modelos de IA: ficam no servidor (banco), valem para todos os usuários e o navegador só recebe
+// o que não é segredo (nome, modelo, ajustes, final da chave). A chave de API vai uma única vez ao salvar.
+// Configurar é só para Admin; usar o assistente, para qualquer pessoa logada.
 @Injectable({ providedIn: 'root' })
 export class AiStore {
   private readonly audit = inject(AuditStore);
   readonly configs = signal<AiModelConfig[]>([]);
   readonly assistantId = signal<string | null>(null);
   readonly assistant = computed(() => this.configs().find((c) => c.id === this.assistantId()) ?? null);
-  private loaded = false;
+  private loading: Promise<void> | null = null;
 
-  // Chamado no navegador depois da primeira renderização (no SSR não existe localStorage)
+  // Busca a lista no servidor (pode ser chamado de várias telas: só busca uma vez por vez)
   load() {
-    if (this.loaded) return;
-    this.loaded = true;
-    try {
-      const data = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-      if (data && Array.isArray(data.configs)) {
-        this.configs.set(data.configs);
-        this.assistantId.set(data.assistantId ?? null);
-      }
-    } catch {
-      // armazenamento bloqueado ou dado corrompido: começa vazio
-    }
+    this.loading ??= this.refresh().finally(() => (this.loading = null));
+    return this.loading;
   }
 
-  private persist() {
+  private async refresh() {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ configs: this.configs(), assistantId: this.assistantId() }));
+      const list = await request<(AiModelConfig & { assistant: boolean })[]>('/api/ai/configs');
+      this.configs.set(list.map(({ assistant, ...c }) => c));
+      this.assistantId.set(list.find((c) => c.assistant)?.id ?? null);
     } catch {
-      // sem armazenamento: vale só nesta sessão
+      // sem login ou sem banco: fica sem modelos (o assistente avisa ao tentar usar)
     }
   }
 
   // Cria ou atualiza. apiKey vazia numa atualização = manter a chave atual do servidor.
   async save(draft: AiModelDraft, apiKey: string, id: string | null) {
     const configId = id ?? crypto.randomUUID();
-    const { keyHint } = await request<{ keyHint: string }>(`/api/ai/configs/${configId}`, {
+    const existing = this.configs().find((c) => c.id === configId);
+    await request<{ keyHint: string }>(`/api/ai/configs/${configId}`, {
       method: 'PUT',
       body: JSON.stringify({ ...draft, apiKey }),
     });
-    const existing = this.configs().find((c) => c.id === configId);
-    const config: AiModelConfig = { ...draft, id: configId, keyHint, lastTest: apiKey || !existing ? null : existing.lastTest };
-    this.configs.update((list) => (existing ? list.map((c) => (c.id === configId ? config : c)) : [...list, config]));
-    if (!this.assistantId()) this.assistantId.set(configId); // o primeiro modelo vira o assistente
-    this.persist();
+    await this.refresh();
+    const config = this.configs().find((c) => c.id === configId);
     if (!existing) {
       this.audit.log({ action: 'create', entity: 'Modelo de IA', name: draft.name, details: `${draft.provider} · ${draft.model}` });
-    } else {
+    } else if (config) {
       const details = [
         diff(existing, config, { name: 'Nome', provider: 'Fornecedor', model: 'Modelo', temperature: 'Criatividade', maxTokens: 'Limite de tokens' }),
         existing.systemPrompt !== config.systemPrompt ? 'Instruções do assistente alteradas' : '',
@@ -112,16 +102,15 @@ export class AiStore {
 
   async remove(id: string) {
     const config = this.configs().find((c) => c.id === id);
+    await request(`/api/ai/configs/${id}`, { method: 'DELETE' });
     if (config) this.audit.log({ action: 'delete', entity: 'Modelo de IA', name: config.name });
-    await request(`/api/ai/configs/${id}`, { method: 'DELETE' }).catch(() => null);
-    this.configs.update((list) => list.filter((c) => c.id !== id));
-    if (this.assistantId() === id) this.assistantId.set(this.configs()[0]?.id ?? null);
-    this.persist();
+    await this.refresh();
   }
 
-  setAssistant(id: string) {
-    this.assistantId.set(id);
-    this.persist();
+  async setAssistant(id: string) {
+    this.assistantId.set(id); // aparece na hora; o servidor confirma
+    await request('/api/ai/assistente', { method: 'PUT', body: JSON.stringify({ id }) }).catch(() => undefined);
+    await this.refresh();
   }
 
   async test(id: string) {
@@ -134,7 +123,6 @@ export class AiStore {
       lastTest = { ok: false, at, error: error instanceof Error ? error.message : 'Falha na conexão.' };
     }
     this.configs.update((list) => list.map((c) => (c.id === id ? { ...c, lastTest } : c)));
-    this.persist();
     return lastTest;
   }
 

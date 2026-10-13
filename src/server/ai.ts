@@ -1,5 +1,7 @@
 // Integração com IAs — roda SOMENTE no servidor (Node). As chaves de API ficam aqui e nunca voltam para o navegador.
-import { Router, json } from 'express';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { Request, Response, Router, json } from 'express';
+import { db } from './db';
 
 export type Provider = 'openai' | 'anthropic' | 'gemini' | 'deepseek';
 export const PROVIDERS: Provider[] = ['openai', 'anthropic', 'gemini', 'deepseek'];
@@ -125,6 +127,8 @@ function parseConfig(body: any, existing?: AiConfig): AiConfig | string {
   return { provider, model, apiKey, temperature, maxTokens, systemPrompt };
 }
 
+const nameOf = (body: any) => String(body?.name ?? '').trim().slice(0, 80) || 'Modelo de IA';
+
 function parseMessages(body: any): ChatMessage[] | string {
   const raw = Array.isArray(body?.messages) ? body.messages.slice(-20) : null; // só as 20 últimas
   if (!raw?.length) return 'Envie ao menos uma mensagem.';
@@ -133,58 +137,212 @@ function parseMessages(body: any): ChatMessage[] | string {
   return messages;
 }
 
-// ponytail: configs (com as chaves) ficam na memória do servidor e somem ao reiniciar; em produção,
-// guardar cifradas num banco/cofre de segredos — e proteger estas rotas com login quando ele existir,
-// senão qualquer pessoa que acesse o servidor consegue gastar os créditos das chaves salvas.
-const configs = new Map<string, AiConfig>();
+// ---------- Guarda no banco (lexagile.ia_config) ----------
+// Vale para todos os usuários e para qualquer cópia do servidor (Vercel). A chave de API fica CIFRADA
+// (AES-256-GCM) com a LEXAGILE_SECRET do servidor; nunca volta para o navegador, só os 4 últimos caracteres.
+interface StoredData {
+  name: string;
+  provider: Provider;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  systemPrompt: string;
+  keyHint: string;
+  lastTest: { ok: boolean; at: string; latencyMs?: number; error?: string } | null;
+}
+
+class AiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+let warned = false;
+function cipherKey() {
+  const secret = process.env['LEXAGILE_SECRET'];
+  if (!secret) {
+    if (process.env['NODE_ENV'] === 'production') {
+      throw new AiError(503, 'Defina a variável LEXAGILE_SECRET no servidor para guardar as chaves de IA com segurança.');
+    }
+    if (!warned) console.warn('[ai] LEXAGILE_SECRET não definida: usando uma chave de desenvolvimento (não use em produção)');
+    warned = true;
+  }
+  return createHash('sha256').update(secret || 'lexagile-dev-secret').digest();
+}
+
+export function encryptKey(plain: string) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', cipherKey(), iv);
+  const data = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+  return [iv, cipher.getAuthTag(), data].map((b) => b.toString('base64')).join('.');
+}
+
+export function decryptKey(stored: string) {
+  const [iv, tag, data] = stored.split('.').map((p) => Buffer.from(p, 'base64'));
+  const decipher = createDecipheriv('aes-256-gcm', cipherKey(), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+}
+
+let table: Promise<void> | null = null;
+function ensureTable() {
+  table ??= db()
+    .query(
+      `create schema if not exists lexagile;
+       create table if not exists lexagile.ia_config (
+         id text primary key,
+         dados jsonb not null,
+         "chaveCifrada" text not null,
+         assistente boolean not null default false,
+         "atualizadoEm" timestamptz not null default now()
+       )`,
+    )
+    .then(() => undefined)
+    .catch((error) => {
+      table = null;
+      throw error;
+    });
+  return table;
+}
+
+async function readRow(id: string) {
+  await ensureTable();
+  const { rows } = await db().query<{ dados: StoredData; chaveCifrada: string; assistente: boolean }>(
+    `select dados, "chaveCifrada", assistente from lexagile.ia_config where id = $1`,
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
+const toConfig = (row: { dados: StoredData; chaveCifrada: string }): AiConfig => ({ ...row.dados, apiKey: decryptKey(row.chaveCifrada) });
+
+// Configurar a IA: só Admin (Dono). Usar o assistente: qualquer pessoa logada.
+const isAdmin = (req: Request) => !!req.session?.memberships.some((m) => m.papel === 'DONO');
+
+function handle(fn: (req: Request, res: Response) => Promise<void>, adminOnly = false) {
+  return async (req: Request, res: Response) => {
+    if (adminOnly && !isAdmin(req)) return void res.status(403).json({ error: 'Só Admin configura os modelos de IA.' });
+    try {
+      await fn(req, res);
+    } catch (error) {
+      if (error instanceof AiError) return void res.status(error.status).json({ error: error.message });
+      console.error('[ai]', req.method, req.path, (error as Error).message);
+      res.status(500).json({ error: 'Não foi possível acessar as configurações de IA.' });
+    }
+  };
+}
 
 export function aiRouter() {
   const router = Router();
   router.use(json({ limit: '100kb' }));
 
+  // Lista (sem as chaves) e qual é o assistente
+  router.get(
+    '/configs',
+    handle(async (_req, res) => {
+      await ensureTable();
+      const { rows } = await db().query<{ id: string; dados: StoredData; assistente: boolean }>(
+        `select id, dados, assistente from lexagile.ia_config order by "atualizadoEm"`,
+      );
+      res.json(rows.map((r) => ({ id: r.id, ...r.dados, assistant: r.assistente })));
+    }),
+  );
+
   // Salvar (criar ou atualizar). A chave é opcional na atualização: sem chave nova, mantém a atual.
-  router.put('/configs/:id', (req, res) => {
-    const id = req.params.id;
-    if (!/^[\w-]{1,64}$/.test(id)) return void res.status(400).json({ error: 'Id inválido.' });
-    const parsed = parseConfig(req.body, configs.get(id));
-    if (typeof parsed === 'string') return void res.status(400).json({ error: parsed });
-    configs.set(id, parsed);
-    res.json({ ok: true, keyHint: parsed.apiKey.slice(-4) });
-  });
+  router.put(
+    '/configs/:id',
+    handle(async (req, res) => {
+      const id = String(req.params['id']);
+      if (!/^[\w-]{1,64}$/.test(id)) return void res.status(400).json({ error: 'Id inválido.' });
+      const existing = await readRow(id);
+      const parsed = parseConfig(req.body, existing ? toConfig(existing) : undefined);
+      if (typeof parsed === 'string') return void res.status(400).json({ error: parsed });
+      const keyChanged = !existing || (typeof req.body?.apiKey === 'string' && !!req.body.apiKey.trim());
+      const { apiKey, ...rest } = parsed;
+      const dados: StoredData = { ...rest, name: nameOf(req.body), keyHint: apiKey.slice(-4), lastTest: keyChanged ? null : (existing?.dados.lastTest ?? null) };
+      // O primeiro modelo salvo vira o assistente
+      const { rows } = await db().query(`select 1 from lexagile.ia_config where assistente limit 1`);
+      await db().query(
+        `insert into lexagile.ia_config (id, dados, "chaveCifrada", assistente) values ($1, $2, $3, $4)
+         on conflict (id) do update set dados = excluded.dados, "chaveCifrada" = excluded."chaveCifrada", "atualizadoEm" = now()`,
+        [id, JSON.stringify(dados), encryptKey(apiKey), !rows.length],
+      );
+      console.log(`[ai] ${req.session!.email} salvou o modelo ${dados.name} (${dados.provider} · ${dados.model})`);
+      res.json({ ok: true, keyHint: dados.keyHint });
+    }, true),
+  );
 
-  router.delete('/configs/:id', (req, res) => {
-    configs.delete(req.params.id);
-    res.json({ ok: true });
-  });
+  router.delete(
+    '/configs/:id',
+    handle(async (req, res) => {
+      await ensureTable();
+      const { rows } = await db().query<{ assistente: boolean }>(`delete from lexagile.ia_config where id = $1 returning assistente`, [String(req.params['id'])]);
+      // Era o assistente: o próximo modelo assume
+      if (rows[0]?.assistente) {
+        await db().query(`update lexagile.ia_config set assistente = true where id = (select id from lexagile.ia_config order by "atualizadoEm" limit 1)`);
+      }
+      res.json({ ok: true });
+    }, true),
+  );
 
-  // Testa a conexão com uma pergunta curtinha
-  router.post('/configs/:id/test', async (req, res) => {
-    const config = configs.get(req.params.id);
-    if (!config) return void res.status(404).json({ error: 'Configuração não encontrada no servidor. Salve de novo.' });
-    try {
-      const { reply, latencyMs } = await callModel({ ...config, maxTokens: Math.min(config.maxTokens, 64) }, [
-        { role: 'user', content: 'Responda só com a palavra: ok' },
-      ], 15_000);
-      res.json({ ok: true, latencyMs, reply: reply.slice(0, 100) });
-    } catch (error) {
-      res.status(502).json({ ok: false, error: error instanceof Error ? error.message : 'Falha na conexão.' });
-    }
-  });
+  router.put(
+    '/assistente',
+    handle(async (req, res) => {
+      const id = String(req.body?.id ?? '');
+      if (!(await readRow(id))) return void res.status(404).json({ error: 'Modelo não encontrado.' });
+      await db().query(`update lexagile.ia_config set assistente = (id = $1)`, [id]);
+      res.json({ ok: true });
+    }, true),
+  );
 
-  router.post('/chat', async (req, res) => {
-    const config = configs.get(String(req.body?.configId ?? ''));
-    if (!config) return void res.status(404).json({ error: 'Assistente não configurado no servidor. Salve a integração de novo.' });
-    const messages = parseMessages(req.body);
-    if (typeof messages === 'string') return void res.status(400).json({ error: messages });
-    const page = String(req.body?.page ?? '').slice(0, 200);
-    const systemPrompt = `${config.systemPrompt}\n\nO usuário está agora na tela: ${page || 'desconhecida'}.`;
-    try {
-      const { reply } = await callModel({ ...config, systemPrompt }, messages);
-      res.json({ reply });
-    } catch (error) {
-      res.status(502).json({ error: error instanceof Error ? error.message : 'Falha ao falar com a IA.' });
-    }
-  });
+  // Testa a conexão com uma pergunta curtinha (e guarda o resultado)
+  router.post(
+    '/configs/:id/test',
+    handle(async (req, res) => {
+      const id = String(req.params['id']);
+      const row = await readRow(id);
+      if (!row) return void res.status(404).json({ error: 'Configuração não encontrada. Salve de novo.' });
+      const config = toConfig(row);
+      const at = new Date().toISOString();
+      try {
+        const { reply, latencyMs } = await callModel({ ...config, maxTokens: Math.min(config.maxTokens, 64) }, [
+          { role: 'user', content: 'Responda só com a palavra: ok' },
+        ], 15_000);
+        await db().query(`update lexagile.ia_config set dados = dados || $2 where id = $1`, [id, JSON.stringify({ lastTest: { ok: true, at, latencyMs } })]);
+        res.json({ ok: true, latencyMs, reply: reply.slice(0, 100) });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Falha na conexão.';
+        await db().query(`update lexagile.ia_config set dados = dados || $2 where id = $1`, [id, JSON.stringify({ lastTest: { ok: false, at, error: message } })]);
+        res.status(502).json({ ok: false, error: message });
+      }
+    }, true),
+  );
+
+  // Conversa com o assistente (o modelo marcado como assistente)
+  router.post(
+    '/chat',
+    handle(async (req, res) => {
+      await ensureTable();
+      const { rows } = await db().query<{ dados: StoredData; chaveCifrada: string }>(
+        `select dados, "chaveCifrada" from lexagile.ia_config where assistente limit 1`,
+      );
+      if (!rows[0]) return void res.status(404).json({ error: 'Nenhum modelo de IA configurado. Peça a um Admin em Configurações › Integração com IA.' });
+      const config = toConfig(rows[0]);
+      const messages = parseMessages(req.body);
+      if (typeof messages === 'string') return void res.status(400).json({ error: messages });
+      const page = String(req.body?.page ?? '').slice(0, 200);
+      const systemPrompt = `${config.systemPrompt}\n\nO usuário está agora na tela: ${page || 'desconhecida'}.`;
+      try {
+        const { reply } = await callModel({ ...config, systemPrompt }, messages);
+        res.json({ reply });
+      } catch (error) {
+        res.status(502).json({ error: error instanceof Error ? error.message : 'Falha ao falar com a IA.' });
+      }
+    }),
+  );
 
   return router;
 }

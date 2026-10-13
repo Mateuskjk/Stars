@@ -54,6 +54,7 @@ export class AiIntegration {
   protected readonly apiKey = signal('');
   protected readonly saving = signal(false);
   protected readonly error = signal('');
+  protected readonly pageError = signal(''); // erros fora do formulário (ex.: excluir sem ser Admin)
   protected readonly editingConfig = computed(() => this.store.configs().find((c) => c.id === this.editingId()) ?? null);
 
   protected openNew() {
@@ -120,7 +121,13 @@ export class AiIntegration {
   protected async confirmDelete() {
     const config = this.deleting();
     this.confirmDialog().nativeElement.close();
-    if (config) await this.store.remove(config.id);
+    if (!config) return;
+    this.pageError.set('');
+    try {
+      await this.store.remove(config.id);
+    } catch (error) {
+      this.pageError.set(error instanceof Error ? error.message : 'Não foi possível excluir.');
+    }
   }
 
   protected cancelDelete() {
