@@ -184,7 +184,8 @@ export function encryptKey(plain: string) {
 
 export function decryptKey(stored: string) {
   const [iv, tag, data] = stored.split('.').map((p) => Buffer.from(p, 'base64'));
-  const decipher = createDecipheriv('aes-256-gcm', cipherKey(), iv);
+  // Tag de 16 bytes exigida: uma tag truncada (gravada por quem mexeu no banco) não passa como válida
+  const decipher = createDecipheriv('aes-256-gcm', cipherKey(), iv, { authTagLength: 16 });
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }

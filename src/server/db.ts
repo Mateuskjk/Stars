@@ -14,6 +14,7 @@ function sslOptions(): pg.ConnectionConfig['ssl'] {
     console.warn('[db] DATABASE_CA não definida: TLS com o banco sem conferir o certificado');
     warned = true;
   }
+  // nosemgrep: bypass-tls-verification -- reserva intencional sem DATABASE_CA (cifrado, sem conferir o certificado; avisa no log)
   return { rejectUnauthorized: false };
 }
 

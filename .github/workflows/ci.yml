@@ -1,0 +1,75 @@
+# Verificações a cada push na main e em todo pull request. Se algo falhar, o PR fica vermelho.
+# Ferramentas gratuitas que rodam aqui mesmo (o repositório é privado e sem GitHub Advanced Security):
+#   build + testes · npm audit (dependências) · Semgrep (código, regras OWASP) · gitleaks (segredos no histórico)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx ng test --watch=false
+      - run: npx ng build
+
+  dependencies:
+    name: Dependências (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Só o que vai para produção; falha em vulnerabilidade alta ou crítica
+      - run: npm audit --omit=dev --audit-level=high
+
+  semgrep:
+    name: Análise do código (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep:1.119.0
+    steps:
+      - uses: actions/checkout@v4
+      # Exceção justificada no código: comentário "nosemgrep: <regra> -- motivo" na linha de cima
+      - run: >-
+          semgrep scan
+          --config p/owasp-top-ten --config p/typescript --config p/expressjs --config p/nodejs --config p/secrets
+          --metrics=off --error
+          --exclude node_modules --exclude dist --exclude "*.spec.ts"
+          src api
+
+  secrets:
+    name: Segredos no histórico (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # histórico inteiro: um segredo apagado num commit novo continua nos antigos
+      - name: Instalar gitleaks
+        run: |
+          curl -sSL -o gitleaks.tgz https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_linux_x64.tar.gz
+          tar xzf gitleaks.tgz gitleaks
+      # --redact: o log do Actions nunca mostra o valor encontrado
+      - run: ./gitleaks git . --redact --no-banner --verbose

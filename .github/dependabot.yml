@@ -1,0 +1,21 @@
+# Dependabot: abre PRs semanais com atualizações (o CI roda em cada um antes do merge)
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Angular sobe junto (as versões dos pacotes precisam bater)
+      angular:
+        patterns: ['@angular/*', '@angular-devkit/*']
+      dev-tools:
+        dependency-type: development
+        exclude-patterns: ['@angular/*', '@angular-devkit/*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
