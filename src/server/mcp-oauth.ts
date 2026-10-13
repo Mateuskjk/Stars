@@ -15,6 +15,7 @@ import { Membership, Session, liveMemberships, readSession, usersForEmail } from
 
 const ACCESS_S = 60 * 60; // token de acesso: 1 hora
 const REFRESH_S = 30 * 24 * 60 * 60; // renovação: 30 dias (cada uso gera um novo)
+const FAMILY_MAX_DAYS = 90; // depois de 90 dias desde o "Permitir", tem de conectar de novo
 const CODE_S = 10 * 60; // código de autorização: 10 minutos, uso único
 export const SCOPE = 'lexagile';
 
@@ -51,7 +52,11 @@ function ensureTables() {
          email text not null, nome text not null, memberships jsonb not null, expira timestamptz not null);
        create table if not exists lexagile.oauth_token (
          "tokenHash" text primary key, tipo text not null, "clientId" text not null,
-         email text not null, nome text not null, memberships jsonb not null, expira timestamptz not null);`,
+         email text not null, nome text not null, memberships jsonb not null, expira timestamptz not null);
+       -- Família: todos os tokens que vieram do mesmo "Permitir". Reuso de um refresh já usado derruba a família inteira.
+       alter table lexagile.oauth_token add column if not exists familia text;
+       alter table lexagile.oauth_token add column if not exists "familiaInicio" timestamptz;
+       alter table lexagile.oauth_token add column if not exists usado boolean not null default false;`,
     )
     .then(() => undefined)
     .catch((error) => {
@@ -81,14 +86,19 @@ const clientsStore: OAuthRegisteredClientsStore = {
 };
 
 // ---------- Tokens ----------
-async function issueTokens(clientId: string, who: { email: string; nome: string; memberships: Membership[] }): Promise<OAuthTokens> {
+async function issueTokens(
+  clientId: string,
+  who: { email: string; nome: string; memberships: Membership[] },
+  family: { id: string; since: string } | null = null, // null: um "Permitir" novo começa uma família
+): Promise<OAuthTokens> {
   const access = random();
   const refresh = random();
-  const insert = `insert into lexagile.oauth_token ("tokenHash", tipo, "clientId", email, nome, memberships, expira)
-                  values ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7))`;
-  await db().query(`delete from lexagile.oauth_token where expira < now()`); // limpa os vencidos
-  await db().query(insert, [sha(access), 'access', clientId, who.email, who.nome, JSON.stringify(who.memberships), ACCESS_S]);
-  await db().query(insert, [sha(refresh), 'refresh', clientId, who.email, who.nome, JSON.stringify(who.memberships), REFRESH_S]);
+  const fam = family ?? { id: random(), since: new Date().toISOString() };
+  const insert = `insert into lexagile.oauth_token ("tokenHash", tipo, "clientId", email, nome, memberships, expira, familia, "familiaInicio")
+                  values ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7), $8, $9)`;
+  await db().query(`delete from lexagile.oauth_token where expira < now()`); // limpa os vencidos (inclusive os refresh já usados)
+  await db().query(insert, [sha(access), 'access', clientId, who.email, who.nome, JSON.stringify(who.memberships), ACCESS_S, fam.id, fam.since]);
+  await db().query(insert, [sha(refresh), 'refresh', clientId, who.email, who.nome, JSON.stringify(who.memberships), REFRESH_S, fam.id, fam.since]);
   return { access_token: access, token_type: 'bearer', expires_in: ACCESS_S, refresh_token: refresh, scope: SCOPE };
 }
 
@@ -134,25 +144,44 @@ export const oauthProvider: OAuthServerProvider = {
       [sha(code), client.client_id],
     );
     const row = rows[0];
-    if (!row || (redirectUri && redirectUri !== row.redirectUri)) throw new InvalidGrantError('Código inválido ou vencido.');
+    if (!row || redirectUri !== row.redirectUri) throw new InvalidGrantError('Código inválido ou vencido.');
     return issueTokens(client.client_id, row);
   },
 
   async exchangeRefreshToken(client, refreshToken) {
     await ensureTables();
-    const { rows } = await db().query<{ email: string }>(
-      `delete from lexagile.oauth_token where "tokenHash" = $1 and tipo = 'refresh' and "clientId" = $2 and expira > now() returning email`,
+    // Marca como usado (fica guardado até vencer, para reconhecer um reuso)
+    const { rows } = await db().query<{ email: string; familia: string | null; familiaInicio: string | null }>(
+      `update lexagile.oauth_token set usado = true
+        where "tokenHash" = $1 and tipo = 'refresh' and "clientId" = $2 and expira > now() and not usado
+        returning email, familia, "familiaInicio"`,
       [sha(refreshToken), client.client_id],
     );
-    if (!rows[0]) throw new InvalidGrantError('Acesso vencido. Conecte o LexÁgile de novo.');
+    if (!rows[0]) {
+      // Refresh já usado aparecendo de novo: alguém copiou o token. Derruba a família inteira (o atacante e o legítimo).
+      const { rows: reused } = await db().query<{ familia: string | null }>(
+        `select familia from lexagile.oauth_token where "tokenHash" = $1 and tipo = 'refresh' and usado`,
+        [sha(refreshToken)],
+      );
+      if (reused[0]?.familia) {
+        await db().query(`delete from lexagile.oauth_token where familia = $1`, [reused[0].familia]);
+        console.warn('[mcp] refresh token reutilizado: acesso dessa conexão revogado');
+      }
+      throw new InvalidGrantError('Acesso vencido. Conecte o LexÁgile de novo.');
+    }
+    const family = { id: rows[0].familia ?? random(), since: rows[0].familiaInicio ?? new Date().toISOString() };
+    if (Date.parse(family.since) < Date.now() - FAMILY_MAX_DAYS * 86_400_000) {
+      await db().query(`delete from lexagile.oauth_token where familia = $1`, [family.id]);
+      throw new InvalidGrantError(`Conexão com mais de ${FAMILY_MAX_DAYS} dias. Conecte o LexÁgile de novo.`);
+    }
     // Renova com as empresas e cargos de hoje (se a pessoa saiu ou o domínio foi removido, perde o acesso)
     const users = await usersForEmail(rows[0].email);
     if (!users.length) throw new InvalidGrantError('Essa conta não tem mais acesso ao LexÁgile.');
-    return issueTokens(client.client_id, {
-      email: rows[0].email,
-      nome: users[0].nome,
-      memberships: users.map((u) => ({ usuarioId: u.id, tenantId: u.tenantId, papel: u.papel })),
-    });
+    return issueTokens(
+      client.client_id,
+      { email: rows[0].email, nome: users[0].nome, memberships: users.map((u) => ({ usuarioId: u.id, tenantId: u.tenantId, papel: u.papel })) },
+      family,
+    );
   },
 
   async verifyAccessToken(token): Promise<AuthInfo> {
@@ -178,9 +207,14 @@ export const oauthProvider: OAuthServerProvider = {
     };
   },
 
-  async revokeToken(_client, request) {
+  // Revogar um token derruba a conexão inteira (o par access + refresh), e só do próprio cliente
+  async revokeToken(client, request) {
     await ensureTables();
-    await db().query(`delete from lexagile.oauth_token where "tokenHash" = $1`, [sha(request.token)]);
+    await db().query(
+      `delete from lexagile.oauth_token where "clientId" = $2 and ("tokenHash" = $1
+         or familia = (select familia from lexagile.oauth_token where "tokenHash" = $1 and "clientId" = $2))`,
+      [sha(request.token), client.client_id],
+    );
   },
 };
 

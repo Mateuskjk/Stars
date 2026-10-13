@@ -3,12 +3,25 @@ import pg from 'pg';
 
 let pool: pg.Pool | null = null;
 
+// TLS com o banco. Com DATABASE_CA (o certificado do Supabase: Database › Settings › SSL Configuration ›
+// Download certificate, colado inteiro na variável), o certificado do servidor é conferido: ninguém no caminho
+// da rede consegue se passar pelo banco. Sem ela, a conexão é cifrada mas sem conferir quem está do outro lado.
+let warned = false;
+function sslOptions(): pg.ConnectionConfig['ssl'] {
+  const ca = process.env['DATABASE_CA']?.replace(/\\n/g, '\n').trim();
+  if (ca) return { ca, rejectUnauthorized: true };
+  if (!warned && (process.env['NODE_ENV'] === 'production' || process.env['VERCEL'])) {
+    console.warn('[db] DATABASE_CA não definida: TLS com o banco sem conferir o certificado');
+    warned = true;
+  }
+  return { rejectUnauthorized: false };
+}
+
 export function db() {
   if (!pool) {
     const url = process.env['DATABASE_URL'];
     if (!url) throw new Error('DATABASE_URL não configurada no .env');
-    // ponytail: TLS sem validar o certificado do pooler; para validar, baixe o CA do Supabase e passe em ssl.ca
-    pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, max: 5 });
+    pool = new pg.Pool({ connectionString: url, ssl: sslOptions(), max: 5 });
   }
   return pool;
 }

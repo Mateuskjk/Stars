@@ -5,6 +5,7 @@ import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { NextFunction, Request, Response, Router, json } from 'express';
 import { db } from './db';
 import { isAllowedEmail } from './domains';
+import { count, hit, reset } from './limits';
 
 // Uma pessoa (e-mail) pode ter um usuário em cada empresa (Tenant)
 export interface Membership {
@@ -88,23 +89,19 @@ export async function verifyPassword(password: string, stored: string | null): P
 
 const DUMMY_HASH = `scrypt$32768$8$1$${Buffer.alloc(16).toString('base64')}$${Buffer.alloc(32).toString('base64')}`;
 
-// ---------- Limite de tentativas: 5 erros em 15 minutos por e-mail e por IP ----------
-const failures = new Map<string, { count: number; since: number }>();
-const WINDOW = 15 * 60 * 1000;
+// ---------- Limite de tentativas de login (no banco: vale em todas as cópias do servidor) ----------
+// Em 15 minutos: 5 erros do mesmo e-mail no mesmo IP, 20 de um IP, 30 contra um e-mail (de vários IPs).
+// Separados assim, um atacante não tranca a conta de outra pessoa só errando a senha dela 5 vezes.
+const WINDOW_S = 15 * 60;
+export const loginKeys = (email: string, ip: string) => ({ [`login:${email}|${ip}`]: 5, [`login-ip:${ip}`]: 20, [`login-email:${email}`]: 30 });
 
-export function tooManyAttempts(keys: string[], now = Date.now()) {
-  return keys.some((k) => {
-    const f = failures.get(k);
-    return !!f && now - f.since < WINDOW && f.count >= 5;
-  });
+export async function tooManyAttempts(keys: Record<string, number>) {
+  const counts = await Promise.all(Object.entries(keys).map(async ([k, max]) => (await count(k, WINDOW_S)) >= max));
+  return counts.some(Boolean);
 }
 
-function recordFailure(keys: string[], now = Date.now()) {
-  for (const k of keys) {
-    const f = failures.get(k);
-    if (!f || now - f.since >= WINDOW) failures.set(k, { count: 1, since: now });
-    else f.count++;
-  }
+async function recordFailure(keys: Record<string, number>) {
+  await Promise.all(Object.keys(keys).map((k) => hit(k, WINDOW_S)));
 }
 
 // ---------- Sessão ----------
@@ -208,6 +205,17 @@ export async function liveMemberships(email: string, before: Membership[]): Prom
   return rows;
 }
 
+// Superadmin: configurações que valem para TODAS as empresas (domínios permitidos, modelos de IA).
+// Ser Dono de uma empresa não basta (senão o Dono da empresa A mexeria no login e na IA da empresa B).
+// Lista de e-mails em LEXAGILE_SUPERADMINS, separados por vírgula. Sem a variável, só em desenvolvimento qualquer Dono vale.
+export function isSuperAdmin(s: Session) {
+  const list = (process.env['LEXAGILE_SUPERADMINS'] ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  if (list.length) return list.includes(s.email.toLowerCase());
+  const production = process.env['NODE_ENV'] === 'production' || !!process.env['VERCEL'];
+  return !production && s.memberships.some((m) => m.papel === 'DONO');
+}
+export const SUPERADMIN_ONLY = 'Só o superadmin do LexÁgile altera esta configuração (variável LEXAGILE_SUPERADMINS no servidor).';
+
 // Rotas protegidas: sem sessão válida, 401
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   let session: Session | undefined;
@@ -233,12 +241,12 @@ export function authRouter() {
   router.post('/login', async (req, res) => {
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     const senha = String(req.body?.senha ?? '');
-    const keys = [`email:${email}`, `ip:${req.ip}`];
+    const keys = loginKeys(email, req.ip ?? '');
     if (!email || !senha || senha.length > 200) {
       res.status(400).json({ error: 'Informe e-mail e senha.' });
       return;
     }
-    if (tooManyAttempts(keys)) {
+    if (await tooManyAttempts(keys)) {
       res.status(429).json({ error: 'Muitas tentativas. Tente de novo em alguns minutos.' });
       return;
     }
@@ -258,11 +266,12 @@ export function authRouter() {
       // E-mail sem conta: faz o mesmo trabalho de conferir a senha, para o tempo de resposta não denunciar
       if (!rows.length) await verifyPassword(senha, DUMMY_HASH);
       if (!matched.length) {
-        recordFailure(keys);
+        await recordFailure(keys);
         // Mesma mensagem para e-mail inexistente e senha errada (não revela quem tem conta)
         res.status(401).json({ error: 'E-mail ou senha incorretos.' });
         return;
       }
+      await reset(`login:${email}|${req.ip ?? ''}`); // acertou: zera os erros deste e-mail neste IP
       await startSession(res, email, matched);
       res.json({ nome: matched[0].nome, empresas: matched.length });
     } catch (error) {

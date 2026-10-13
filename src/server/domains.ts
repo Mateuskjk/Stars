@@ -2,7 +2,7 @@
 // Só entra quem já tem usuário no banco E e-mail de um domínio desta lista (login com senha, com Google e convites).
 import { Router, json } from 'express';
 import { db } from './db';
-import { requireAuth } from './auth';
+import { requireAuth, SUPERADMIN_ONLY, isSuperAdmin } from './auth';
 
 // Lista inicial (e reserva, se o banco não responder: nesse caso só estes entram)
 export const DEFAULT_DOMAINS = ['luisalbertadv.com.br', 'nicolasgomesadv.com.br', 'lexgroup.com.br'];
@@ -52,17 +52,16 @@ export async function isAllowedEmail(email: string) {
   return !!domain && (await allowedDomains()).includes(domain);
 }
 
-// Configurações › Membros: ver (todos logados), adicionar e remover (só Admin)
+// Configurações › Membros: ver (todos logados), adicionar e remover (só superadmin: a lista vale para todas as empresas)
 export function domainsRouter() {
   const router = Router();
   router.use(requireAuth, json({ limit: '5kb' }));
-  const isAdmin = (papeis: string[]) => papeis.includes('DONO');
 
   router.get('/dominios', async (_req, res) => void res.json(await allowedDomains()));
 
   router.post('/dominios', async (req, res) => {
-    if (!isAdmin(req.session!.memberships.map((m) => m.papel))) {
-      res.status(403).json({ error: 'Só Admin altera os domínios permitidos.' });
+    if (!isSuperAdmin(req.session!)) {
+      res.status(403).json({ error: SUPERADMIN_ONLY });
       return;
     }
     const dominio = String(req.body?.dominio ?? '')
@@ -86,8 +85,8 @@ export function domainsRouter() {
   });
 
   router.delete('/dominios/:dominio', async (req, res) => {
-    if (!isAdmin(req.session!.memberships.map((m) => m.papel))) {
-      res.status(403).json({ error: 'Só Admin altera os domínios permitidos.' });
+    if (!isSuperAdmin(req.session!)) {
+      res.status(403).json({ error: SUPERADMIN_ONLY });
       return;
     }
     const dominio = String(req.params['dominio']).toLowerCase();

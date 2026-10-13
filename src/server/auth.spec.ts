@@ -1,5 +1,6 @@
 import { randomBytes, scryptSync } from 'node:crypto';
-import { tooManyAttempts, verifyPassword } from './auth';
+import { loginKeys, tooManyAttempts, verifyPassword } from './auth';
+import { hit } from './limits';
 
 // Gera um hash no mesmo formato do banco: scrypt$N$r$p$salt$hash
 function makeHash(password: string, saltAsText = false) {
@@ -27,7 +28,14 @@ describe('verifyPassword', () => {
 });
 
 describe('tooManyAttempts', () => {
-  it('sem falhas registradas, libera', () => {
-    expect(tooManyAttempts(['email:ninguem@x.com'])).toBe(false);
+  it('sem falhas registradas, libera', async () => {
+    expect(await tooManyAttempts(loginKeys('ninguem@x.com', '1.1.1.1'))).toBe(false);
+  });
+
+  it('5 erros do mesmo e-mail no mesmo IP bloqueiam só esse par (outro IP ainda entra)', async () => {
+    const email = `vitima${Math.random()}@x.com`;
+    for (let i = 0; i < 5; i++) for (const k of Object.keys(loginKeys(email, '6.6.6.6'))) await hit(k, 900);
+    expect(await tooManyAttempts(loginKeys(email, '6.6.6.6'))).toBe(true);
+    expect(await tooManyAttempts(loginKeys(email, '7.7.7.7'))).toBe(false);
   });
 });

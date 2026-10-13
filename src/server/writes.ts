@@ -6,7 +6,7 @@ import type { PoolClient } from 'pg';
 import { db } from './db';
 import { Session, requireAuth } from './auth';
 import { HttpError, createTenant, ensureSchema, newId } from './migration';
-import { meOf, seesAllTenants, tenantsOf, visibleActivitySql } from './data';
+import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
 import { isAllowedEmail } from './domains';
 
 const STATUSES = ['RASCUNHO', 'PRONTO', 'EM_EXECUCAO', 'EM_REVISAO', 'CONCLUIDO'];
@@ -198,7 +198,14 @@ export async function createActivity(client: PoolClient, s: Session, body: Recor
   const tenantId = nonEmpty(body['tenantId'], 60, 'empresa');
   const me = writer(s, tenantId).usuarioId;
   const projetoId = idOrNull(body['projetoId'], 'projeto');
-  if (projetoId) await sameTenant(client, 'Projeto', [projetoId], tenantId, 'Projeto');
+  if (projetoId) {
+    // Projeto da mesma empresa E visível para a pessoa (criar um cartão não pode "abrir" um projeto escondido)
+    const installed = await ensureSchema();
+    const { rows } = await client.query(`select 1 from "Projeto" p where p.id = $4 and p."tenantId" = $5 and ${visibleProjectSql(installed)}`, [
+      tenantsOf(s), meOf(s), await seesAllTenants(s, installed), projetoId, tenantId,
+    ]);
+    if (!rows[0]) throw new HttpError(400, 'Projeto de outra empresa ou inexistente.');
+  }
   const id = newId();
   await client.query(
     `insert into "Atividade" (id, numero, titulo, "tenantId", "projetoId", "criadoPorId", "responsavelId", "atualizadoEm")

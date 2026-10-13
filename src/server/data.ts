@@ -40,6 +40,20 @@ export const visibleActivitySql = (installed: boolean) => `
     )${installed ? SECTOR_MANAGER_SQL : ''}
   )`;
 
+// Projetos visíveis (alias "p"; mesmos parâmetros: $1 empresas, $2 usuários, $3 empresas em que vê tudo).
+// Atendente/Observador numa empresa restrita: os do seu setor, da sua equipe, os que é responsável e os que têm
+// alguma atividade que ele vê. Usada na tela, nos extras, ao criar atividade e no MCP.
+export const visibleProjectSql = (installed: boolean) => `
+  p."tenantId" = any($1::text[]) and (
+    p."tenantId" = any($3::text[])
+    or p."responsavelId" = any($2::text[])
+    or p."equipeId" in (select "equipeId" from "EquipeMembro" where "usuarioId" = any($2::text[]))
+    or exists (select 1 from "Atividade" a where a."projetoId" = p.id and ${visibleActivitySql(installed)})${
+      installed ? `
+    or p."setorId" in (select "setorId" from lexagile.setor_membro where "usuarioId" = any($2::text[]))` : ''
+    }
+  )`;
+
 export async function seesAllTenants(s: Session, installed: boolean) {
   const { rows } = await db().query<{ id: string }>(
     installed
@@ -141,14 +155,7 @@ export function dataRouter() {
         `select id, numero, nome, descricao, objetivo, "dataInicio", "previsaoTermino", status, situacao, prioridade,
                 progresso, "responsavelId", "equipeId", "setorId", "tenantId", arquivado,
                 orcamento, "custoPrevisto", "custoRealizado", "pontosEntrega", links, "criadoEm", "atualizadoEm"
-           from "Projeto" p where "tenantId" = any($1::text[]) and (
-             "tenantId" = any($3::text[])
-             or "responsavelId" = any($2::text[])
-             or "equipeId" in (select "equipeId" from "EquipeMembro" where "usuarioId" = any($2::text[]))
-             or exists (select 1 from "Atividade" a where a."projetoId" = p.id and ${visibleActivitySql(installed)})${
-               installed ? `
-             or "setorId" in (select "setorId" from lexagile.setor_membro where "usuarioId" = any($2::text[]))` : ''
-             })
+           from "Projeto" p where ${visibleProjectSql(installed)}
           order by numero nulls last, nome`,
         [tenantsOf(s), meOf(s), await seesAllTenants(s, installed)],
       );
@@ -198,7 +205,17 @@ export function dataRouter() {
     '/extras',
     route(async (_req, s) => {
       if (!(await ensureSchema())) return [];
-      const { rows } = await db().query(`select tipo, "registroId", dados from lexagile.extra where "tenantId" = any($1::text[]) and tipo <> 'daily'`, [tenantsOf(s)]);
+      // Extras de projeto e de setor seguem a mesma visibilidade dos projetos e setores
+      const { rows } = await db().query(
+        `select e.tipo, e."registroId", e.dados from lexagile.extra e
+          where e."tenantId" = any($1::text[]) and e.tipo <> 'daily' and (
+            e.tipo not in ('projeto', 'setor')
+            or (e.tipo = 'projeto' and exists (select 1 from "Projeto" p where p.id = e."registroId" and ${visibleProjectSql(true)}))
+            or (e.tipo = 'setor' and (e."tenantId" = any($3::text[])
+                or exists (select 1 from lexagile.setor_membro m where m."setorId" = e."registroId" and m."usuarioId" = any($2::text[]))))
+          )`,
+        [tenantsOf(s), meOf(s), await seesAllTenants(s, true)],
+      );
       return rows;
     }),
   );

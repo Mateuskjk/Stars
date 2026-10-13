@@ -2,9 +2,13 @@
 // Segredos de webhook e senhas de banco ficam aqui e nunca voltam para o navegador.
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
+import { lookup as dnsLookup, LookupAddress } from 'node:dns';
+import { request as httpsRequest } from 'node:https';
 import { BlockList, isIP } from 'node:net';
-import { Request, Router, json } from 'express';
+import { Request, Response, Router, json } from 'express';
 import pg from 'pg';
+import { db } from './db';
+import { decryptKey, encryptKey } from './ai';
 
 // ---------- Proteção contra SSRF ----------
 // Webhook só pode apontar para a internet pública: nada de localhost, rede interna ou metadados de nuvem.
@@ -57,9 +61,48 @@ interface Webhook {
   lastDelivery: { at: string; ok: boolean; status?: number; error?: string; event: string } | null;
 }
 
-// ponytail: guardados na memória do servidor (somem ao reiniciar); em produção, banco com os segredos cifrados e empresa (tenantId).
+// Guardados no banco (schema lexagile), com o segredo do webhook e a senha do banco cifrados (AES-256-GCM, LEXAGILE_SECRET).
 // Cada webhook/conexão tem dono: só quem criou (Admin) enxerga e mexe.
-const webhooks = new Map<string, Webhook>();
+let tables: Promise<unknown> | null = null;
+const ensureTables = () =>
+  (tables ??= db()
+    .query(
+      `create schema if not exists lexagile;
+       create table if not exists lexagile.webhook (id text primary key, owner text not null, dados jsonb not null, "segredoCifrado" text not null);
+       create table if not exists lexagile.integracao_banco (id text primary key, owner text not null, dados jsonb not null, "senhaCifrada" text not null);`,
+    )
+    .catch((error) => {
+      tables = null;
+      throw error;
+    }));
+
+type HookRow = { id: string; owner: string; dados: Omit<Webhook, 'id' | 'owner' | 'secret'>; segredoCifrado: string };
+const toHook = (r: HookRow): Webhook => ({ ...r.dados, id: r.id, owner: r.owner, secret: decryptKey(r.segredoCifrado) });
+
+const hooks = {
+  async list(owner: string) {
+    await ensureTables();
+    const { rows } = await db().query<HookRow>(`select * from lexagile.webhook where owner = $1 order by dados->>'name'`, [owner]);
+    return rows.map(toHook);
+  },
+  // Sem dono = qualquer um (para saber se o id já existe)
+  async get(id: string, owner?: string) {
+    await ensureTables();
+    const { rows } = await db().query<HookRow>(`select * from lexagile.webhook where id = $1`, [id]);
+    return rows[0] && (owner === undefined || rows[0].owner === owner) ? toHook(rows[0]) : undefined;
+  },
+  async save({ id, owner, secret, ...dados }: Webhook) {
+    await db().query(
+      `insert into lexagile.webhook (id, owner, dados, "segredoCifrado") values ($1, $2, $3, $4)
+       on conflict (id) do update set dados = excluded.dados, "segredoCifrado" = excluded."segredoCifrado"`,
+      [id, owner, JSON.stringify(dados), encryptKey(secret)],
+    );
+  },
+  async remove(id: string, owner: string) {
+    await ensureTables();
+    await db().query(`delete from lexagile.webhook where id = $1 and owner = $2`, [id, owner]);
+  },
+};
 const EVENT_PATTERN = /^(\*|[a-z_]+\.[a-z_]+)$/;
 
 const publicWebhook = ({ secret, owner: _o, ...rest }: Webhook) => ({ ...rest, secretHint: secret.slice(-4) });
@@ -68,32 +111,54 @@ export function sign(secret: string, timestamp: string, body: string) {
   return 'sha256=' + createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex');
 }
 
+// O DNS é resolvido aqui e o IP é conferido na hora de conectar: um domínio que responde IP público na
+// checagem e IP interno no envio (DNS rebinding) é barrado. Não segue redirecionamento.
+function safeLookup(host: string, options: object, callback: (err: Error | null, address: string | LookupAddress[], family?: number) => void) {
+  dnsLookup(host, { all: true }, (error, addresses) => {
+    if (error) return callback(error, '');
+    if (!addresses.length || addresses.some((a) => isPrivateAddress(a.address))) return callback(new Error('Endereços internos não são permitidos.'), '');
+    if ((options as { all?: boolean }).all) return callback(null, addresses);
+    callback(null, addresses[0].address, addresses[0].family);
+  });
+}
+
+function postSafely(url: string, headers: Record<string, string>, body: string) {
+  return new Promise<number>((resolve, reject) => {
+    const req = httpsRequest(url, { method: 'POST', headers, timeout: 10_000, lookup: safeLookup as never }, (res) => {
+      res.resume();
+      resolve(res.statusCode ?? 0);
+    });
+    req.on('timeout', () => req.destroy(new Error('Tempo esgotado.')));
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
 async function deliver(hook: Webhook, event: string, data: unknown) {
   const body = JSON.stringify({ id: randomUUID(), event, created_at: new Date().toISOString(), data });
   const timestamp = String(Math.floor(Date.now() / 1000));
   const problem = await checkWebhookUrl(hook.url); // confere de novo na hora de enviar (o DNS pode ter mudado)
   if (problem) {
     hook.lastDelivery = { at: new Date().toISOString(), ok: false, error: problem, event };
-    return hook.lastDelivery;
+  } else {
+    try {
+      const status = await postSafely(
+        hook.url,
+        {
+          'content-type': 'application/json',
+          'user-agent': 'Stars-Webhooks/1.0',
+          'x-stars-event': event,
+          'x-stars-timestamp': timestamp,
+          'x-stars-signature': sign(hook.secret, timestamp, body),
+        },
+        body,
+      );
+      hook.lastDelivery = { at: new Date().toISOString(), ok: status >= 200 && status < 300, status, event };
+    } catch (error) {
+      hook.lastDelivery = { at: new Date().toISOString(), ok: false, error: error instanceof Error ? error.message.slice(0, 200) : 'Falha no envio', event };
+    }
   }
-  try {
-    const response = await fetch(hook.url, {
-      method: 'POST',
-      redirect: 'manual', // não segue redirecionamento (poderia levar para a rede interna)
-      signal: AbortSignal.timeout(10_000),
-      headers: {
-        'content-type': 'application/json',
-        'user-agent': 'Stars-Webhooks/1.0',
-        'x-stars-event': event,
-        'x-stars-timestamp': timestamp,
-        'x-stars-signature': sign(hook.secret, timestamp, body),
-      },
-      body,
-    });
-    hook.lastDelivery = { at: new Date().toISOString(), ok: response.ok, status: response.status, event };
-  } catch (error) {
-    hook.lastDelivery = { at: new Date().toISOString(), ok: false, error: error instanceof Error ? error.message : 'Falha no envio', event };
-  }
+  await hooks.save(hook).catch(() => undefined);
   return hook.lastDelivery;
 }
 
@@ -117,7 +182,32 @@ interface DbConnection {
   lastTest: { at: string; ok: boolean; info?: string; error?: string } | null;
 }
 
-const databases = new Map<string, DbConnection>();
+type DbRow = { id: string; owner: string; dados: Omit<DbConnection, 'id' | 'owner' | 'password'>; senhaCifrada: string };
+const toDb = (r: DbRow): DbConnection => ({ ...r.dados, id: r.id, owner: r.owner, password: r.senhaCifrada ? decryptKey(r.senhaCifrada) : '' });
+
+const databases = {
+  async list(owner: string) {
+    await ensureTables();
+    const { rows } = await db().query<DbRow>(`select * from lexagile.integracao_banco where owner = $1 order by dados->>'name'`, [owner]);
+    return rows.map(toDb);
+  },
+  async get(id: string, owner?: string) {
+    await ensureTables();
+    const { rows } = await db().query<DbRow>(`select * from lexagile.integracao_banco where id = $1`, [id]);
+    return rows[0] && (owner === undefined || rows[0].owner === owner) ? toDb(rows[0]) : undefined;
+  },
+  async save({ id, owner, password, ...dados }: DbConnection) {
+    await db().query(
+      `insert into lexagile.integracao_banco (id, owner, dados, "senhaCifrada") values ($1, $2, $3, $4)
+       on conflict (id) do update set dados = excluded.dados, "senhaCifrada" = excluded."senhaCifrada"`,
+      [id, owner, JSON.stringify(dados), password ? encryptKey(password) : ''],
+    );
+  },
+  async remove(id: string, owner: string) {
+    await ensureTables();
+    await db().query(`delete from lexagile.integracao_banco where id = $1 and owner = $2`, [id, owner]);
+  },
+};
 const publicDb = ({ password, owner: _o, ...rest }: DbConnection) => ({ ...rest, hasPassword: !!password });
 
 const HOST_PATTERN = /^[a-zA-Z0-9.\-:\[\]]{1,253}$/;
@@ -189,10 +279,18 @@ function dbError(error: unknown) {
 // ---------- Rotas ----------
 // Integrações são configuração: só Admin (Dono) mexe, e cada um só nas suas
 const ownerOf = (req: Request) => req.session!.email.toLowerCase();
-const mine = <T extends { owner: string }>(map: Map<string, T>, req: Request, id: string) => {
-  const item = map.get(id);
-  return item && item.owner === ownerOf(req) ? item : undefined;
-};
+
+// Erros de banco viram 503 sem detalhes
+const safe =
+  (handler: (req: Request, res: Response) => Promise<unknown>) =>
+  async (req: Request, res: Response) => {
+    try {
+      await handler(req, res);
+    } catch (error) {
+      console.error('[integracoes]', req.method, req.path, (error as Error).message);
+      if (!res.headersSent) res.status(503).json({ error: 'Não foi possível concluir agora. Tente de novo.' });
+    }
+  };
 
 export function integrationsRouter() {
   const router = Router();
@@ -202,96 +300,103 @@ export function integrationsRouter() {
   );
   const validId = (id: string) => /^[\w-]{1,64}$/.test(id);
 
-  router.get('/webhooks', (req, res) => void res.json([...webhooks.values()].filter((h) => h.owner === ownerOf(req)).map(publicWebhook)));
+  router.get('/webhooks', safe(async (req, res) => res.json((await hooks.list(ownerOf(req))).map(publicWebhook))));
 
   // Criar ou atualizar. Na criação o segredo é gerado aqui e devolvido UMA vez.
-  router.put('/webhooks/:id', async (req, res) => {
-    const id = req.params.id;
-    if (!validId(id)) return void res.status(400).json({ error: 'Id inválido.' });
-    const name = String(req.body?.name ?? '').trim().slice(0, 80);
-    const url = String(req.body?.url ?? '').trim();
-    const events: string[] = Array.isArray(req.body?.events)
-      ? [...new Set<string>(req.body.events.map((e: unknown) => String(e)))].filter((e) => EVENT_PATTERN.test(e))
-      : [];
-    if (!name) return void res.status(400).json({ error: 'Dê um nome para o webhook.' });
-    if (!events.length) return void res.status(400).json({ error: 'Escolha ao menos um evento.' });
-    const problem = await checkWebhookUrl(url);
-    if (problem) return void res.status(400).json({ error: problem });
-    if (webhooks.has(id) && !mine(webhooks, req, id)) return void res.status(404).json({ error: 'Webhook não encontrado.' });
-    const existing = webhooks.get(id);
-    const secret = existing?.secret ?? 'whsec_' + randomBytes(24).toString('hex');
-    const hook: Webhook = { id, owner: ownerOf(req), name, url, events, active: req.body?.active !== false, secret, lastDelivery: existing?.lastDelivery ?? null };
-    webhooks.set(id, hook);
-    res.json({ ...publicWebhook(hook), secret: existing ? undefined : secret });
-  });
+  router.put(
+    '/webhooks/:id',
+    safe(async (req, res) => {
+      const id = String(req.params['id']);
+      if (!validId(id)) return void res.status(400).json({ error: 'Id inválido.' });
+      const name = String(req.body?.name ?? '').trim().slice(0, 80);
+      const url = String(req.body?.url ?? '').trim();
+      const events: string[] = Array.isArray(req.body?.events)
+        ? [...new Set<string>(req.body.events.map((e: unknown) => String(e)))].filter((e) => EVENT_PATTERN.test(e))
+        : [];
+      if (!name) return void res.status(400).json({ error: 'Dê um nome para o webhook.' });
+      if (!events.length) return void res.status(400).json({ error: 'Escolha ao menos um evento.' });
+      const problem = await checkWebhookUrl(url);
+      if (problem) return void res.status(400).json({ error: problem });
+      const existing = await hooks.get(id);
+      if (existing && existing.owner !== ownerOf(req)) return void res.status(404).json({ error: 'Webhook não encontrado.' });
+      const secret = existing?.secret ?? 'whsec_' + randomBytes(24).toString('hex');
+      const hook: Webhook = { id, owner: ownerOf(req), name, url, events, active: req.body?.active !== false, secret, lastDelivery: existing?.lastDelivery ?? null };
+      await hooks.save(hook);
+      res.json({ ...publicWebhook(hook), secret: existing ? undefined : secret });
+    }),
+  );
 
-  router.delete('/webhooks/:id', (req, res) => {
-    if (mine(webhooks, req, req.params.id)) webhooks.delete(req.params.id);
+  router.delete('/webhooks/:id', safe(async (req, res) => {
+    await hooks.remove(String(req.params['id']), ownerOf(req));
     res.json({ ok: true });
-  });
+  }));
 
-  router.post('/webhooks/:id/test', async (req, res) => {
-    const hook = mine(webhooks, req, req.params.id);
+  router.post('/webhooks/:id/test', safe(async (req, res) => {
+    const hook = await hooks.get(String(req.params['id']), ownerOf(req));
     if (!hook) return void res.status(404).json({ error: 'Webhook não encontrado.' });
     const result = await deliver(hook, 'webhook.test', { message: 'Teste de entrega do LexÁgile', webhook: hook.name });
     res.status(result.ok ? 200 : 502).json(result);
-  });
+  }));
 
   // Eventos do sistema (vindos das ações registradas na auditoria): entrega só aos webhooks de quem fez a ação.
-  // ponytail: o evento vem do navegador; o certo é o servidor emitir depois de gravar (fase 2)
-  router.post('/events', (req, res) => {
+  // ponytail: o evento vem do navegador; o certo é o servidor emitir depois de gravar
+  router.post('/events', safe(async (req, res) => {
     const event = String(req.body?.event ?? '');
     if (!EVENT_PATTERN.test(event) || event === '*') return void res.status(400).json({ error: 'Evento inválido.' });
     const data = req.body?.data ?? {};
-    const targets = [...webhooks.values()].filter((hook) => hook.owner === ownerOf(req) && hook.active && (hook.events.includes('*') || hook.events.includes(event)));
+    const targets = (await hooks.list(ownerOf(req))).filter((hook) => hook.active && (hook.events.includes('*') || hook.events.includes(event)));
     for (const hook of targets) void deliver(hook, event, data); // não espera: a tela não fica travada
     res.status(202).json({ queued: targets.length });
-  });
+  }));
 
-  router.get('/databases', (req, res) => void res.json([...databases.values()].filter((d) => d.owner === ownerOf(req)).map(publicDb)));
+  router.get('/databases', safe(async (req, res) => res.json((await databases.list(ownerOf(req))).map(publicDb))));
 
   // Senha em branco na atualização = manter a atual
-  router.put('/databases/:id', (req, res) => {
-    const id = req.params.id;
+  router.put('/databases/:id', safe(async (req, res) => {
+    const id = String(req.params['id']);
     if (!validId(id)) return void res.status(400).json({ error: 'Id inválido.' });
-    if (databases.has(id) && !mine(databases, req, id)) return void res.status(404).json({ error: 'Conexão não encontrada.' });
-    const existing = databases.get(id);
+    const existing = await databases.get(id);
+    if (existing && existing.owner !== ownerOf(req)) return void res.status(404).json({ error: 'Conexão não encontrada.' });
     const parsed = parseDb(req.body, existing);
     if (typeof parsed === 'string') return void res.status(400).json({ error: parsed });
-    const db: DbConnection = { ...parsed, id, owner: ownerOf(req), lastTest: existing?.lastTest ?? null };
-    databases.set(id, db);
-    res.json(publicDb(db));
-  });
+    const conn: DbConnection = { ...parsed, id, owner: ownerOf(req), lastTest: existing?.lastTest ?? null };
+    await databases.save(conn);
+    res.json(publicDb(conn));
+  }));
 
-  router.delete('/databases/:id', (req, res) => {
-    if (mine(databases, req, req.params.id)) databases.delete(req.params.id);
+  router.delete('/databases/:id', safe(async (req, res) => {
+    await databases.remove(String(req.params['id']), ownerOf(req));
     res.json({ ok: true });
-  });
+  }));
 
-  router.post('/databases/:id/test', async (req, res) => {
-    const db = mine(databases, req, req.params.id);
-    if (!db) return void res.status(404).json({ error: 'Conexão não encontrada.' });
-    // Sem varredura da rede interna: o host precisa resolver para um endereço público
+  router.post('/databases/:id/test', safe(async (req, res) => {
+    const conn = await databases.get(String(req.params['id']), ownerOf(req));
+    if (!conn) return void res.status(404).json({ error: 'Conexão não encontrada.' });
+    // Sem varredura da rede interna: resolve o host uma vez, confere o IP e conecta NESSE IP (sem 2ª consulta de DNS)
+    let address: string;
     try {
-      const addrs = isIP(db.host) ? [{ address: db.host }] : await lookup(db.host, { all: true });
+      const addrs = isIP(conn.host) ? [{ address: conn.host }] : await lookup(conn.host, { all: true });
       if (!addrs.length || addrs.some((a) => isPrivateAddress(a.address))) return void res.status(400).json({ error: 'Endereços internos não são permitidos.' });
+      address = addrs[0].address;
     } catch {
       return void res.status(400).json({ error: 'Host não encontrado.' });
     }
-    const client = new pg.Client(clientConfig(db));
+    const config = clientConfig(conn);
+    const client = new pg.Client({ ...config, host: address, ssl: config.ssl && { ...(config.ssl as object), servername: isIP(conn.host) ? undefined : conn.host } });
     const started = Date.now();
     try {
       await client.connect();
       const { rows } = await client.query('select version() as version, current_database() as database, current_user as "user"');
       const version = String(rows[0].version).split(' ').slice(0, 2).join(' ');
-      db.lastTest = { at: new Date().toISOString(), ok: true, info: `${version} · ${rows[0].database} · ${Date.now() - started} ms` };
+      conn.lastTest = { at: new Date().toISOString(), ok: true, info: `${version} · ${rows[0].database} · ${Date.now() - started} ms` };
     } catch (error) {
-      db.lastTest = { at: new Date().toISOString(), ok: false, error: dbError(error) };
+      conn.lastTest = { at: new Date().toISOString(), ok: false, error: dbError(error) };
     } finally {
       await client.end().catch(() => undefined);
     }
-    res.status(db.lastTest.ok ? 200 : 502).json(db.lastTest);
-  });
+    await databases.save(conn);
+    res.status(conn.lastTest.ok ? 200 : 502).json(conn.lastTest);
+  }));
 
   return router;
 }

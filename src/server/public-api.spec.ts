@@ -7,11 +7,11 @@ describe('public API (server)', () => {
     expect(hash).not.toContain('stars_');
   });
 
-  it('limits each token to 60 requests per minute', () => {
+  it('limits each token to 60 requests per minute', async () => {
     const key = 'teste-' + Math.random();
-    for (let i = 0; i < 60; i++) expect(rateLimited(key, 1000)).toBe(false);
-    expect(rateLimited(key, 1000)).toBe(true);
-    expect(rateLimited(key, 61_000)).toBe(false); // nova janela de 1 minuto
+    for (let i = 0; i < 60; i++) expect(await rateLimited(key)).toBe(false);
+    expect(await rateLimited(key)).toBe(true);
+    expect(await rateLimited('outro-' + Math.random())).toBe(false); // cada token tem o seu limite
   });
 
   it('generates a valid OpenAPI 3 spec with bearer auth for every endpoint', () => {

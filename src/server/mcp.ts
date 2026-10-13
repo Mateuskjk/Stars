@@ -10,7 +10,7 @@ import { mcpAuthRouter, getOAuthProtectedResourceMetadataUrl } from '@modelconte
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { db } from './db';
 import { Session } from './auth';
-import { meOf, seesAllTenants, tenantsOf, visibleActivitySql } from './data';
+import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
 import { HttpError, ensureSchema } from './migration';
 import { applyActivity, createActivity, visibleActivity } from './writes';
 import { SCOPE, appUrl, consentRouter, oauthProvider, sessionFromAuth } from './mcp-oauth';
@@ -90,7 +90,11 @@ async function resolveActivityId(s: Session, ref: string, empresa?: string) {
 
 async function visibleWhere(s: Session) {
   const installed = await ensureSchema();
-  return { sql: visibleActivitySql(installed), params: [tenantsOf(s), meOf(s), await seesAllTenants(s, installed)] as unknown[] };
+  return {
+    sql: visibleActivitySql(installed),
+    projects: visibleProjectSql(installed),
+    params: [tenantsOf(s), meOf(s), await seesAllTenants(s, installed)] as unknown[],
+  };
 }
 
 const ACTIVITY_COLUMNS = `a.id, a.numero, a.titulo, a.status, a.prioridade, a.estimativa, to_char(a.prazo, 'YYYY-MM-DD') as prazo,
@@ -124,12 +128,13 @@ export function buildServer(s: Session | null) {
     ({ empresa, incluir_arquivados }) =>
       run(s, async (s) => {
         const tenant = await resolveTenant(s, empresa);
+        const v = await visibleWhere(s);
         const { rows } = await db().query(
           `select p.numero, p.nome, p.situacao, p.arquivado, se.nome as setor, u.nome as responsavel,
                   to_char(p."dataInicio", 'YYYY-MM-DD') as inicio, to_char(p."previsaoTermino", 'YYYY-MM-DD') as previsao, p.progresso
              from "Projeto" p left join "Setor" se on se.id = p."setorId" left join "Usuario" u on u.id = p."responsavelId"
-            where p."tenantId" = $1 and ($2 or not p.arquivado) order by p.arquivado, p.nome`,
-          [tenant.id, !!incluir_arquivados],
+            where ${v.projects} and p."tenantId" = $4 and ($5 or not p.arquivado) order by p.arquivado, p.nome`,
+          [...v.params, tenant.id, !!incluir_arquivados],
         );
         return { empresa: tenant.nome, projetos: rows };
       }),
@@ -273,9 +278,11 @@ export function buildServer(s: Session | null) {
         if (a.prazo) body['prazo'] = a.prazo;
         if (a.responsavel_email) body['responsavelId'] = await userByEmail(tenant.id, a.responsavel_email);
         if (a.projeto) {
+          const v = await visibleWhere(s);
           const { rows } = await db().query<{ id: string; nome: string }>(
-            `select id, nome from "Projeto" where "tenantId" = $1 and not arquivado and nome ilike '%' || $2 || '%' order by (lower(nome) = lower($2)) desc limit 2`,
-            [tenant.id, a.projeto],
+            `select p.id, p.nome from "Projeto" p where ${v.projects} and p."tenantId" = $4 and not p.arquivado and p.nome ilike '%' || $5 || '%'
+              order by (lower(p.nome) = lower($5)) desc limit 2`,
+            [...v.params, tenant.id, a.projeto],
           );
           if (!rows[0]) throw new HttpError(404, `Projeto "${a.projeto}" não encontrado.`);
           body['projetoId'] = rows[0].id;

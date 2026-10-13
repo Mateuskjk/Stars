@@ -2,6 +2,8 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { Request, Response, Router, json } from 'express';
 import { db } from './db';
+import { hit } from './limits';
+import { SUPERADMIN_ONLY, isSuperAdmin } from './auth';
 
 export type Provider = 'openai' | 'anthropic' | 'gemini' | 'deepseek';
 export const PROVIDERS: Provider[] = ['openai', 'anthropic', 'gemini', 'deepseek'];
@@ -164,7 +166,7 @@ let warned = false;
 function cipherKey() {
   const secret = process.env['LEXAGILE_SECRET'];
   if (!secret) {
-    if (process.env['NODE_ENV'] === 'production') {
+    if (process.env['NODE_ENV'] === 'production' || process.env['VERCEL']) {
       throw new AiError(503, 'Defina a variável LEXAGILE_SECRET no servidor para guardar as chaves de IA com segurança.');
     }
     if (!warned) console.warn('[ai] LEXAGILE_SECRET não definida: usando uma chave de desenvolvimento (não use em produção)');
@@ -219,12 +221,12 @@ async function readRow(id: string) {
 
 const toConfig = (row: { dados: StoredData; chaveCifrada: string }): AiConfig => ({ ...row.dados, apiKey: decryptKey(row.chaveCifrada) });
 
-// Configurar a IA: só Admin (Dono). Usar o assistente: qualquer pessoa logada.
-const isAdmin = (req: Request) => !!req.session?.memberships.some((m) => m.papel === 'DONO');
+// Configurar a IA (vale para todas as empresas): só superadmin. Usar o assistente: qualquer pessoa logada.
+const isAdmin = (req: Request) => !!req.session && isSuperAdmin(req.session);
 
 function handle(fn: (req: Request, res: Response) => Promise<void>, adminOnly = false) {
   return async (req: Request, res: Response) => {
-    if (adminOnly && !isAdmin(req)) return void res.status(403).json({ error: 'Só Admin configura os modelos de IA.' });
+    if (adminOnly && !isAdmin(req)) return void res.status(403).json({ error: SUPERADMIN_ONLY });
     try {
       await fn(req, res);
     } catch (error) {
@@ -330,16 +332,23 @@ export function aiRouter() {
         `select dados, "chaveCifrada" from lexagile.ia_config where assistente limit 1`,
       );
       if (!rows[0]) return void res.status(404).json({ error: 'Nenhum modelo de IA configurado. Peça a um Admin em Configurações › Integração com IA.' });
+      // Cada mensagem custa dinheiro na chave da empresa: 20 por minuto e 300 por dia por pessoa
+      const who = req.session!.email.toLowerCase();
+      if ((await hit(`ia:${who}`, 60)) > 20 || (await hit(`ia-dia:${who}`, 86_400)) > 300) {
+        return void res.status(429).json({ error: 'Você atingiu o limite de mensagens para o assistente. Tente de novo mais tarde.' });
+      }
       const config = toConfig(rows[0]);
       const messages = parseMessages(req.body);
       if (typeof messages === 'string') return void res.status(400).json({ error: messages });
-      const page = String(req.body?.page ?? '').slice(0, 200);
+      // Só o caminho da tela (ex.: /workspace/backlog): nada de texto livre indo para o prompt de sistema
+      const page = String(req.body?.page ?? '').replace(/[^\w/\-]/g, '').slice(0, 100);
       const systemPrompt = `${config.systemPrompt}\n\nO usuário está agora na tela: ${page || 'desconhecida'}.`;
       try {
         const { reply } = await callModel({ ...config, systemPrompt }, messages);
         res.json({ reply });
       } catch (error) {
-        res.status(502).json({ error: error instanceof Error ? error.message : 'Falha ao falar com a IA.' });
+        console.error('[ai] falha no chat:', error instanceof Error ? error.message : error);
+        res.status(502).json({ error: 'O assistente não respondeu agora. Tente de novo em instantes.' });
       }
     }),
   );
