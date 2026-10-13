@@ -74,3 +74,24 @@ describe('Backlog', () => {
     expect(store.items().some((item) => item.name === 'Revisar contratos')).toBe(false);
   });
 });
+
+describe('Backlog: o que já saiu do refinamento', () => {
+  it('cartões em "Finalizado refinamento" ou concluídos em outro kanban não aparecem; os demais sim', async () => {
+    await TestBed.configureTestingModule({ imports: [Backlog], providers: [provideRouter([])] }).compileComponents();
+    const store = TestBed.inject(BacklogStore);
+    const base = { ...store.items()[0], companyId: undefined, locked: false };
+    store.items.set([
+      { ...base, id: 1, name: 'Ainda refinando', status: 'refined', doneAt: undefined, sprintStatus: undefined },
+      { ...base, id: 2, name: 'Pronta para a Planning', status: 'refinement-done', doneAt: undefined, sprintStatus: undefined },
+      { ...base, id: 3, name: 'Concluída na sprint do setor', status: 'refined', sprintStatus: 'done', doneAt: '2026-10-10' },
+    ]);
+    const fixture = TestBed.createComponent(Backlog);
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Ainda refinando');
+    expect(text).not.toContain('Pronta para a Planning');
+    expect(text).not.toContain('Concluída na sprint do setor');
+    expect(text).toContain('Os cartões finalizados seguem para a Planning');
+    expect(store.items()).toHaveLength(3); // nada foi apagado
+  });
+});

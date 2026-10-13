@@ -83,7 +83,7 @@
             </button>
           </li>
         } @empty {
-          <li class="backlog__empty">Nenhuma atividade</li>
+          <li class="backlog__empty">{{ column.id === 'refinement-done' ? 'Os cartões finalizados seguem para a Planning' : 'Nenhuma atividade' }}</li>
         }
       </ul>
 

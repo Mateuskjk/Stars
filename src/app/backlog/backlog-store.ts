@@ -71,6 +71,10 @@ export function tagColor(tag: string) {
   return TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
 }
 
+// O Backlog mostra só o que ainda está em refinamento: o que chegou em "Finalizado refinamento" segue para a Planning,
+// e o que já foi concluído em outro kanban (sprint do setor) sai também. Nada é apagado, só some daqui.
+export const inBacklog = (item: BacklogItem) => item.status !== 'refinement-done' && !item.doneAt && item.sprintStatus !== 'done';
+
 // Quando entrou na sprint (addedAt) e quando chegou em Finalizado (doneAt): alimentam os Dashboards
 function stamp(before: BacklogItem | undefined, after: BacklogItem): BacklogItem {
   const now = today();
