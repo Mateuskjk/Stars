@@ -7,7 +7,7 @@ import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
 import { SprintStore } from '../planning/sprint-store';
 import { BacklogEditor } from './backlog-editor';
-import { BacklogItem, BacklogStatus, BacklogStore, tagColor } from './backlog-store';
+import { BacklogItem, BacklogStatus, BacklogStore, inBacklog, tagColor } from './backlog-store';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -40,7 +40,7 @@ export class Backlog {
   protected readonly board = computed(() =>
     this.columns().map((column) => ({
       ...column,
-      cards: this.store.ofCompany().filter((item) => item.status === column.id),
+      cards: this.store.ofCompany().filter((item) => item.status === column.id && inBacklog(item)),
     })),
   );
 
