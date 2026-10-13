@@ -47,6 +47,12 @@ export const SLIDES = [
 
 const SLIDE_MS = 6000;
 
+// Depois de entrar, volta para onde a pessoa estava indo — só para a autorização do Claude (MCP),
+// para ninguém usar o login como redirecionamento para outro site
+export function safeNext(value: string | null) {
+  return value && value.startsWith('/authorize?') && !value.includes('//') && !value.includes('\\') ? value : null;
+}
+
 // Tela de entrada: e-mail e senha do sistema atual (tabela de usuários do banco) ou conta do Google
 @Component({
   selector: 'app-login',
@@ -58,6 +64,8 @@ export class Login {
   protected readonly error = signal('');
   protected readonly showPassword = signal(false);
   protected readonly google = signal(false);
+  protected readonly returnTo = signal<string | null>(null);
+  protected readonly googleHref = () => '/api/auth/google' + (this.returnTo() ? '?next=' + encodeURIComponent(this.returnTo()!) : '');
 
   // ---------- Slides ----------
   protected readonly slides = SLIDES;
@@ -67,6 +75,7 @@ export class Login {
   constructor() {
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
+      this.returnTo.set(safeNext(new URLSearchParams(location.search).get('next')));
       const erro = new URLSearchParams(location.search).get('erro');
       if (erro && GOOGLE_ERRORS[erro]) {
         this.error.set(GOOGLE_ERRORS[erro]);
@@ -102,6 +111,7 @@ export class Login {
     try {
       await this.session.login(String(data.get('email')), String(data.get('senha')));
       if (this.session.status() !== 'in') this.error.set(this.session.error() || 'Não foi possível entrar.');
+      else if (this.returnTo()) location.assign(this.returnTo()!); // de volta para "Permitir acesso" do Claude
     } catch (e) {
       this.error.set((e as Error).message);
     } finally {

@@ -14,7 +14,7 @@ const SPRINT_SITUACOES = ['ATIVA', 'FECHADA', 'PREPARACAO'];
 
 const membership = (s: Session, tenantId: string) => s.memberships.find((m) => m.tenantId === tenantId);
 
-function writer(s: Session, tenantId: string) {
+export function writer(s: Session, tenantId: string) {
   const m = membership(s, tenantId);
   if (!m) throw new HttpError(404, 'Empresa não encontrada.');
   if (m.papel === 'OBSERVADOR') throw new HttpError(403, 'Seu acesso nesta empresa é só leitura.');
@@ -53,7 +53,7 @@ async function sameTenant(client: PoolClient, table: string, ids: string[], tena
 }
 
 // A atividade existe e a pessoa pode vê-la? Devolve a empresa dela
-async function visibleActivity(client: PoolClient, s: Session, id: string) {
+export async function visibleActivity(client: PoolClient, s: Session, id: string) {
   const installed = await ensureSchema();
   const { rows } = await client.query(`select a."tenantId" from "Atividade" a where ${visibleActivitySql(installed)} and a.id = $4`, [
     tenantsOf(s),
@@ -66,7 +66,7 @@ async function visibleActivity(client: PoolClient, s: Session, id: string) {
 }
 
 // Aplica as mudanças enviadas (só os campos presentes no corpo)
-async function applyActivity(client: PoolClient, s: Session, id: string, tenantId: string, body: Record<string, unknown>) {
+export async function applyActivity(client: PoolClient, s: Session, id: string, tenantId: string, body: Record<string, unknown>) {
   const me = writer(s, tenantId).usuarioId;
   const installed = await ensureSchema();
   const sets: string[] = [];
@@ -193,6 +193,23 @@ async function applyActivity(client: PoolClient, s: Session, id: string, tenantI
   }
 }
 
+// Cria a atividade (tela ou Claude): quem cria é o responsável, a não ser que venha outro
+export async function createActivity(client: PoolClient, s: Session, body: Record<string, unknown>) {
+  const tenantId = nonEmpty(body['tenantId'], 60, 'empresa');
+  const me = writer(s, tenantId).usuarioId;
+  const projetoId = idOrNull(body['projetoId'], 'projeto');
+  if (projetoId) await sameTenant(client, 'Projeto', [projetoId], tenantId, 'Projeto');
+  const id = newId();
+  await client.query(
+    `insert into "Atividade" (id, numero, titulo, "tenantId", "projetoId", "criadoPorId", "responsavelId", "atualizadoEm")
+     values ($1, (select coalesce(max(numero), 0) + 1 from "Atividade" where "tenantId" = $3), $2, $3, $4, $5, $5, now())`,
+    [id, nonEmpty(body['titulo'], 300, 'título'), tenantId, projetoId, me],
+  );
+  const { tenantId: _t, projetoId: _p, titulo: _ti, ...rest } = body;
+  await applyActivity(client, s, id, tenantId, rest);
+  return id;
+}
+
 // Cada escrita numa transação: se algo falhar, nada fica pela metade
 function write(handler: (client: PoolClient, req: Request, s: Session) => Promise<unknown>) {
   return async (req: Request, res: Response) => {
@@ -230,22 +247,7 @@ export function writesRouter() {
 
   router.post(
     '/atividades',
-    write(async (client, req, s) => {
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const tenantId = nonEmpty(body['tenantId'], 60, 'empresa');
-      const me = writer(s, tenantId).usuarioId;
-      const projetoId = idOrNull(body['projetoId'], 'projeto');
-      if (projetoId) await sameTenant(client, 'Projeto', [projetoId], tenantId, 'Projeto');
-      const id = newId();
-      await client.query(
-        `insert into "Atividade" (id, numero, titulo, "tenantId", "projetoId", "criadoPorId", "responsavelId", "atualizadoEm")
-         values ($1, (select coalesce(max(numero), 0) + 1 from "Atividade" where "tenantId" = $3), $2, $3, $4, $5, $5, now())`,
-        [id, nonEmpty(body['titulo'], 300, 'título'), tenantId, projetoId, me],
-      );
-      const { tenantId: _t, projetoId: _p, titulo: _ti, ...rest } = body;
-      await applyActivity(client, s, id, tenantId, rest);
-      return { id };
-    }),
+    write(async (client, req, s) => ({ id: await createActivity(client, s, (req.body ?? {}) as Record<string, unknown>) })),
   );
 
   router.post(

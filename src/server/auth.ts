@@ -176,6 +176,18 @@ export async function startSession(res: Response, email: string, users: { id: st
   setCookie(res, token, SESSION_MS);
 }
 
+// Usuários (um por empresa) com acesso hoje: ativo, empresa ativa e domínio permitido
+export async function usersForEmail(email: string) {
+  if (!(await isAllowedEmail(email))) return [];
+  const { rows } = await db().query<{ id: string; nome: string; papel: string; tenantId: string }>(
+    `select u.id, u.nome, u.papel, u."tenantId"
+       from "Usuario" u join "Tenant" t on t.id = u."tenantId"
+      where lower(u.email) = $1 and u.situacao = 'ATIVO' and u."removidoEm" is null and t.ativo`,
+    [email.trim().toLowerCase()],
+  );
+  return rows;
+}
+
 // Rotas protegidas: sem sessão válida, 401
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   let session: Session | undefined;

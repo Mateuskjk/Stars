@@ -10,6 +10,9 @@ import { parseCookie, setCookie, startSession } from './auth';
 import { isAllowedEmail } from './domains';
 
 const STATE_COOKIE = 'lex_google';
+const NEXT_COOKIE = 'lex_next';
+// Só volta para a autorização do Claude (MCP); qualquer outro destino vai para a Home
+const safeNext = (v: unknown) => (typeof v === 'string' && v.startsWith('/authorize?') && !v.includes('//') && !v.includes('\\') ? v : null);
 const STATE_MS = 10 * 60 * 1000;
 
 const config = () => ({
@@ -42,6 +45,8 @@ export function googleRouter() {
     const state = b64url(randomBytes(24));
     const verifier = b64url(randomBytes(32));
     setCookie(res, `${state}.${verifier}`, STATE_MS, STATE_COOKIE);
+    const next = safeNext(req.query['next']);
+    setCookie(res, next ? encodeURIComponent(next) : '', next ? STATE_MS : 0, NEXT_COOKIE);
     const params = new URLSearchParams({
       client_id: config().clientId,
       redirect_uri: redirectUri(req),
@@ -102,7 +107,9 @@ export function googleRouter() {
       );
       if (!rows.length) return fail(res, 'sem-conta');
       await startSession(res, email, rows);
-      res.redirect('/');
+      const next = safeNext(parseCookie(req.headers.cookie)[NEXT_COOKIE]);
+      setCookie(res, '', 0, NEXT_COOKIE);
+      res.redirect(next ?? '/');
     } catch (error) {
       fail(res, 'falha', (error as Error).message);
     }
