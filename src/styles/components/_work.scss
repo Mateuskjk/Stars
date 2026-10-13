@@ -6,6 +6,21 @@
   flex-direction: column;
   gap: 16px;
 
+  // O cartão abre o modal: o título é um botão (teclado), mas com cara de título
+  &__open {
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .kanban__card {
+    cursor: pointer;
+  }
+
   &__origin {
     color: var(--color-muted);
     font-size: 12px;
