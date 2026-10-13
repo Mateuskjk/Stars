@@ -284,7 +284,68 @@ export function writesRouter() {
   );
 
   configRoutes(router);
+  dailyRoutes(router);
   return router;
+}
+
+// ---------- Dailies finalizadas (lexagile.extra, tipo 'daily'): o histórico fica por empresa, para o time todo ----------
+function dailyRecord(v: unknown) {
+  const r = v as { date?: unknown; participants?: unknown };
+  if (typeof r !== 'object' || r === null || !Array.isArray(r.participants) || r.participants.length > 300) throw new HttpError(400, 'Daily inválida.');
+  const date = text(r.date, 40, 'data');
+  if (isNaN(Date.parse(date))) throw new HttpError(400, 'Data inválida.');
+  return {
+    date,
+    participants: r.participants.map((p: { name?: unknown; moves?: unknown; notes?: Record<string, unknown> | null }) => ({
+      name: nonEmpty(p?.name, 120, 'participante'),
+      moves: Number.isInteger(p?.moves) ? (p.moves as number) : 0,
+      notes: p?.notes
+        ? {
+            yesterday: text(p.notes['yesterday'] ?? '', 5000, 'anotação'),
+            today: text(p.notes['today'] ?? '', 5000, 'anotação'),
+            blockers: text(p.notes['blockers'] ?? '', 5000, 'anotação'),
+          }
+        : null,
+    })),
+  };
+}
+
+function dailyRoutes(router: Router) {
+  router.get(
+    '/dailies',
+    write(async (client, req, s) => {
+      const tenantId = nonEmpty(req.query['tenantId'], 60, 'empresa');
+      if (!membership(s, tenantId) || !(await ensureSchema())) return [];
+      const { rows } = await client.query(
+        `select "registroId" as id, dados from lexagile.extra where tipo = 'daily' and "tenantId" = $1
+          order by dados->>'date' desc limit 200`,
+        [tenantId],
+      );
+      return rows.map((r) => ({ ...r.dados, id: r.id }));
+    }),
+  );
+  router.post(
+    '/dailies',
+    write(async (client, req, s) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const tenantId = nonEmpty(body['tenantId'], 60, 'empresa');
+      writer(s, tenantId);
+      if (!(await ensureSchema())) throw new HttpError(409, 'Rode a migração do banco antes de salvar dailies.');
+      const id = newId();
+      await saveExtra(client, 'daily', id, tenantId, dailyRecord(body['record']));
+      return { id };
+    }),
+  );
+  router.delete(
+    '/dailies/:id',
+    write(async (client, req, s) => {
+      const id = String(req.params['id']);
+      const { rows } = await client.query(`select "tenantId" from lexagile.extra where tipo = 'daily' and "registroId" = $1`, [id]);
+      if (!rows[0] || !membership(s, rows[0].tenantId)) throw new HttpError(404, 'Daily não encontrada.');
+      writer(s, rows[0].tenantId);
+      await client.query(`delete from lexagile.extra where tipo = 'daily' and "registroId" = $1`, [id]);
+    }),
+  );
 }
 
 // ---------- Configurações: empresas, setores, membros, equipes e projetos ----------

@@ -5,7 +5,7 @@ import { DailyHistory } from './daily-history';
 describe('Daily', () => {
   beforeEach(() => localStorage.clear());
 
-  it('starts, keeps notes per person, saves and summarizes only who saved', async () => {
+  it('starts, keeps notes per person, and the summary keeps what was typed, even without saving', async () => {
     await TestBed.configureTestingModule({ imports: [Daily] }).compileComponents();
     const fixture = TestBed.createComponent(Daily);
     fixture.detectChanges();
@@ -36,8 +36,10 @@ describe('Daily', () => {
     expect(el.querySelector<HTMLTextAreaElement>('.daily__textarea')!.value).toBe('Terminei o login');
 
     click('.daily__finish');
-    expect(el.querySelector('.daily__summary-header')?.textContent).toContain('1 de 7');
-    expect(el.querySelector('.daily__summary-notes dd')?.textContent).toBe('Terminei o login');
+    expect(el.querySelector('.daily__summary-header')?.textContent).toContain('2 de 7');
+    const notes = [...el.querySelectorAll('.daily__summary-notes dd')].map((dd) => dd.textContent);
+    expect(notes).toContain('Terminei o login');
+    expect(notes).toContain('Rascunho não salvo');
   });
 
   it('keeps finished dailies in the history after the page is opened again', async () => {

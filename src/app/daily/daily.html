@@ -1,3 +1,6 @@
+@if (history.error(); as error) {
+  <p class="daily__error" role="alert">{{ error }}</p>
+}
 @switch (step()) {
   @case ('start') {
     <button class="daily__start" type="button" (click)="step.set('meeting')">

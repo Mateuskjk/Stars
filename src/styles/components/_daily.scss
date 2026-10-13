@@ -226,6 +226,14 @@ $daily-good: #0ca30c;
     }
   }
 
+  &__error {
+    padding: 10px 16px;
+    border-radius: 12px;
+    background-color: color-mix(in srgb, #d03b3b 12%, var(--color-card));
+    color: var(--ink-red);
+    font-size: 14px;
+  }
+
   &__empty {
     padding: 16px 0;
     color: $daily-muted;

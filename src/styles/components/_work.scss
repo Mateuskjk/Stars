@@ -1,0 +1,31 @@
+@use '../variables' as *;
+
+// Work: kanban pessoal (atividades gerais + de projetos)
+.work {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &__origin {
+    color: var(--color-muted);
+    font-size: 12px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    text-align: left;
+  }
+
+  .kanban__card-footer {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  .confirm-dialog__button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

@@ -20,6 +20,7 @@ export const routes: Routes = [
   {
     path: 'workspace',
     children: [
+      { path: 'work', loadComponent: () => import('./work/work').then((m) => m.Work) },
       { path: 'daily', loadComponent: () => import('./daily/daily').then((m) => m.Daily) },
       { path: 'backlog', loadComponent: () => import('./backlog/backlog').then((m) => m.Backlog) },
       { path: 'planning', loadComponent: () => import('./planning/planning').then((m) => m.Planning) },

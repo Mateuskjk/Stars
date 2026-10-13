@@ -1,5 +1,9 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { AuditStore } from '../audit/audit-store';
+import { ApiSync } from '../api/api-sync';
+import { api } from '../api/http';
+import { CompanyStore } from '../companies/company-store';
+import { MembersStore } from '../members/members-store';
 
 export interface DailyParticipant {
   name: string;
@@ -8,37 +12,63 @@ export interface DailyParticipant {
 }
 
 export interface DailyRecord {
-  id: number;
+  id: number | string; // string: id do banco
   date: string; // ISO
   participants: DailyParticipant[];
 }
 
 const KEY = 'stars.daily-history';
 
-// Histórico das dailies finalizadas.
-// ponytail: guardado no localStorage (só neste navegador); para compartilhar com o time,
-// trocar read/write por chamadas à API — o resto do app usa só records/load/add.
+// Histórico das dailies finalizadas: com login, no banco, por empresa (o time todo vê);
+// sem login (exemplos e testes), só neste navegador
 @Injectable({ providedIn: 'root' })
 export class DailyHistory {
   private readonly audit = inject(AuditStore);
+  private readonly sync = inject(ApiSync);
+  private readonly companies = inject(CompanyStore);
+  private readonly members = inject(MembersStore);
   readonly records = signal<DailyRecord[]>([]);
+  readonly error = signal('');
+
+  private tenantId() {
+    return this.members.sessionEmail() ? this.sync.ids.empresa.db(this.companies.currentId()) : null;
+  }
 
   // Chamado no navegador depois da primeira renderização (no SSR não existe localStorage)
-  load() {
-    this.records.set(read());
+  async load() {
+    const tenantId = this.tenantId();
+    if (!tenantId) return this.records.set(read());
+    try {
+      this.records.set(await api<DailyRecord[]>(`/data/dailies?tenantId=${encodeURIComponent(tenantId)}`));
+    } catch (e) {
+      this.error.set(`Não foi possível carregar as dailies: ${(e as Error).message}`);
+    }
   }
 
-  add(record: DailyRecord) {
+  async add(record: DailyRecord) {
     this.records.update((list) => [record, ...list]);
-    write(this.records());
     this.audit.log({ action: 'close', entity: 'Daily', name: dailyName(record), details: `${record.participants.filter((p) => p.notes).length} pessoas com anotações` });
+    const tenantId = this.tenantId();
+    if (!tenantId) return write(this.records());
+    try {
+      const { id } = await api<{ id: string }>('/data/dailies', { method: 'POST', body: JSON.stringify({ tenantId, record }) });
+      this.records.update((list) => list.map((r) => (r === record ? { ...r, id } : r)));
+    } catch (e) {
+      this.error.set(`A daily não foi salva no banco: ${(e as Error).message}`);
+    }
   }
 
-  remove(id: number) {
+  async remove(id: number | string) {
     const record = this.records().find((r) => r.id === id);
     this.records.update((list) => list.filter((r) => r.id !== id));
-    write(this.records());
     if (record) this.audit.log({ action: 'delete', entity: 'Daily', name: dailyName(record) });
+    if (typeof id === 'number') return write(this.records());
+    try {
+      await api(`/data/dailies/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    } catch (e) {
+      this.error.set(`Não foi possível excluir a daily: ${(e as Error).message}`);
+      if (record) this.records.update((list) => [...list, record].sort((a, b) => b.date.localeCompare(a.date)));
+    }
   }
 }
 

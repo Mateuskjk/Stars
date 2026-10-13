@@ -79,8 +79,8 @@ export class Daily {
   protected readonly allMovements = signal<Movement[]>(this.members.sessionEmail() ? [] : MOVEMENTS);
 
   constructor() {
-    afterNextRender(() => {
-      this.history.load();
+    afterNextRender(async () => {
+      await this.history.load(); // as movimentações contam a partir da última daily
       if (this.members.sessionEmail()) void this.loadMovements();
     });
   }
@@ -164,7 +164,9 @@ export class Daily {
       id: Date.now(),
       date: new Date().toISOString(),
       participants: this.users().map((user) => {
-        const saved = notes[user.name]?.saved ? notes[user.name] : null;
+        // Vale o que foi digitado, mesmo sem clicar em salvar
+        const n = notes[user.name];
+        const saved = n && (n.saved || n.yesterday.trim() || n.today.trim() || n.blockers.trim()) ? n : null;
         return {
           name: user.name,
           moves: this.allMovements().filter((m) => m.user === user.name).length,
@@ -172,7 +174,7 @@ export class Daily {
         };
       }),
     };
-    this.history.add(record);
+    void this.history.add(record);
     this.open(record, false);
   }
 
@@ -189,7 +191,7 @@ export class Daily {
 
   protected confirmDelete() {
     const record = this.pendingDelete();
-    if (record) this.history.remove(record.id);
+    if (record) void this.history.remove(record.id);
     this.confirmDialog().nativeElement.close();
   }
 

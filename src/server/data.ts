@@ -198,7 +198,7 @@ export function dataRouter() {
     '/extras',
     route(async (_req, s) => {
       if (!(await ensureSchema())) return [];
-      const { rows } = await db().query(`select tipo, "registroId", dados from lexagile.extra where "tenantId" = any($1::text[])`, [tenantsOf(s)]);
+      const { rows } = await db().query(`select tipo, "registroId", dados from lexagile.extra where "tenantId" = any($1::text[]) and tipo <> 'daily'`, [tenantsOf(s)]);
       return rows;
     }),
   );

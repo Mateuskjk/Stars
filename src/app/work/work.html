@@ -1,0 +1,104 @@
+<header class="backlog__header">
+  <div>
+    <h2 class="backlog__title">Work</h2>
+    <p class="backlog__subtitle">Suas atividades gerais e de projetos num lugar só. Mover aqui move também no Backlog e no kanban do projeto.</p>
+  </div>
+</header>
+
+<section class="kanban" aria-label="Minhas atividades">
+  <div class="kanban__board">
+    @for (column of board(); track column.id) {
+      <div
+        class="kanban__column"
+        [class.is-drop-target]="dropTarget() === column.id"
+        (dragover)="onDragOver($event, column.id)"
+        (drop)="onDrop($event, column.id)"
+      >
+        <header class="kanban__column-header">
+          <span class="kanban__status" [style.background]="column.color"></span>
+          <span class="kanban__column-title">{{ column.label }}</span>
+          <span class="kanban__count">{{ column.cards.length }}</span>
+        </header>
+
+        <ul class="kanban__cards">
+          @for (card of column.cards; track card.key) {
+            <li
+              class="kanban__card"
+              [attr.draggable]="!card.locked"
+              [class.is-dragging]="dragging() === card.key"
+              [class.is-late]="isLate(card)"
+              (dragstart)="dragging.set(card.key)"
+              (dragend)="endDrag()"
+            >
+              <div class="kanban__card-header">
+                <span class="kanban__project" [title]="card.kind === 'task' ? 'Projeto ' + card.origin : 'Atividade geral (Backlog)'">{{ card.origin }}</span>
+                @if (!card.locked) {
+                  <select
+                    class="kanban__move"
+                    [attr.aria-label]="'Mover ' + card.title + ' para'"
+                    (change)="ask(card.key, $any($event.target).value); $any($event.target).value = card.column"
+                  >
+                    @for (option of columns; track option.id) {
+                      <option [value]="option.id" [selected]="option.id === card.column">{{ option.label }}</option>
+                    }
+                  </select>
+                }
+              </div>
+              <a class="kanban__card-title kanban__card-link" [routerLink]="card.link" [queryParams]="card.query">{{ card.title }}</a>
+              <div class="kanban__card-footer">
+                <span class="work__origin" [title]="'Coluna no kanban de origem'">{{ card.kind === 'task' ? 'No projeto' : 'No Backlog' }}: {{ originLabel(card) }}</span>
+                @if (card.locked) {
+                  <span class="work__origin" title="Cartão bloqueado no Backlog">🔒</span>
+                }
+                @if (card.due) {
+                  <span class="project-page__due" [class.is-late]="isLate(card)">{{ isLate(card) ? 'Atrasada · ' : '' }}até {{ shortDate(card.due) }}</span>
+                }
+              </div>
+            </li>
+          } @empty {
+            <li class="kanban__empty">Nenhuma atividade</li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+</section>
+
+<!-- Sempre que um cartão muda de coluna: as colunas do Work não são as mesmas do kanban de origem -->
+<dialog #moveDialog class="confirm-dialog" aria-labelledby="work-move-title" (click)="onDialogClick($event)">
+  @if (pending(); as p) {
+    <div class="confirm-dialog__box">
+      <h2 id="work-move-title" class="confirm-dialog__title">As colunas são diferentes</h2>
+      <p class="confirm-dialog__text">
+        <strong>{{ p.card.title }}</strong> vem
+        {{ p.card.kind === 'task' ? 'do projeto ' + p.card.origin : 'do Backlog (atividades gerais)' }}, que tem colunas próprias. Você moveu para
+        <strong>{{ workLabel(p.to) }}</strong> no Work: escolha em qual coluna ele fica lá.
+      </p>
+      @if (p.card.locked) {
+        <p class="confirm-dialog__text">Este cartão está bloqueado no Backlog. Desbloqueie lá para mover.</p>
+      } @else {
+        <label class="work__field">
+          <span class="modal__label">Coluna {{ p.card.kind === 'task' ? 'no projeto' : 'no Backlog' }}</span>
+          <select class="modal__input" (change)="choose($any($event.target).value)">
+            @for (c of originColumns(p.card); track c.id) {
+              <option [value]="c.id" [selected]="c.id === p.choice">{{ c.label }}{{ c.id === p.card.originColumn ? ' (atual)' : '' }}</option>
+            }
+          </select>
+        </label>
+        <p class="confirm-dialog__text">
+          @if (workColumnOf(p.card, p.choice) === p.to) {
+            No Work ele fica em <strong>{{ workLabel(p.to) }}</strong>.
+          } @else {
+            Atenção: com essa coluna, no Work ele aparece em <strong>{{ workLabel(workColumnOf(p.card, p.choice)) }}</strong>.
+          }
+        </p>
+      }
+      <div class="confirm-dialog__actions">
+        <button class="confirm-dialog__button" type="button" (click)="cancel()">Cancelar</button>
+        <button class="confirm-dialog__button confirm-dialog__button--primary" type="button" [disabled]="p.card.locked || p.choice === p.card.originColumn" (click)="confirm()">
+          Mover
+        </button>
+      </div>
+    </div>
+  }
+</dialog>
