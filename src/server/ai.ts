@@ -1,7 +1,7 @@
 // Integração com IAs — roda SOMENTE no servidor (Node). As chaves de API ficam aqui e nunca voltam para o navegador.
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { Request, Response, Router, json } from 'express';
-import { db } from './db';
+import { db, ddl, onDbReset } from './db';
 import { hit } from './limits';
 import { SUPERADMIN_ONLY, isSuperAdmin } from './auth';
 
@@ -191,9 +191,11 @@ export function decryptKey(stored: string) {
 }
 
 let table: Promise<void> | null = null;
-function ensureTable() {
-  table ??= db()
-    .query(
+onDbReset(() => {
+  table = null;
+});
+export function ensureTable() {
+  table ??= ddl(
       `create schema if not exists lexagile;
        create table if not exists lexagile.ia_config (
          id text primary key,

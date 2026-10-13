@@ -3,7 +3,7 @@
 // A sessão é um token aleatório num cookie httpOnly (o JavaScript da página não consegue ler).
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { NextFunction, Request, Response, Router, json } from 'express';
-import { db } from './db';
+import { db, ddl, onDbReset } from './db';
 import { isAllowedEmail } from './domains';
 import { count, hit, reset } from './limits';
 
@@ -44,9 +44,8 @@ const sessions = new Map<string, Session>();
 const CACHE_MS = 60_000;
 
 let sessionTable: Promise<boolean> | null = null;
-function ensureSessionTable() {
-  sessionTable ??= db()
-    .query(
+export function ensureSessionTable() {
+  sessionTable ??= ddl(
       `create schema if not exists lexagile;
        create table if not exists lexagile.sessao (
          "tokenHash" text primary key,
@@ -107,6 +106,11 @@ async function recordFailure(keys: Record<string, number>) {
 
 // ---------- Sessão ----------
 const cachedAt = new Map<string, number>();
+onDbReset(() => {
+  sessionTable = null;
+  sessions.clear();
+  cachedAt.clear();
+});
 
 export async function readSession(req: Request): Promise<Session | undefined> {
   const token = parseCookie(req.headers.cookie)[COOKIE];

@@ -1,8 +1,11 @@
 // API pública v1 (somente leitura) + registro de tokens e trilha de acesso — roda SOMENTE no servidor.
 import { createHash, randomUUID } from 'node:crypto';
 import { NextFunction, Request, RequestHandler, Response, Router, json } from 'express';
-import { db } from './db';
+import { db, parseJson, ddl, onDbReset } from './db';
 import { hit } from './limits';
+import { Session, liveMemberships } from './auth';
+import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
+import { ensureSchema } from './migration';
 
 type Access = 'none' | 'view' | 'edit';
 type Feature = 'dashboards' | 'chat' | 'projects' | 'daily' | 'backlog' | 'planning' | 'notes' | 'settings';
@@ -17,20 +20,18 @@ interface TokenOwner {
 
 // Tudo no banco (schema lexagile): vale em todas as cópias do servidor na Vercel e sobrevive a reinícios.
 // - api_token: o token em si nunca fica guardado, só o hash SHA-256
-// - api_retrato: retrato dos dados enviado pelo app (sem segredos), um por pessoa logada: ninguém lê nem sobrescreve o de outro.
-//   ponytail: até a API ler direto do banco (filtrando pela empresa do token), ela lê o retrato de quem emitiu o token
 // - api_acesso: trilha de acesso (tela de Auditorias), guardada por 30 dias
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
-const EMPTY: Record<string, unknown[]> = { projects: [], activities: [], sprints: [], teams: [], members: [] };
 
 let tables: Promise<unknown> | null = null;
-const ensureTables = () =>
-  (tables ??= db()
-    .query(
+onDbReset(() => {
+  tables = null;
+});
+export const ensureTables = () =>
+  (tables ??= ddl(
       `create schema if not exists lexagile;
        create table if not exists lexagile.api_token ("tokenHash" text primary key, issuer text not null, "memberId" int not null,
          nome text not null, papel text not null, permissoes jsonb not null, "criadoEm" timestamptz not null default now());
-       create table if not exists lexagile.api_retrato (issuer text primary key, dados jsonb not null, "atualizadoEm" timestamptz not null default now());
        create table if not exists lexagile.api_acesso (id text primary key, issuer text not null, em timestamptz not null default now(),
          ator text not null, metodo text not null, caminho text not null, status int not null, ip text not null);`,
     )
@@ -90,7 +91,7 @@ export const ENDPOINTS: Endpoint[] = [
     description: 'Todos os projetos cadastrados.',
     feature: 'projects',
     collection: 'projects',
-    example: [{ id: 1, name: 'Redesign do site', status: 'in-progress', owner: 'Bruna Alves', company: 'Acme Ltda', team: 'Design' }],
+    example: [{ id: 'cmb1p9x0a0001', name: 'Redesign do site', status: 'in-progress', owner: 'Bruna Alves', company: 'Acme Ltda', team: 'Design', start: '2026-09-01', dueDate: '2026-12-15' }],
   },
   {
     path: '/projects/{id}',
@@ -100,7 +101,7 @@ export const ENDPOINTS: Endpoint[] = [
     feature: 'projects',
     collection: 'projects',
     params: [{ name: 'id', in: 'path', description: 'Id do projeto' }],
-    example: { id: 1, name: 'Redesign do site', description: 'Nova identidade visual e home', status: 'in-progress', costInitial: 40000 },
+    example: { id: 'cmb1p9x0a0001', name: 'Redesign do site', description: 'Nova identidade visual e home', status: 'in-progress', costInitial: 40000, costDev: 35000, costFinal: null },
   },
   {
     path: '/activities',
@@ -110,7 +111,7 @@ export const ENDPOINTS: Endpoint[] = [
     feature: 'backlog',
     collection: 'activities',
     params: [{ name: 'status', in: 'query', description: 'Coluna do backlog', enum: ['to-refine', 'refined', 'waiting', 'refinement-done', 'archived', 'canceled'] }],
-    example: [{ id: 3, name: 'Política de férias 2027', status: 'refined', assignee: 'Felipe Costa', due: '2026-10-06', tags: ['RH'], locked: false }],
+    example: [{ id: 'cmb2a4k7b0003', name: 'Política de férias 2027', status: 'refined', assignee: 'Felipe Costa', due: '2026-10-06', tags: ['RH'], locked: false, projectId: null, sprintId: 'cmb3s1t2c0012', company: 'Acme Ltda' }],
   },
   {
     path: '/activities/{id}',
@@ -120,7 +121,7 @@ export const ENDPOINTS: Endpoint[] = [
     feature: 'backlog',
     collection: 'activities',
     params: [{ name: 'id', in: 'path', description: 'Id da atividade' }],
-    example: { id: 3, name: 'Política de férias 2027', description: 'Definir janelas e regras de aprovação.', subtasks: 0, comments: 1 },
+    example: { id: 'cmb2a4k7b0003', name: 'Política de férias 2027', description: 'Definir janelas e regras de aprovação.', subtasks: 0, comments: 1 },
   },
   {
     path: '/sprints',
@@ -129,8 +130,8 @@ export const ENDPOINTS: Endpoint[] = [
     description: 'Sprints com período e status (active, closed, archived, canceled).',
     feature: 'planning',
     collection: 'sprints',
-    params: [{ name: 'status', in: 'query', description: 'Status da sprint', enum: ['active', 'closed', 'archived', 'canceled'] }],
-    example: [{ id: 12, name: 'Sprint 12', start: '2026-10-05', end: '2026-10-11', goal: 'Organizar processos internos do time', status: 'active' }],
+    params: [{ name: 'status', in: 'query', description: 'Status da sprint', enum: ['active', 'planned', 'closed'] }],
+    example: [{ id: 'cmb3s1t2c0012', name: 'Sprint 12', start: '2026-10-05', end: '2026-10-11', status: 'active', company: 'Acme Ltda' }],
   },
   {
     path: '/teams',
@@ -139,7 +140,7 @@ export const ENDPOINTS: Endpoint[] = [
     description: 'Equipes com membros, projetos e atividades delegadas (por id).',
     feature: 'settings',
     collection: 'teams',
-    example: [{ id: 1, name: 'Produto', focus: 'Experiência do cliente', memberIds: [1, 2, 3], projectIds: [1, 2], activityIds: [1, 4] }],
+    example: [{ id: 'cmb4e8q1d0001', name: 'Produto', company: 'Acme Ltda', memberIds: ['cmb5u0w2e0001', 'cmb5u0w2e0002'], projectIds: ['cmb1p9x0a0001'] }],
   },
   {
     path: '/members',
@@ -148,7 +149,7 @@ export const ENDPOINTS: Endpoint[] = [
     description: 'Membros com cargo, empresa e status. E-mails e tokens não são expostos.',
     feature: 'settings',
     collection: 'members',
-    example: [{ id: 1, name: 'Ana Souza', role: 'admin', company: 'Acme Ltda', status: 'active' }],
+    example: [{ id: 'cmb5u0w2e0001', name: 'Ana Souza', role: 'admin', company: 'Acme Ltda', status: 'active' }],
   },
 ];
 
@@ -185,6 +186,88 @@ export function openApiSpec(serverUrl: string) {
     components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', description: 'Token pessoal: stars_…' } } },
     paths,
   };
+}
+
+// ---------- Dados: direto do banco, com o que o Admin que emitiu o token vê HOJE no app ----------
+// (empresas e cargos relidos a cada chamada: Admin removido ou rebaixado → o token perde o acesso junto)
+type Row = Record<string, unknown>;
+const ROLE_OF: Record<string, string> = { DONO: 'admin', GESTOR: 'supervisor', ATENDENTE: 'member', OBSERVADOR: 'member' };
+
+async function issuerSession(issuer: string): Promise<Session | null> {
+  const memberships = await liveMemberships(issuer, []);
+  return memberships.length ? { key: 'api', nome: issuer, email: issuer, memberships, expiresAt: Date.now() + 60_000 } : null;
+}
+
+export async function readCollection(collection: string, s: Session): Promise<Row[]> {
+  const installed = await ensureSchema();
+  const params = [tenantsOf(s), meOf(s), await seesAllTenants(s, installed)];
+  if (collection === 'projects') {
+    const { rows } = await db().query(
+      `select p.id, p.nome as name, p.descricao as description,
+              case when p.arquivado then 'archived'
+                   else coalesce(${installed ? `x.dados->>'status', ` : ''}case p.situacao when 'EM_ANDAMENTO' then 'in-progress' when 'PARADO' then 'paused'
+                        when 'CONCLUIDO' then 'done' else 'not-started' end) end as status,
+              u.nome as owner, t.nome as company, e.nome as team,
+              p.orcamento as "costInitial", p."custoPrevisto" as "costDev", p."custoRealizado" as "costFinal",
+              to_char(p."dataInicio", 'YYYY-MM-DD') as start, to_char(p."previsaoTermino", 'YYYY-MM-DD') as "dueDate"
+         from "Projeto" p join "Tenant" t on t.id = p."tenantId"
+         left join "Usuario" u on u.id = p."responsavelId" left join "Equipe" e on e.id = p."equipeId"
+         ${installed ? `left join lexagile.extra x on x.tipo = 'projeto' and x."registroId" = p.id` : ''}
+        where ${visibleProjectSql(installed)} ${installed ? `and not coalesce((x.dados->>'excluido')::boolean, false)` : ''}
+        order by t.nome, p.numero nulls last`,
+      params,
+    );
+    return rows;
+  }
+  if (collection === 'activities') {
+    const { rows } = await db().query(
+      `select a.id, a.titulo as name, a.descricao as description,
+              case when a."arquivadoTipo" = 'CANCELADO' then 'canceled' when a."arquivadoTipo" is not null then 'archived'
+                   else coalesce(${installed ? 'f."colunaBacklog", ' : ''}case when a.status = 'RASCUNHO' and a."sprintId" is null then 'to-refine' else 'refinement-done' end) end as status,
+              r.nome as assignee, coalesce(to_char(a.prazo, 'YYYY-MM-DD'), '') as due, a.tags, a."bloqueioMotivo" is not null as locked,
+              a."projetoId" as "projectId", a."sprintId" as "sprintId", t.nome as company,
+              (select count(*)::int from "Subtarefa" st where st."atividadeId" = a.id) as subtasks,
+              (select count(*)::int from "Comentario" c where c."atividadeId" = a.id) as comments
+         from "Atividade" a join "Tenant" t on t.id = a."tenantId" left join "Usuario" r on r.id = a."responsavelId"
+         ${installed ? 'left join lexagile.atividade_front f on f."atividadeId" = a.id' : ''}
+        where ${visibleActivitySql(installed)} order by t.nome, a.numero limit 5000`,
+      params,
+    );
+    return rows.map((r) => ({ ...r, tags: parseJson(r.tags as string, []) }));
+  }
+  if (collection === 'sprints') {
+    const { rows } = await db().query(
+      `select s.id, s.nome as name, ${installed ? `to_char(p.inicio, 'YYYY-MM-DD') as start, to_char(p.fim, 'YYYY-MM-DD') as "end",` : ''}
+              case s.situacao when 'ATIVA' then 'active' when 'PREPARACAO' then 'planned' else 'closed' end as status, t.nome as company
+         from "Sprint" s join "Tenant" t on t.id = s."tenantId"
+         ${installed ? 'left join lexagile.sprint_periodo p on p."sprintId" = s.id' : ''}
+        where s."tenantId" = any($1::text[]) order by t.nome, s.nome desc`,
+      [params[0]],
+    );
+    return rows;
+  }
+  if (collection === 'teams') {
+    const { rows } = await db().query(
+      `select e.id, e.nome as name, t.nome as company,
+              coalesce((select array_agg(m."usuarioId") from "EquipeMembro" m where m."equipeId" = e.id), '{}') as "memberIds",
+              coalesce((select array_agg(p.id) from "Projeto" p where p."equipeId" = e.id), '{}') as "projectIds"
+         from "Equipe" e join "Tenant" t on t.id = e."tenantId"
+        where e."tenantId" = any($1::text[]) and e.ativa order by t.nome, e.nome`,
+      [params[0]],
+    );
+    return rows;
+  }
+  if (collection === 'members') {
+    const { rows } = await db().query<Row & { papel: string; situacao: string }>(
+      `select u.id, u.nome as name, u.papel, u.situacao, t.nome as company
+         from "Usuario" u join "Tenant" t on t.id = u."tenantId"
+        where u."tenantId" = any($1::text[]) and u."removidoEm" is null and u.situacao in ('ATIVO', 'CONVIDADO')
+        order by t.nome, u.nome`,
+      [params[0]],
+    );
+    return rows.map(({ papel, situacao, ...r }) => ({ ...r, role: ROLE_OF[papel] ?? 'member', status: situacao === 'ATIVO' ? 'active' : 'pending' }));
+  }
+  return [];
 }
 
 // ---------- API v1 (com token) ----------
@@ -230,8 +313,9 @@ export function publicApiRouter() {
       if (endpoint.feature && !['view', 'edit'].includes(owner.permissions[endpoint.feature])) {
         return void res.status(403).json({ error: `Sem permissão para ${endpoint.tag.toLowerCase()}.` });
       }
-      const { rows } = await db().query<{ dados: Record<string, unknown[]> }>(`select dados from lexagile.api_retrato where issuer = $1`, [owner.issuer]);
-      const items = ((rows[0]?.dados ?? EMPTY)[endpoint.collection!] ?? []) as { id: number; status?: string }[];
+      const session = await issuerSession(owner.issuer);
+      if (!session) return void res.status(401).json({ error: 'Quem emitiu este token não tem mais acesso ao LexÁgile. Peça um token novo.' });
+      const items = (await readCollection(endpoint.collection!, session)) as { id: string; status?: string }[];
       if (req.params['id'] !== undefined) {
         const item = items.find((i) => String(i.id) === req.params['id']);
         return void (item ? res.json(item) : res.status(404).json({ error: 'Não encontrado.' }));
@@ -289,23 +373,10 @@ export function publicApiInternalRouter() {
   router.patch('/tokens/:memberId', onlyOwner, safe(async (req, res) => {
     const sets: string[] = [];
     const values: unknown[] = [issuerOf(req), memberIdOf(req)];
-    if (req.body?.name !== undefined) sets.push(`nome = ${values.push(String(req.body.name).slice(0, 120))}`);
-    if (ROLES.includes(req.body?.role)) sets.push(`papel = ${values.push(req.body.role)}`);
-    if (req.body?.permissions !== undefined) sets.push(`permissoes = ${values.push(JSON.stringify(cleanPermissions(req.body.permissions)))}`);
+    if (req.body?.name !== undefined) sets.push(`nome = $${values.push(String(req.body.name).slice(0, 120))}`);
+    if (ROLES.includes(req.body?.role)) sets.push(`papel = $${values.push(req.body.role)}`);
+    if (req.body?.permissions !== undefined) sets.push(`permissoes = $${values.push(JSON.stringify(cleanPermissions(req.body.permissions)))}`);
     if (sets.length) await db().query(`update lexagile.api_token set ${sets.join(', ')} where issuer = $1 and "memberId" = $2`, values);
-    res.json({ ok: true });
-  }));
-
-  // Cada pessoa grava só o próprio retrato (o que ela já vê no app)
-  router.put('/snapshot', safe(async (req, res) => {
-    const body = req.body ?? {};
-    const pick = (key: string) => (Array.isArray(body[key]) ? body[key].slice(0, 5000) : []);
-    const dados = { projects: pick('projects'), activities: pick('activities'), sprints: pick('sprints'), teams: pick('teams'), members: pick('members') };
-    await db().query(
-      `insert into lexagile.api_retrato (issuer, dados, "atualizadoEm") values ($1, $2, now())
-       on conflict (issuer) do update set dados = excluded.dados, "atualizadoEm" = now()`,
-      [issuerOf(req), JSON.stringify(dados)],
-    );
     res.json({ ok: true });
   }));
 

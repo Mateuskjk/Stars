@@ -7,7 +7,6 @@ import { MigrationWizard } from './migration/migration-wizard';
 import { Login } from './login/login';
 import { SessionStore } from './api/session';
 import { CompanyStore } from './companies/company-store';
-import { ApiSnapshot } from './api-docs/api-snapshot';
 import { AccountStore, NotificationType, greetingFor, hourIn } from './account/account-store';
 import { formatWeekDate } from './home/home';
 import { RecentsStore } from './home/recents-store';
@@ -58,13 +57,11 @@ export class App {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
-    const snapshot = inject(ApiSnapshot);
     afterNextRender(() => {
       void this.session.check();
       this.account.load();
       this.recentsStore.load();
       this.loadTheme();
-      snapshot.start(); // mantém a API pública com os dados atuais
       const id = setInterval(() => this.now.set(new Date()), 60_000);
       destroyRef.onDestroy(() => clearInterval(id));
       destroyRef.onDestroy(kanbanPan());

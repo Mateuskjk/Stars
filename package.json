@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:Stars": "node dist/Stars/server/server.mjs"
+    "serve:ssr:Stars": "node dist/Stars/server/server.mjs",
+    "db:migrate": "esbuild scripts/db-migrate.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/db-migrate.mjs && node node_modules/.cache/db-migrate.mjs"
   },
   "private": true,
   "packageManager": "npm@11.13.0",
@@ -31,6 +32,7 @@
     "@angular/build": "^22.2.2",
     "@angular/cli": "^22.2.2",
     "@angular/compiler-cli": "^22.2.0",
+    "@electric-sql/pglite": "0.5.8",
     "@types/express": "^5.0.1",
     "@types/node": "^22.12.0",
     "@types/pg": "^8.23.1",

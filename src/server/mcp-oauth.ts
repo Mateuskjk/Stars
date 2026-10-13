@@ -10,7 +10,7 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { InvalidClientMetadataError, InvalidGrantError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { redirectUriMatches } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
-import { db } from './db';
+import { db, ddl, onDbReset } from './db';
 import { Membership, Session, liveMemberships, readSession, usersForEmail } from './auth';
 
 const ACCESS_S = 60 * 60; // token de acesso: 1 hora
@@ -41,9 +41,11 @@ const clientAllowed = (c: OAuthClientInformationFull) => c.redirect_uris.length 
 export const appUrl = () => (process.env['APP_URL'] || `http://localhost:${process.env['PORT'] || 4200}`).replace(/\/$/, '');
 
 let tables: Promise<void> | null = null;
-function ensureTables() {
-  tables ??= db()
-    .query(
+onDbReset(() => {
+  tables = null;
+});
+export function ensureTables() {
+  tables ??= ddl(
       `create schema if not exists lexagile;
        create table if not exists lexagile.oauth_cliente (
          "clientId" text primary key, dados jsonb not null, "criadoEm" timestamptz not null default now());
@@ -97,6 +99,12 @@ async function issueTokens(
   const insert = `insert into lexagile.oauth_token ("tokenHash", tipo, "clientId", email, nome, memberships, expira, familia, "familiaInicio")
                   values ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7), $8, $9)`;
   await db().query(`delete from lexagile.oauth_token where expira < now()`); // limpa os vencidos (inclusive os refresh já usados)
+  await db().query(`delete from lexagile.oauth_codigo where expira < now()`); // códigos não usados que venceram
+  // Clientes cadastrados (DCR) sem nenhuma conexão há 90 dias: o Claude cadastra de novo se precisar
+  await db().query(
+    `delete from lexagile.oauth_cliente c where c."criadoEm" < now() - interval '90 days'
+      and not exists (select 1 from lexagile.oauth_token t where t."clientId" = c."clientId")`,
+  );
   await db().query(insert, [sha(access), 'access', clientId, who.email, who.nome, JSON.stringify(who.memberships), ACCESS_S, fam.id, fam.since]);
   await db().query(insert, [sha(refresh), 'refresh', clientId, who.email, who.nome, JSON.stringify(who.memberships), REFRESH_S, fam.id, fam.since]);
   return { access_token: access, token_type: 'bearer', expires_in: ACCESS_S, refresh_token: refresh, scope: SCOPE };
