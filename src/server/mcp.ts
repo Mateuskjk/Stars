@@ -13,6 +13,8 @@ import { Session } from './auth';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
 import { HttpError, ensureSchema } from './migration';
 import { applyActivity, createActivity, visibleActivity } from './writes';
+import { takeEvents } from './events';
+import { deliverEvents } from './integrations';
 import { SCOPE, appUrl, consentRouter, oauthProvider, sessionFromAuth } from './mcp-oauth';
 
 const STATUS = ['RASCUNHO', 'PRONTO', 'EM_EXECUCAO', 'EM_REVISAO', 'CONCLUIDO'] as const;
@@ -39,8 +41,10 @@ async function tx<T>(fn: (client: PoolClient) => Promise<T>) {
     await client.query('begin');
     const result = await fn(client);
     await client.query('commit');
+    await deliverEvents(takeEvents(client)); // webhooks só depois do commit (o Claude gravou de verdade)
     return result;
   } catch (error) {
+    takeEvents(client);
     await client.query('rollback').catch(() => undefined);
     throw error;
   } finally {
@@ -114,6 +118,8 @@ export function buildServer(s: Session | null) {
   });
   const read = { readOnlyHint: true, openWorldHint: false };
   const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: false };
+  // Muda o que já existe (status, título, descrição, prazo, responsável): o Claude pede confirmação antes
+  const change = { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false };
 
   server.registerTool('quem_sou_eu', { title: 'Quem está conectado', description: 'Mostra a pessoa conectada e as empresas e cargos dela no LexÁgile.', annotations: read }, () =>
     run(s, async (s) => {
@@ -124,7 +130,7 @@ export function buildServer(s: Session | null) {
 
   server.registerTool(
     'listar_projetos',
-    { title: 'Listar projetos', description: 'Projetos da empresa, com situação, setor, responsável e prazo.', inputSchema: { empresa: z.string().optional().describe('Nome ou sigla da empresa'), incluir_arquivados: z.boolean().optional() }, annotations: read },
+    { title: 'Listar projetos', description: 'Projetos da empresa, com situação, setor, responsável e prazo.', inputSchema: { empresa: z.string().max(200).optional().describe('Nome ou sigla da empresa'), incluir_arquivados: z.boolean().optional() }, annotations: read },
     ({ empresa, incluir_arquivados }) =>
       run(s, async (s) => {
         const tenant = await resolveTenant(s, empresa);
@@ -142,7 +148,7 @@ export function buildServer(s: Session | null) {
 
   server.registerTool(
     'sprint_ativa',
-    { title: 'Sprint ativa', description: 'A sprint ativa da empresa: período e quantas atividades (que você vê) estão em cada status.', inputSchema: { empresa: z.string().optional() }, annotations: read },
+    { title: 'Sprint ativa', description: 'A sprint ativa da empresa: período e quantas atividades (que você vê) estão em cada status.', inputSchema: { empresa: z.string().max(200).optional() }, annotations: read },
     ({ empresa }) =>
       run(s, async (s) => {
         const tenant = await resolveTenant(s, empresa);
@@ -169,12 +175,12 @@ export function buildServer(s: Session | null) {
       title: 'Buscar atividades',
       description: 'Procura atividades que você pode ver, com filtros. Sem filtros, traz as atualizadas mais recentemente.',
       inputSchema: {
-        texto: z.string().optional().describe('Parte do título'),
-        empresa: z.string().optional(),
-        projeto: z.string().optional().describe('Parte do nome do projeto'),
+        texto: z.string().max(200).optional().describe('Parte do título'),
+        empresa: z.string().max(200).optional(),
+        projeto: z.string().max(200).optional().describe('Parte do nome do projeto'),
         sprint_ativa: z.boolean().optional().describe('Só as da sprint ativa'),
         status: z.enum(STATUS).optional(),
-        responsavel: z.string().optional().describe('Nome ou e-mail (ou parte)'),
+        responsavel: z.string().max(200).optional().describe('Nome ou e-mail (ou parte)'),
         bloqueadas: z.boolean().optional(),
         atrasadas: z.boolean().optional().describe('Prazo vencido e não concluídas'),
         limite: z.number().int().min(1).max(100).optional(),
@@ -204,7 +210,7 @@ export function buildServer(s: Session | null) {
 
   server.registerTool(
     'ver_atividade',
-    { title: 'Ver atividade', description: 'Detalhes de uma atividade: descrição, subtarefas, comentários e histórico de status.', inputSchema: { atividade: z.string().describe('"#número" ou id'), empresa: z.string().optional() }, annotations: read },
+    { title: 'Ver atividade', description: 'Detalhes de uma atividade: descrição, subtarefas, comentários e histórico de status.', inputSchema: { atividade: z.string().max(200).describe('"#número" ou id'), empresa: z.string().max(200).optional() }, annotations: read },
     ({ atividade, empresa }) =>
       run(s, async (s) => {
         const id = await resolveActivityId(s, atividade, empresa);
@@ -224,7 +230,7 @@ export function buildServer(s: Session | null) {
 
   server.registerTool(
     'listar_pessoas',
-    { title: 'Listar pessoas', description: 'Pessoas ativas da empresa (nome, e-mail e cargo) — use o e-mail para atribuir atividades.', inputSchema: { empresa: z.string().optional() }, annotations: read },
+    { title: 'Listar pessoas', description: 'Pessoas ativas da empresa (nome, e-mail e cargo) — use o e-mail para atribuir atividades.', inputSchema: { empresa: z.string().max(200).optional() }, annotations: read },
     ({ empresa }) =>
       run(s, async (s) => {
         const tenant = await resolveTenant(s, empresa);
@@ -238,7 +244,7 @@ export function buildServer(s: Session | null) {
 
   server.registerTool(
     'movimentacoes',
-    { title: 'Movimentações', description: 'Mudanças de status das atividades desde uma data (para a Daily).', inputSchema: { desde: z.string().optional().describe('Data/hora ISO; padrão: últimas 24h') }, annotations: read },
+    { title: 'Movimentações', description: 'Mudanças de status das atividades desde uma data (para a Daily).', inputSchema: { desde: z.string().max(200).optional().describe('Data/hora ISO; padrão: últimas 24h') }, annotations: read },
     ({ desde }) =>
       run(s, async (s) => {
         const since = desde && !isNaN(Date.parse(desde)) ? new Date(desde) : new Date(Date.now() - 86_400_000);
@@ -260,11 +266,11 @@ export function buildServer(s: Session | null) {
       title: 'Criar atividade',
       description: 'Cria uma atividade. Sem responsável, fica com você. Pode ir para um projeto e/ou direto para a sprint ativa.',
       inputSchema: {
-        empresa: z.string().optional(),
+        empresa: z.string().max(200).optional(),
         titulo: z.string().min(1).max(300),
         descricao: z.string().max(20000).optional(),
-        projeto: z.string().optional().describe('Nome do projeto (exato ou parte)'),
-        responsavel_email: z.string().optional(),
+        projeto: z.string().max(200).optional().describe('Nome do projeto (exato ou parte)'),
+        responsavel_email: z.string().max(200).optional(),
         prazo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('AAAA-MM-DD'),
         na_sprint_ativa: z.boolean().optional(),
       },
@@ -302,7 +308,7 @@ export function buildServer(s: Session | null) {
 
   server.registerTool(
     'mover_atividade',
-    { title: 'Mudar status', description: `Muda o status de uma atividade (entra no histórico). Status: ${STATUS_TEXT}.`, inputSchema: { atividade: z.string().describe('"#número" ou id'), status: z.enum(STATUS), empresa: z.string().optional() }, annotations: write },
+    { title: 'Mudar status', description: `Muda o status de uma atividade (entra no histórico). Status: ${STATUS_TEXT}.`, inputSchema: { atividade: z.string().max(200).describe('"#número" ou id'), status: z.enum(STATUS), empresa: z.string().max(200).optional() }, annotations: change },
     (a) =>
       run(s, async (s) => {
         const id = await resolveActivityId(s, a.atividade, a.empresa);
@@ -318,15 +324,15 @@ export function buildServer(s: Session | null) {
       title: 'Atualizar atividade',
       description: 'Altera título, descrição, prazo, responsável ou bloqueio de uma atividade (só os campos informados).',
       inputSchema: {
-        atividade: z.string().describe('"#número" ou id'),
-        empresa: z.string().optional(),
+        atividade: z.string().max(200).describe('"#número" ou id'),
+        empresa: z.string().max(200).optional(),
         titulo: z.string().min(1).max(300).optional(),
         descricao: z.string().max(20000).optional(),
-        prazo: z.string().optional().describe('AAAA-MM-DD, ou vazio para tirar o prazo'),
-        responsavel_email: z.string().optional(),
+        prazo: z.string().max(200).optional().describe('AAAA-MM-DD, ou vazio para tirar o prazo'),
+        responsavel_email: z.string().max(200).optional(),
         bloqueada: z.boolean().optional(),
       },
-      annotations: write,
+      annotations: change,
     },
     (a) =>
       run(s, async (s) => {
@@ -349,7 +355,7 @@ export function buildServer(s: Session | null) {
 
   server.registerTool(
     'comentar_atividade',
-    { title: 'Comentar', description: 'Adiciona um comentário (em seu nome) numa atividade.', inputSchema: { atividade: z.string(), texto: z.string().min(1).max(5000), empresa: z.string().optional() }, annotations: write },
+    { title: 'Comentar', description: 'Adiciona um comentário (em seu nome) numa atividade.', inputSchema: { atividade: z.string().max(200), texto: z.string().min(1).max(5000), empresa: z.string().max(200).optional() }, annotations: write },
     (a) =>
       run(s, async (s) => {
         const id = await resolveActivityId(s, a.atividade, a.empresa);

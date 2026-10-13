@@ -6,7 +6,7 @@
 import { randomBytes } from 'node:crypto';
 import { NextFunction, Request, Response, Router, json } from 'express';
 import type { PoolClient } from 'pg';
-import { db } from './db';
+import { db, ddl } from './db';
 import { Session, requireAuth, saveSession } from './auth';
 
 export const INSTALL_SQL = `
@@ -77,7 +77,7 @@ let schemaReady: Promise<boolean> | null = null;
 export function ensureSchema() {
   schemaReady ??= isInstalled()
     .then(async (installed) => {
-      if (installed) await db().query(INSTALL_SQL);
+      if (installed) await ddl(INSTALL_SQL);
       return installed;
     })
     .catch((error) => {

@@ -1,3 +1,5 @@
+import type { NextFunction, Request, Response } from 'express';
+
 // Cabeçalhos de segurança de todas as respostas. Os mesmos valores ficam no vercel.json (lá valem também para os
 // arquivos estáticos, que a Vercel serve sem passar pelo Express); o teste security-headers.spec.ts confere os dois.
 
@@ -19,6 +21,18 @@ export const CONTENT_SECURITY_POLICY = [
   "form-action 'self' https://claude.ai https://claude.com http://localhost:* http://127.0.0.1:*",
   "frame-ancestors 'none'", // ninguém coloca o LexÁgile dentro de um iframe (clickjacking)
 ].join('; ');
+
+// CSRF (defesa extra além do SameSite=Lax): gravações nas rotas que usam o cookie de login só valem vindas do próprio
+// site. O navegador informa a origem em Sec-Fetch-Site; sem o cabeçalho (curl, servidores), o SameSite continua valendo.
+// A API pública (/api/v1, com token) e o OAuth do MCP (chamado pelos servidores do Claude) ficam de fora.
+export function csrfGuard(req: Request, res: Response, next: NextFunction) {
+  const cookieRoute = (req.path.startsWith('/api/') && !req.path.startsWith('/api/v1')) || req.path === '/oauth/consent';
+  const site = req.get('sec-fetch-site');
+  if (cookieRoute && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && site && site !== 'same-origin' && site !== 'none') {
+    return void res.status(403).json({ error: 'Pedido de outro site recusado.' });
+  }
+  next();
+}
 
 export const SECURITY_HEADERS: Record<string, string> = {
   'Content-Security-Policy': CONTENT_SECURITY_POLICY,

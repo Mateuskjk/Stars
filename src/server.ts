@@ -17,7 +17,7 @@ import { migrationRouter } from './server/migration';
 import { writesRouter } from './server/writes';
 import { integrationsRouter } from './server/integrations';
 import { publicApiInternalRouter, publicApiRouter } from './server/public-api';
-import { SECURITY_HEADERS } from './server/security-headers';
+import { SECURITY_HEADERS, csrfGuard } from './server/security-headers';
 
 // Segredos locais (DATABASE_URL etc.). Em produção vêm das variáveis de ambiente do servidor.
 try {
@@ -35,17 +35,7 @@ app.use((_req, res, next) => {
   res.set(SECURITY_HEADERS);
   next();
 });
-// CSRF (defesa extra além do SameSite=Lax): gravações nas rotas que usam o cookie de login só valem vindas do próprio
-// site. O navegador informa a origem em Sec-Fetch-Site; sem o cabeçalho (curl, servidores), o SameSite continua valendo.
-// A API pública (/api/v1, com token) e o OAuth do MCP (chamado pelos servidores do Claude) ficam de fora.
-app.use((req, res, next) => {
-  const cookieRoute = (req.path.startsWith('/api/') && !req.path.startsWith('/api/v1')) || req.path === '/oauth/consent';
-  const site = req.get('sec-fetch-site');
-  if (cookieRoute && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && site && site !== 'same-origin' && site !== 'none') {
-    return void res.status(403).json({ error: 'Pedido de outro site recusado.' });
-  }
-  next();
-});
+app.use(csrfGuard); // gravações vindas de outro site são recusadas (security-headers.ts)
 // Na Vercel há um proxy na frente: confia nele para saber o IP real (limite de tentativas) e se é HTTPS
 if (process.env['VERCEL']) app.set('trust proxy', 1);
 // Endereços aceitos pelo SSR do Angular (proteção contra SSRF): o do APP_URL, os que a Vercel informa

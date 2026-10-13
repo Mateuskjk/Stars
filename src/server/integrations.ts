@@ -7,8 +7,9 @@ import { request as httpsRequest } from 'node:https';
 import { BlockList, isIP } from 'node:net';
 import { Request, Response, Router, json } from 'express';
 import pg from 'pg';
-import { db } from './db';
+import { db, ddl } from './db';
 import { decryptKey, encryptKey } from './ai';
+import type { DomainEvent } from './events';
 
 // ---------- Proteção contra SSRF ----------
 // Webhook só pode apontar para a internet pública: nada de localhost, rede interna ou metadados de nuvem.
@@ -64,9 +65,8 @@ interface Webhook {
 // Guardados no banco (schema lexagile), com o segredo do webhook e a senha do banco cifrados (AES-256-GCM, LEXAGILE_SECRET).
 // Cada webhook/conexão tem dono: só quem criou (Admin) enxerga e mexe.
 let tables: Promise<unknown> | null = null;
-const ensureTables = () =>
-  (tables ??= db()
-    .query(
+export const ensureTables = () =>
+  (tables ??= ddl(
       `create schema if not exists lexagile;
        create table if not exists lexagile.webhook (id text primary key, owner text not null, dados jsonb not null, "segredoCifrado" text not null);
        create table if not exists lexagile.integracao_banco (id text primary key, owner text not null, dados jsonb not null, "senhaCifrada" text not null);`,
@@ -160,6 +160,30 @@ async function deliver(hook: Webhook, event: string, data: unknown) {
   }
   await hooks.save(hook).catch(() => undefined);
   return hook.lastDelivery;
+}
+
+// Entrega os eventos de uma gravação (já confirmada no banco) aos webhooks inscritos dos Admins daquela empresa.
+// Espera no máximo 8s: na Vercel, trabalho deixado para depois da resposta pode ser interrompido.
+export async function deliverEvents(events: DomainEvent[]) {
+  if (!events.length) return;
+  try {
+    await ensureTables();
+    const deliveries: Promise<unknown>[] = [];
+    for (const e of events) {
+      const { rows } = await db().query<HookRow>(
+        `select w.* from lexagile.webhook w
+          where coalesce((w.dados->>'active')::boolean, true)
+            and (w.dados->'events' ? $2 or w.dados->'events' ? '*')
+            and exists (select 1 from "Usuario" u where lower(u.email) = w.owner and u."tenantId" = $1
+                          and u.papel = 'DONO' and u.situacao = 'ATIVO' and u."removidoEm" is null)`,
+        [e.tenantId, e.event],
+      );
+      for (const row of rows) deliveries.push(deliver(toHook(row), e.event, e.data));
+    }
+    await Promise.race([Promise.allSettled(deliveries), new Promise((resolve) => setTimeout(resolve, 8000))]);
+  } catch (error) {
+    console.error('[webhooks] falha ao entregar eventos:', (error as Error).message);
+  }
 }
 
 // ---------- Bancos PostgreSQL ----------
@@ -336,17 +360,6 @@ export function integrationsRouter() {
     if (!hook) return void res.status(404).json({ error: 'Webhook não encontrado.' });
     const result = await deliver(hook, 'webhook.test', { message: 'Teste de entrega do LexÁgile', webhook: hook.name });
     res.status(result.ok ? 200 : 502).json(result);
-  }));
-
-  // Eventos do sistema (vindos das ações registradas na auditoria): entrega só aos webhooks de quem fez a ação.
-  // ponytail: o evento vem do navegador; o certo é o servidor emitir depois de gravar
-  router.post('/events', safe(async (req, res) => {
-    const event = String(req.body?.event ?? '');
-    if (!EVENT_PATTERN.test(event) || event === '*') return void res.status(400).json({ error: 'Evento inválido.' });
-    const data = req.body?.data ?? {};
-    const targets = (await hooks.list(ownerOf(req))).filter((hook) => hook.active && (hook.events.includes('*') || hook.events.includes(event)));
-    for (const hook of targets) void deliver(hook, event, data); // não espera: a tela não fica travada
-    res.status(202).json({ queued: targets.length });
   }));
 
   router.get('/databases', safe(async (req, res) => res.json((await databases.list(ownerOf(req))).map(publicDb))));

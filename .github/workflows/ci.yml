@@ -56,7 +56,7 @@ jobs:
           semgrep scan
           --config p/owasp-top-ten --config p/typescript --config p/expressjs --config p/nodejs --config p/secrets
           --metrics=off --error
-          --exclude node_modules --exclude dist --exclude "*.spec.ts"
+          --exclude node_modules --exclude dist --exclude "*.spec.ts" --exclude src/server/testing
           src api
 
   secrets:

@@ -1,7 +1,7 @@
 // Domínios de e-mail com acesso ao LexÁgile — roda SOMENTE no servidor.
 // Só entra quem já tem usuário no banco E e-mail de um domínio desta lista (login com senha, com Google e convites).
 import { Router, json } from 'express';
-import { db } from './db';
+import { db, ddl } from './db';
 import { requireAuth, SUPERADMIN_ONLY, isSuperAdmin } from './auth';
 
 // Lista inicial (e reserva, se o banco não responder: nesse caso só estes entram)
@@ -13,9 +13,8 @@ let table: Promise<void> | null = null;
 let cache: { list: string[]; at: number } | null = null;
 
 // Cria a tabela na primeira vez, já com os domínios iniciais
-function ensureTable() {
-  table ??= db()
-    .query(
+export function ensureTable() {
+  table ??= ddl(
       `create schema if not exists lexagile;
        do $$ begin
          if to_regclass('lexagile.dominio') is null then

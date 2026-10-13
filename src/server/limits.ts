@@ -1,14 +1,14 @@
 // Limites de tentativas e de uso (login, API pública, assistente de IA) — roda SOMENTE no servidor.
 // Os contadores ficam no banco (lexagile.limite): valem em todas as cópias do servidor na Vercel e
 // sobrevivem a reinícios. Sem banco (testes, desenvolvimento offline), ficam na memória.
-import { db } from './db';
+import { db, ddl } from './db';
 
 let table: Promise<boolean> | null = null;
-function ensureTable() {
+export function ensureTable() {
   table ??= Promise.resolve() // sem DATABASE_URL, db() lança na hora: vira "sem banco" e cai para a memória
     .then(() =>
-      db().query(
-        `create schema if not exists lexagile;
+      ddl(
+      `create schema if not exists lexagile;
          create table if not exists lexagile.limite (chave text primary key, n int not null, desde timestamptz not null)`,
       ),
     )

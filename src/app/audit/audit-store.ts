@@ -1,6 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AccountStore } from '../account/account-store';
-import { eventData, eventFor } from '../integrations/webhook-events';
 
 export type AuditAction = 'create' | 'update' | 'move' | 'archive' | 'cancel' | 'close' | 'delete' | 'access';
 
@@ -87,18 +86,6 @@ export class AuditStore {
     } catch {
       // sem armazenamento: o registro vale só nesta sessão
     }
-    this.dispatch(full);
-  }
-
-  // Avisa o servidor para entregar o evento aos webhooks inscritos (não espera e não trava a tela)
-  private dispatch(entry: AuditEntry) {
-    const event = eventFor(entry);
-    if (!event || typeof window === 'undefined') return;
-    fetch('/api/integrations/events', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ event, data: eventData(entry) }),
-    }).catch(() => undefined);
   }
 }
 
