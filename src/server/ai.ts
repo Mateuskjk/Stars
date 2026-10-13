@@ -1,7 +1,7 @@
 // Integração com IAs — roda SOMENTE no servidor (Node). As chaves de API ficam aqui e nunca voltam para o navegador.
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { Request, Response, Router, json } from 'express';
-import { db, ddl, onDbReset } from './db';
+import { db, ddl, onDbReset, isDevelopment } from './db';
 import { hit } from './limits';
 import { SUPERADMIN_ONLY, isSuperAdmin } from './auth';
 
@@ -166,7 +166,7 @@ let warned = false;
 function cipherKey() {
   const secret = process.env['LEXAGILE_SECRET'];
   if (!secret) {
-    if (process.env['NODE_ENV'] === 'production' || process.env['VERCEL']) {
+    if (!isDevelopment()) {
       throw new AiError(503, 'Defina a variável LEXAGILE_SECRET no servidor para guardar as chaves de IA com segurança.');
     }
     if (!warned) console.warn('[ai] LEXAGILE_SECRET não definida: usando uma chave de desenvolvimento (não use em produção)');
@@ -247,11 +247,15 @@ export function aiRouter() {
   // Lista (sem as chaves) e qual é o assistente
   router.get(
     '/configs',
-    handle(async (_req, res) => {
+    handle(async (req, res) => {
       await ensureTable();
       const { rows } = await db().query<{ id: string; dados: StoredData; assistente: boolean }>(
         `select id, dados, assistente from lexagile.ia_config order by "atualizadoEm"`,
       );
+      // Quem não configura a IA só precisa saber qual é o assistente (sem prompt, final da chave nem erros de teste)
+      if (!isAdmin(req)) {
+        return void res.json(rows.map((r) => ({ id: r.id, name: r.dados.name, provider: r.dados.provider, model: r.dados.model, assistant: r.assistente })));
+      }
       res.json(rows.map((r) => ({ id: r.id, ...r.dados, assistant: r.assistente })));
     }),
   );

@@ -18,6 +18,10 @@ function sslOptions(): pg.ConnectionConfig['ssl'] {
   return { rejectUnauthorized: false };
 }
 
+// Padrões de desenvolvimento (chave de criptografia conhecida, qualquer Dono como superadmin) SÓ em desenvolvimento
+// e testes. Qualquer outro ambiente (Vercel, servidor próprio sem NODE_ENV) é tratado como produção.
+export const isDevelopment = () => ['development', 'test'].includes(process.env['NODE_ENV'] ?? '') || !!process.env['VITEST'];
+
 // Trocar de banco zera o que cada módulo guardou sobre o banco anterior ("tabela já criada", caches)
 const resets: (() => void)[] = [];
 export const onDbReset = (reset: () => void) => void resets.push(reset);
@@ -32,7 +36,8 @@ export function db() {
   if (!pool) {
     const url = process.env['DATABASE_URL'];
     if (!url) throw new Error('DATABASE_URL não configurada no .env');
-    pool = new pg.Pool({ connectionString: url, ssl: sslOptions(), max: 5 });
+    // Esperar conexão livre no máximo 10s (em vez de para sempre): sob carga, erro claro em vez de travar
+    pool = new pg.Pool({ connectionString: url, ssl: sslOptions(), max: 5, connectionTimeoutMillis: 10_000 });
   }
   return pool;
 }

@@ -40,7 +40,7 @@ const emptyDb = (): DatabaseDraft => ({
   port: 5432,
   database: '',
   user: '',
-  ssl: 'require',
+  ssl: 'verify-full',
   schema: 'public',
   connectTimeoutSec: 10,
   statementTimeoutSec: 30,

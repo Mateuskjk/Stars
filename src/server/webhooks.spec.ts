@@ -58,3 +58,30 @@ describe('webhooks emitidos pelo servidor', () => {
     expect(r.status).toBe(404);
   });
 });
+
+describe('entrega não recria webhook apagado', () => {
+  it('webhook apagado durante a entrega continua apagado', async () => {
+    const { deliver } = await import('./integrations');
+    const fantasma = { id: 'hook-apagado', owner: 'dono.a@lexgroup.com.br', name: 'x', url: 'https://127.0.0.1/x', events: ['*'], active: true, secret: 'whsec_x', lastDelivery: null };
+    await deliver(fantasma, 'activity.move', {}); // o webhook já não existe no banco quando a entrega termina
+    const { rows } = await env.db.query(`select 1 from lexagile.webhook where id = 'hook-apagado'`);
+    expect(rows.length).toBe(0);
+  });
+});
+
+describe('conexões de banco externo', () => {
+  it('trocar o servidor sem digitar a senha de novo é recusado (a senha guardada não vai para outro servidor)', async () => {
+    const base = { name: 'B', host: 'db.exemplo.com', port: 5432, database: 'x', user: 'x' };
+    expect((await env.call('donoA', 'PUT', '/api/integrations/databases/d1', { ...base, password: 'segredo' })).status).toBe(200);
+    expect((await env.call('donoA', 'PUT', '/api/integrations/databases/d1', { ...base, name: 'Renomeado' })).status).toBe(200); // mesmo destino: mantém
+    const r = await env.call('donoA', 'PUT', '/api/integrations/databases/d1', { ...base, host: 'servidor-do-atacante.com' });
+    expect(r.status).toBe(400);
+    expect(r.data.error).toContain('senha de novo');
+  });
+
+  it('"Testar" tem limite por minuto', async () => {
+    const codes: number[] = [];
+    for (let i = 0; i < 12; i++) codes.push((await env.call('donoA', 'POST', '/api/integrations/webhooks/hook-a/test')).status);
+    expect(codes.slice(10)).toEqual([429, 429]);
+  });
+});

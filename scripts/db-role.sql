@@ -6,12 +6,19 @@
 -- O que ele NÃO pode: criar/alterar/apagar tabelas (DDL), ignorar o RLS, criar usuários, ver as outras
 -- tabelas do sistema atual (Documento, Anexo, Integracao, Notificacao…) nem os schemas do Supabase (auth, storage).
 
--- 1) O usuário. TROQUE a senha antes de rodar (gere uma forte: 32+ caracteres, sem aspas).
+-- 1) O usuário. TROQUE a senha antes de rodar: só letras e números (vai dentro da URL), 32+ caracteres.
+--    Já existe? A senha não muda (para trocar: alter role lexagile_app password '...'), mas os limites são reaplicados.
 do $$
+declare
+  senha text := 'TROQUE-ESTA-SENHA';
 begin
   if not exists (select 1 from pg_roles where rolname = 'lexagile_app') then
-    create role lexagile_app login password 'TROQUE-ESTA-SENHA' nosuperuser nocreatedb nocreaterole noinherit nobypassrls connection limit 30;
+    if senha = 'TROQUE-' || 'ESTA-SENHA' or length(senha) < 24 or senha !~ '^[A-Za-z0-9]+$' then
+      raise exception 'Troque a senha do lexagile_app (24+ letras e números) antes de rodar este script.';
+    end if;
+    execute format('create role lexagile_app login password %L', senha);
   end if;
+  alter role lexagile_app nosuperuser nocreatedb nocreaterole noinherit nobypassrls connection limit 30;
 end $$;
 
 -- 2) Sistema atual (schema public): só as tabelas e operações usadas
@@ -38,4 +45,7 @@ end $$;
 -- 3) Schema próprio do LexÁgile: leitura e gravação (sem DDL: as tabelas vêm do "npm run db:migrate")
 grant usage on schema lexagile to lexagile_app;
 grant select, insert, update, delete on all tables in schema lexagile to lexagile_app;
+-- Sequências (ids automáticos, ex.: migracao_log): sem isso, o INSERT falha
+grant usage, select on all sequences in schema lexagile to lexagile_app;
 alter default privileges for role postgres in schema lexagile grant select, insert, update, delete on tables to lexagile_app;
+alter default privileges for role postgres in schema lexagile grant usage, select on sequences to lexagile_app;

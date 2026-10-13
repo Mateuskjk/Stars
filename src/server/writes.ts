@@ -9,6 +9,7 @@ import { HttpError, createTenant, ensureSchema, newId } from './migration';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
 import { isAllowedEmail } from './domains';
 import { queueEvent, takeEvents } from './events';
+import { hit } from './limits';
 import { deliverEvents } from './integrations';
 
 const STATUSES = ['RASCUNHO', 'PRONTO', 'EM_EXECUCAO', 'EM_REVISAO', 'CONCLUIDO'];
@@ -62,6 +63,26 @@ const color = (v: unknown) => {
 };
 const idOrNull = (v: unknown, field: string) => (v == null || v === '' ? null : nonEmpty(v, 60, field));
 const has = (body: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(body, key);
+
+// Nunca deixar uma empresa sem Admin (dois Admins rebaixando um ao outro ao mesmo tempo, por exemplo)
+async function lockOwners(client: PoolClient, tenants: string[]) {
+  for (const t of [...tenants].sort()) await lockTenant(client, t); // sempre na mesma ordem: sem deadlock
+}
+async function ensureOwnersLeft(client: PoolClient, tenants: string[]) {
+  for (const t of tenants) {
+    const { rows } = await client.query(
+      `select count(*)::int as n from "Usuario" where "tenantId" = $1 and papel = 'DONO' and situacao = 'ATIVO' and "removidoEm" is null`,
+      [t],
+    );
+    if (rows[0].n === 0) throw new HttpError(409, 'A empresa ficaria sem nenhum Admin. Promova outra pessoa antes.');
+  }
+}
+// "É você?" pelo e-mail E pelos usuários da sessão (a conta pode ter sido achada pelo Google com outro e-mail)
+async function isSelf(client: PoolClient, s: Session, email: string) {
+  if (email === s.email) return true;
+  const { rows } = await client.query(`select 1 from "Usuario" where lower(email) = $1 and id = any($2::text[])`, [email, meOf(s)]);
+  return rows.length > 0;
+}
 
 // Uma gravação "numerada" por vez em cada empresa (dura até o fim da transação): duas pessoas criando ao mesmo
 // tempo não pegam o mesmo número (max + 1) nem abrem duas sprints ativas
@@ -264,22 +285,28 @@ export async function createActivity(client: PoolClient, s: Session, body: Recor
 function write(handler: (client: PoolClient, req: Request, s: Session) => Promise<unknown>) {
   return async (req: Request, res: Response) => {
     const client = await db().connect();
+    let released = false;
     try {
       await client.query('begin');
       const result = await handler(client, req, req.session!);
       await client.query('commit');
-      await deliverEvents(takeEvents(client)); // só depois do commit: o que foi avisado aconteceu mesmo
+      // Webhooks só depois do commit (o que foi avisado aconteceu mesmo) e com a conexão já devolvida ao pool:
+      // um webhook lento não pode segurar conexões do banco e travar o app
+      const events = takeEvents(client);
+      client.release();
+      released = true;
+      await deliverEvents(events);
       res.json(result ?? { ok: true });
     } catch (error) {
       takeEvents(client); // gravação desfeita: nenhum evento sai
-      await client.query('rollback').catch(() => undefined);
+      if (!released) await client.query('rollback').catch(() => undefined);
       if (error instanceof HttpError) res.status(error.status).json({ error: error.message });
       else {
         console.error('[writes]', req.method, req.path, (error as Error).message);
         res.status(500).json({ error: 'Não foi possível salvar no banco. Nada foi alterado.' });
       }
     } finally {
-      client.release();
+      if (!released) client.release();
     }
   };
 }
@@ -395,8 +422,10 @@ function dailyRoutes(router: Router) {
       const tenantId = nonEmpty(body['tenantId'], 60, 'empresa');
       writer(s, tenantId);
       if (!(await ensureSchema())) throw new HttpError(409, 'Rode a migração do banco antes de salvar dailies.');
+      if ((await hit(`daily:${s.email}`, 60)) > 10) throw new HttpError(429, 'Muitas dailies seguidas. Espere um minuto.');
       const id = newId();
       const record = dailyRecord(body['record']);
+      if (JSON.stringify(record).length > 200_000) throw new HttpError(400, 'Daily grande demais (anotações muito longas).');
       await saveExtra(client, 'daily', id, tenantId, record);
       queueEvent(client, tenantId, 'daily.close', s.nome, {
         entity: 'Daily',
@@ -469,7 +498,15 @@ async function patchEmpresa(client: PoolClient, id: string, body: Record<string,
   if (has(body, 'nome')) set('nome', nonEmpty(body['nome'], 80, 'nome'));
   if (has(body, 'sigla')) set('sigla', nonEmpty(body['sigla'], 4, 'sigla').toUpperCase());
   if (has(body, 'ativo')) set('ativo', body['ativo'] === true);
-  if (has(body, 'fusoHorario')) set('fusoHorario', nonEmpty(body['fusoHorario'], 60, 'fuso horário'));
+  if (has(body, 'fusoHorario')) {
+    const tz = nonEmpty(body['fusoHorario'], 60, 'fuso horário');
+    try {
+      new Intl.DateTimeFormat('pt-BR', { timeZone: tz }); // fuso inválido quebraria a tela de todos os membros
+    } catch {
+      throw new HttpError(400, 'Fuso horário inválido.');
+    }
+    set('fusoHorario', tz);
+  }
   if (has(body, 'avatarUrl')) set('avatarUrl', imageOrNull(body['avatarUrl']));
   await updateRow(client, 'Tenant', id, sets, values, false);
   await saveExtra(client, 'empresa', id, id, body['extra']);
@@ -643,11 +680,13 @@ function configRoutes(router: Router) {
       if (!tenants.length) throw new HttpError(403, 'Só Admin altera membros.');
       if (has(body, 'papel')) {
         if (!PAPEIS.includes(body['papel'] as string)) throw new HttpError(400, 'Cargo inválido.');
-        if (email === s.email) throw new HttpError(400, 'Você não pode mudar o próprio cargo.');
+        if (await isSelf(client, s, email)) throw new HttpError(400, 'Você não pode mudar o próprio cargo.');
+        await lockOwners(client, tenants);
         const { rows } = await client.query<{ tenantId: string }>(
           `update "Usuario" set papel = $1 where lower(email) = $2 and "tenantId" = any($3::text[]) and papel <> $1 returning "tenantId"`,
           [body['papel'], email, tenants],
         );
+        await ensureOwnersLeft(client, rows.map((r) => r.tenantId));
         for (const r of rows) queueEvent(client, r.tenantId, 'member.update', s.nome, { entity: 'Membro', name: email, to: String(body['papel']), details: 'Cargo alterado' });
       }
       if (has(body, 'nome')) {
@@ -663,14 +702,16 @@ function configRoutes(router: Router) {
     '/pessoas/remover',
     write(async (client, req, s) => {
       const email = nonEmpty(req.body?.email, 200, 'e-mail').toLowerCase();
-      if (email === s.email) throw new HttpError(400, 'Você não pode remover a si mesmo.');
       const tenants = s.memberships.filter((m) => m.papel === 'DONO').map((m) => m.tenantId);
       if (!tenants.length) throw new HttpError(403, 'Só Admin remove membros.');
+      if (await isSelf(client, s, email)) throw new HttpError(400, 'Você não pode remover a si mesmo.');
+      await lockOwners(client, tenants);
       const { rows } = await client.query<{ tenantId: string }>(
         `update "Usuario" set situacao = 'REMOVIDO', "removidoEm" = now() where lower(email) = $1 and "tenantId" = any($2::text[]) and "removidoEm" is null
          returning "tenantId"`,
         [email, tenants],
       );
+      await ensureOwnersLeft(client, rows.map((r) => r.tenantId));
       for (const r of rows) queueEvent(client, r.tenantId, 'member.delete', s.nome, { entity: 'Membro', name: email });
     }),
   );
