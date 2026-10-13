@@ -84,6 +84,13 @@ async function applyActivity(client: PoolClient, s: Session, id: string, tenantI
   if (has(body, 'status')) {
     if (!STATUSES.includes(body['status'] as string)) throw new HttpError(400, 'Status inválido.');
     set('status', body['status']);
+    // Histórico de movimentações (Daily e o sistema atual), no mesmo formato das mudanças manuais de lá
+    await client.query(
+      `insert into "Transicao" (id, "regraId", "regraTitulo", de, para, porque, "atividadeId")
+       select $1, 'MANUAL', 'Movido manualmente', status, $2, 'Alguém moveu o cartão no LexÁgile', id
+         from "Atividade" where id = $3 and status <> $2`,
+      [newId(), body['status'], id],
+    );
   }
   if (has(body, 'responsavelId')) {
     const responsavelId = idOrNull(body['responsavelId'], 'responsável');

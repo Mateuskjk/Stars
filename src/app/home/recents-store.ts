@@ -4,7 +4,6 @@ import { CompanyStore } from '../companies/company-store';
 import { SectorStore } from '../companies/sector-store';
 import { MembersStore } from '../members/members-store';
 import { TeamsStore } from '../teams/teams-store';
-import { USERS } from '../chat/users';
 import { NotesStore } from '../notes/notes-store';
 import { ProjectStore } from '../projects/project-store';
 
@@ -108,7 +107,7 @@ export class RecentsStore {
         return card && { type: 'Cartão', title: card.name, link: '/workspace/backlog', query: { cartao: card.id } };
       }
       case 'chat': {
-        const user = USERS.find((u) => u.id === id);
+        const user = this.members.members().find((m) => m.id === id);
         return user && { type: 'Conversa', title: user.name, link: '/conversas', query: { com: user.id } };
       }
       case 'member': {

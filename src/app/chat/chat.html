@@ -8,9 +8,9 @@
       <h2 class="chat__toolbar-title">Nova conversa</h2>
     </div>
     <ul class="chat__list">
-      @for (user of users; track user.id) {
+      @for (user of users(); track user.id) {
         <li>
-          <button class="chat__contact" type="button" (click)="open(user.id)">
+          <button class="chat__contact" type="button" (click)="open('p:' + user.id)">
             <span class="chat-avatar" aria-hidden="true">{{ initials(user.name) }}</span>
             <span class="chat__contact-text">
               <span class="chat__contact-name">{{ user.name }}</span>
@@ -43,20 +43,28 @@
       </button>
     </div>
     <ul class="chat__list">
-      @for (contact of contacts(); track contact.user.id) {
+      @for (contact of contacts(); track contact.conv.key) {
         <li>
           <button
             class="chat__contact"
             type="button"
-            [class.is-active]="contact.user.id === activeId()"
-            (click)="open(contact.user.id)"
+            [class.is-active]="contact.conv.key === activeKey()"
+            (click)="open(contact.conv.key)"
           >
-            <span class="chat-avatar" aria-hidden="true">{{ initials(contact.user.name) }}</span>
+            <span class="chat-avatar" [class.chat-avatar--channel]="contact.conv.channel" aria-hidden="true">{{ contact.conv.channel ? '#' : initials(contact.conv.title) }}</span>
             <span class="chat__contact-text">
-              <span class="chat__contact-name">{{ contact.user.name }}</span>
-              <span class="chat__contact-preview">{{ contact.last.fromMe ? 'Você: ' : '' }}{{ contact.last.text }}</span>
+              <span class="chat__contact-name">{{ contact.conv.title }}</span>
+              <span class="chat__contact-preview">
+                @if (contact.last; as last) {
+                  {{ last.fromMe ? 'Você: ' : '' }}{{ last.text }}
+                } @else {
+                  {{ contact.conv.subtitle }}
+                }
+              </span>
             </span>
-            <span class="chat__contact-time">{{ formatTime(contact.last.time) }}</span>
+            @if (contact.last; as last) {
+              <span class="chat__contact-time">{{ formatTime(last.time) }}</span>
+            }
           </button>
         </li>
       } @empty {
@@ -68,21 +76,28 @@
 
 <!-- Conversa aberta -->
 <section class="chat__conversation">
-  @if (activeUser(); as user) {
+  @if (active(); as conv) {
     <header class="chat__header">
-      <button class="chat__icon-button chat__back" type="button" aria-label="Voltar para as conversas" (click)="activeId.set(null)">
+      <button class="chat__icon-button chat__back" type="button" aria-label="Voltar para as conversas" (click)="activeKey.set(null)">
         <svg class="chat__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
       </button>
-      <span class="chat-avatar" aria-hidden="true">{{ initials(user.name) }}</span>
+      <span class="chat-avatar" [class.chat-avatar--channel]="conv.channel" aria-hidden="true">{{ conv.channel ? '#' : initials(conv.title) }}</span>
       <span class="chat__header-text">
-        <span class="chat__contact-name">{{ user.name }}</span>
-        <span class="chat__contact-preview">{{ user.role }}</span>
+        <span class="chat__contact-name">{{ conv.title }}</span>
+        <span class="chat__contact-preview">{{ conv.subtitle }}</span>
       </span>
     </header>
 
+    @if (error()) {
+      <p class="chat__error" role="alert">{{ error() }}</p>
+    }
+
     <ol class="chat__messages" aria-live="polite">
-      @for (message of activeMessages(); track message.time.getTime()) {
+      @for (message of activeMessages(); track message.id ?? message.time.getTime()) {
         <li class="chat__message" [class.is-mine]="message.fromMe">
+          @if (conv.channel && !message.fromMe && message.author) {
+            <span class="chat__author">{{ message.author }}</span>
+          }
           <p class="chat__bubble">{{ message.text }}</p>
           <time class="chat__message-time">{{ formatTime(message.time) }}</time>
         </li>

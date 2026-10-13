@@ -1,5 +1,8 @@
-import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
-import { USERS, formatTime, initials } from '../chat/chat';
+import { Component, ElementRef, afterNextRender, computed, inject, linkedSignal, signal, viewChild } from '@angular/core';
+import { formatTime, initials } from '../chat/chat';
+import { api } from '../api/http';
+import { MembersStore } from '../members/members-store';
+import { PeopleStore } from '../members/people-store';
 import { formatWeekDate } from '../home/home';
 import { DailyHistory, DailyRecord } from './daily-history';
 
@@ -21,9 +24,25 @@ interface Movement {
   time: Date;
 }
 
+// Status do banco → texto da tela ("EM_REVISAO" → "Em revisão")
+const STATUS_LABELS: Record<string, string> = {
+  RASCUNHO: 'Rascunho',
+  PRONTO: 'Pronto',
+  PRONTO_PARA_SPRINT: 'Pronto para a sprint',
+  A_FAZER: 'A fazer',
+  EM_ANDAMENTO: 'Em andamento',
+  EM_EXECUCAO: 'Em execução',
+  EM_REVISAO: 'Em revisão',
+  CONCLUIDO: 'Concluído',
+};
+export function statusLabel(code: string | null) {
+  if (!code) return null;
+  return STATUS_LABELS[code] ?? code.charAt(0) + code.slice(1).toLowerCase().replace(/_/g, ' ');
+}
+
 const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000);
 
-// ponytail: movimentações fixas de exemplo (desde a daily de ontem); trocar pelo histórico real dos cartões quando o backend existir
+// Exemplos (sem login e nos testes); com login, vem o histórico real dos cartões do banco
 const MOVEMENTS: Movement[] = [
   { user: 'Ana Souza', card: 'Revisar backlog da sprint', project: 'Onboarding', from: 'A fazer', to: 'Em andamento', time: hoursAgo(2) },
   { user: 'Carlos Lima', card: 'Login com biometria', project: 'App mobile', from: 'Em andamento', to: 'Revisão', time: hoursAgo(3) },
@@ -44,7 +63,9 @@ const EMPTY: Notes = { yesterday: '', today: '', blockers: '', saved: false };
   host: { class: 'daily' },
 })
 export class Daily {
-  protected readonly users = USERS;
+  // Participantes: membros reais ativos da empresa escolhida
+  protected readonly users = inject(PeopleStore).team;
+  private readonly members = inject(MembersStore);
   protected readonly initials = initials;
   protected readonly formatTime = formatTime;
   protected readonly weekDate = formatWeekDate(new Date());
@@ -54,12 +75,51 @@ export class Daily {
   protected readonly viewing = signal<DailyRecord | null>(null);
   protected readonly fromHistory = signal(false);
 
+  // Movimentações desde a última daily (ou das últimas 24h): histórico real dos cartões, do banco
+  protected readonly allMovements = signal<Movement[]>(this.members.sessionEmail() ? [] : MOVEMENTS);
+
   constructor() {
-    afterNextRender(() => this.history.load());
+    afterNextRender(() => {
+      this.history.load();
+      if (this.members.sessionEmail()) void this.loadMovements();
+    });
+  }
+
+  private async loadMovements() {
+    const last = this.history.records()[0]?.date;
+    const desde = last ? new Date(last) : new Date(Date.now() - 86_400_000);
+    try {
+      const rows = await api<{ de: string; para: string; em: string; titulo: string; responsavelId: string | null; projeto: string | null }[]>(
+        `/data/movimentos?desde=${encodeURIComponent(desde.toISOString())}`,
+      );
+      const names = await this.responsibleNames(rows.map((r) => r.responsavelId));
+      this.allMovements.set(
+        rows
+          .filter((r) => r.responsavelId && names.get(r.responsavelId))
+          .map((r) => ({
+            user: names.get(r.responsavelId!)!,
+            card: r.titulo,
+            project: r.projeto ?? 'Atividade geral',
+            from: statusLabel(r.de),
+            to: statusLabel(r.para) ?? r.para,
+            time: new Date(r.em),
+          })),
+      );
+    } catch {
+      this.allMovements.set([]);
+    }
+  }
+
+  // Usuário do banco (um por empresa) → nome da pessoa
+  private async responsibleNames(ids: (string | null)[]) {
+    const usuarios = await api<{ id: string; nome: string }[]>('/data/usuarios').catch(() => []);
+    const wanted = new Set(ids.filter(Boolean));
+    return new Map(usuarios.filter((u) => wanted.has(u.id)).map((u) => [u.id, u.nome]));
   }
 
   protected readonly step = signal<'start' | 'meeting' | 'summary'>('start');
-  protected readonly selected = signal(USERS[0].name);
+  // Quem está falando agora: começa na primeira pessoa e acompanha a lista se ela mudar
+  protected readonly selected = linkedSignal(() => this.users()[0]?.name ?? '');
   protected readonly notes = signal<Record<string, Notes>>({});
 
   protected readonly fields: { id: NoteField; label: string; placeholder: string }[] = [
@@ -69,7 +129,7 @@ export class Daily {
   ];
 
   // Movimentações da pessoa selecionada
-  protected readonly movements = computed(() => MOVEMENTS.filter((m) => m.user === this.selected()));
+  protected readonly movements = computed(() => this.allMovements().filter((m) => m.user === this.selected()));
   protected readonly current = computed(() => this.notes()[this.selected()] ?? EMPTY);
 
   protected withNotes(record: DailyRecord) {
@@ -103,11 +163,11 @@ export class Daily {
     const record: DailyRecord = {
       id: Date.now(),
       date: new Date().toISOString(),
-      participants: USERS.map((user) => {
+      participants: this.users().map((user) => {
         const saved = notes[user.name]?.saved ? notes[user.name] : null;
         return {
           name: user.name,
-          moves: MOVEMENTS.filter((m) => m.user === user.name).length,
+          moves: this.allMovements().filter((m) => m.user === user.name).length,
           notes: saved && { yesterday: saved.yesterday, today: saved.today, blockers: saved.blockers },
         };
       }),
@@ -150,7 +210,7 @@ export class Daily {
 
   protected restart() {
     this.notes.set({});
-    this.selected.set(USERS[0].name);
+    this.selected.set(this.users()[0]?.name ?? '');
     this.viewing.set(null);
     this.step.set('start');
   }

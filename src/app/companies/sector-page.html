@@ -112,7 +112,7 @@
         <input class="modal__input" name="name" placeholder="Nome da atividade *" aria-label="Nome da atividade" required maxlength="120" />
         <select class="modal__input" name="assignee" aria-label="Responsável">
           <option value="">Sem responsável</option>
-          @for (person of people; track person) {
+          @for (person of people(); track person) {
             <option [value]="person" [selected]="person === viewer()?.name">{{ person }}</option>
           }
         </select>

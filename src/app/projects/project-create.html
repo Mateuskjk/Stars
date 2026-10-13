@@ -79,7 +79,7 @@
         <td>
           <select class="project-table__input" form="new-project" name="owner" aria-label="Responsável">
             <option value="">Responsável</option>
-            @for (person of people; track person) {
+            @for (person of people(); track person) {
               <option [value]="person">{{ person }}</option>
             }
           </select>

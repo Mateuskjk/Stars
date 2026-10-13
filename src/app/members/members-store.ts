@@ -55,6 +55,7 @@ export interface Member {
   status: 'active' | 'pending';
   permissions: Permissions;
   company: string | null; // perfil de empresa ao qual a pessoa está ligada (obrigatório para entrar em equipes)
+  companies?: string[]; // dados do banco: todas as empresas em que a pessoa está ativa
   tokenHint: string | null; // só o final do token fica guardado; o token inteiro aparece uma vez
   invite: Invite | null;
 }

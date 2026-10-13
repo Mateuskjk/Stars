@@ -10,6 +10,7 @@ import { aiRouter } from './server/ai';
 import { authRouter, requireAuth } from './server/auth';
 import { googleRouter } from './server/google-auth';
 import { domainsRouter } from './server/domains';
+import { chatRouter } from './server/chat';
 import { dataRouter } from './server/data';
 import { migrationRouter } from './server/migration';
 import { writesRouter } from './server/writes';
@@ -52,6 +53,7 @@ app.use('/api/auth', googleRouter());
 app.use('/api/data', dataRouter());
 app.use('/api/data', writesRouter());
 app.use('/api/data', domainsRouter());
+app.use('/api/chat', chatRouter());
 app.use('/api/migracao', migrationRouter());
 
 /**

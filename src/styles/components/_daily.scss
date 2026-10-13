@@ -483,3 +483,8 @@ $daily-good: #0ca30c;
     color: #d03b3b;
   }
 }
+
+// Com o assistente de IA ligado, o "Finalizar Daily" fica à esquerda do botão flutuante (não por baixo dele)
+body:has(.assistant__fab) .daily__actions {
+  padding-right: 72px;
+}

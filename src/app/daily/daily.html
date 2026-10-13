@@ -50,7 +50,7 @@
 
     <!-- 2. Participantes -->
     <ul class="daily__people" aria-label="Participantes da daily">
-      @for (user of users; track user.name) {
+      @for (user of users(); track user.name) {
         <li>
           <button
             class="daily__person"

@@ -1,6 +1,7 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { PeopleStore } from '../members/people-store';
 import { DomSanitizer } from '@angular/platform-browser';
-import { USERS, formatTime, initials } from '../chat/chat';
+import { formatTime, initials } from '../chat/chat';
 import { CompanyStore } from '../companies/company-store';
 import { SPRINT_COLUMNS, SectorStore, sprintColumnOf } from '../companies/sector-store';
 import { RecentsStore } from '../home/recents-store';
@@ -21,7 +22,7 @@ export class BacklogEditor {
   private readonly recents = inject(RecentsStore);
 
   protected readonly columns = this.store.columns;
-  protected readonly people = USERS.map((user) => user.name);
+  protected readonly people = inject(PeopleStore).names; // membros reais da empresa escolhida
   protected readonly initials = initials;
   protected readonly formatTime = formatTime;
 

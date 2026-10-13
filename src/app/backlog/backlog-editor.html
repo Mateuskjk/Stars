@@ -159,7 +159,7 @@
           <span class="modal__label">Responsável</span>
           <select class="modal__input" (change)="patch({ assignee: $any($event.target).value })">
             <option value="">Sem responsável</option>
-            @for (person of people; track person) {
+            @for (person of people(); track person) {
               <option [value]="person" [selected]="person === item.assignee">{{ person }}</option>
             }
           </select>

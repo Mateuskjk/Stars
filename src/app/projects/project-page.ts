@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { PeopleStore } from '../members/people-store';
 import { Router, RouterLink } from '@angular/router';
 import { compressImage } from '../companies/company-store';
-import { USERS } from '../chat/chat';
 import { RecentsStore } from '../home/recents-store';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
@@ -32,7 +32,7 @@ export class ProjectPage {
   protected readonly currentSprint = sprintOf(this.now);
   protected readonly todayInSprint = sprintWindow(this.currentSprint).days.filter((day) => day <= this.now).length;
   protected readonly sprintDays = SPRINT_DAYS;
-  protected readonly people = USERS.map((user) => user.name);
+  protected readonly people = inject(PeopleStore).names; // membros reais da empresa escolhida
   protected readonly points = POINTS;
   protected readonly initials = initials;
   protected readonly shortDate = shortDate;

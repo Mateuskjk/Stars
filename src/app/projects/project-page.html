@@ -153,7 +153,7 @@
       <form class="project-page__new" (submit)="create($event)">
         <input class="modal__input" name="title" placeholder="Nome da atividade *" aria-label="Nome da atividade" required maxlength="120" />
         <select class="modal__input" name="assignee" aria-label="Responsável">
-          @for (person of people; track person) {
+          @for (person of people(); track person) {
             <option [value]="person" [selected]="person === p.owner">{{ person }}</option>
           }
         </select>

@@ -1,5 +1,5 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { USERS } from '../chat/users';
+import { PeopleStore } from '../members/people-store';
 import { shortDate } from './project-metrics';
 import { ProjectTask, ProjectTaskStore, TaskStatus, sprintOf, sprintWindow, today } from './project-tasks';
 
@@ -14,7 +14,7 @@ export class ProjectTaskEditor {
   private readonly store = inject(ProjectTaskStore);
 
   protected readonly columns = this.store.columns;
-  protected readonly people = USERS.map((user) => user.name);
+  protected readonly people = inject(PeopleStore).names; // membros reais da empresa escolhida
   protected readonly points = POINTS;
   protected readonly shortDate = shortDate;
   protected readonly currentSprint = sprintOf(today());

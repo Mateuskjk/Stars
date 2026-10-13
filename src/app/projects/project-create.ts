@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { PeopleStore } from '../members/people-store';
 import { RouterLink } from '@angular/router';
-import { USERS } from '../chat/chat';
 import { CompanyStore } from '../companies/company-store';
 import { SectorStore } from '../companies/sector-store';
 import { ProjectStatus, ProjectStore, SECTORS, TEAMS } from './project-store';
@@ -19,7 +19,7 @@ export class ProjectCreate {
 
   protected readonly projects = this.store.visible; // só empresas ativas
   protected readonly statuses = this.store.statuses; // inclui as colunas criadas no kanban
-  protected readonly people = USERS.map((user) => user.name);
+  protected readonly people = inject(PeopleStore).names; // membros reais da empresa escolhida
   protected readonly companies = inject(CompanyStore).activeNames;
   protected readonly teams = TEAMS;
   // Setor: sugere os setores cadastrados da empresa escolhida (sem empresa, a lista geral); aceita outro digitado

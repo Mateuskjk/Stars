@@ -158,6 +158,26 @@ export function dataRouter() {
     }),
   );
 
+  // Movimentações dos cartões (histórico de status) desde uma data — Daily. ?desde=ISO (padrão: últimas 24h)
+  router.get(
+    '/movimentos',
+    route(async (req, s) => {
+      const desdeParam = str(req.query['desde']);
+      const desde = desdeParam && !isNaN(Date.parse(desdeParam)) ? new Date(desdeParam) : new Date(Date.now() - 86_400_000);
+      const installed = await isInstalled();
+      const { rows } = await db().query(
+        `select t.de, t.para, t.em, a.titulo, a."responsavelId", p.nome as projeto
+           from "Transicao" t
+           join "Atividade" a on a.id = t."atividadeId"
+           left join "Projeto" p on p.id = a."projetoId"
+          where ${visibleActivitySql(installed)} and t.em >= $4
+          order by t.em desc limit 500`,
+        [tenantsOf(s), meOf(s), await seesAllTenants(s, installed), desde.toISOString()],
+      );
+      return rows;
+    }),
+  );
+
   // Dados das telas que o banco atual não tem (schema lexagile): descrição da empresa, colunas do setor…
   router.get(
     '/extras',

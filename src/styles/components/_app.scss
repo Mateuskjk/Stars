@@ -674,3 +674,9 @@
   overflow: hidden;
   padding: 0;
 }
+
+// Com o assistente de IA ligado, o conteúdo ganha um respiro embaixo: o botão flutuante não cobre
+// os botões do fim da tela (ex.: "Finalizar Daily")
+body:has(.assistant__fab) .main-content {
+  padding-bottom: 88px;
+}

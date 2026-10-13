@@ -285,6 +285,7 @@ export class ApiSync {
         status: active.length ? 'active' : 'pending',
         permissions: defaultPermissions(role),
         company: empresaNome.get((active[0] ?? rows[0]).tenantId) ?? null,
+        companies: active.map((r) => empresaNome.get(r.tenantId)).filter((n): n is string => !!n),
         tokenHint: null,
         invite: null,
       });

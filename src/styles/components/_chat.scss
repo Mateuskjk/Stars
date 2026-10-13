@@ -366,3 +366,27 @@ $chat-bubble: var(--color-soft);
     }
   }
 }
+
+// Canais da empresa (vêm do banco): avatar com "#"
+.chat-avatar--channel {
+  background-color: var(--color-soft-strong);
+  color: $color-title;
+  font-weight: 700;
+}
+
+// Nos canais, o nome de quem escreveu aparece acima da mensagem
+.chat__author {
+  margin: 0 0 2px 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chat__error {
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
+  color: var(--ink-red);
+  font-size: 13px;
+}

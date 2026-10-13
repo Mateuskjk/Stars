@@ -1,8 +1,8 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { PeopleStore } from '../members/people-store';
 import { Router, RouterLink } from '@angular/router';
 import { BacklogEditor } from '../backlog/backlog-editor';
 import { BacklogItem, BacklogStore, emptyItem, tagColor } from '../backlog/backlog-store';
-import { USERS } from '../chat/users';
 import { RecentsStore } from '../home/recents-store';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
@@ -38,7 +38,7 @@ export class SectorPage {
 
   protected readonly initials = initials;
   protected readonly tagColor = tagColor;
-  protected readonly people = USERS.map((user) => user.name);
+  protected readonly people = inject(PeopleStore).names; // membros reais da empresa escolhida
   protected readonly isAdmin = this.membersStore.isAdmin;
   private readonly sprints = inject(SprintStore);
   // Sprint ativa da empresa do setor (cada empresa tem a sua)
