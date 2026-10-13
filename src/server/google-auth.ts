@@ -9,8 +9,8 @@ import { db } from './db';
 import { parseCookie, setCookie, startSession } from './auth';
 import { isAllowedEmail } from './domains';
 
-const STATE_COOKIE = 'lex_google';
-const NEXT_COOKIE = 'lex_next';
+const STATE_COOKIE = '__Host-lex_google';
+const NEXT_COOKIE = '__Host-lex_next';
 // Só volta para a autorização do Claude (MCP); qualquer outro destino vai para a Home
 const safeNext = (v: unknown) => (typeof v === 'string' && v.startsWith('/authorize?') && !v.includes('//') && !v.includes('\\') ? v : null);
 const STATE_MS = 10 * 60 * 1000;
@@ -98,15 +98,16 @@ export function googleRouter() {
       if (!(await isAllowedEmail(email))) return fail(res, 'dominio');
 
       // Mesmo usuário do sistema atual: pelo Google já ligado, ou pelo e-mail verificado (se ainda não ligou outro Google)
-      const { rows } = await db().query<{ id: string; nome: string; papel: string; tenantId: string }>(
-        `select u.id, u.nome, u.papel, u."tenantId"
+      const { rows } = await db().query<{ id: string; nome: string; papel: string; tenantId: string; email: string | null }>(
+        `select u.id, u.nome, u.papel, u."tenantId", u.email
            from "Usuario" u join "Tenant" t on t.id = u."tenantId"
           where u.situacao = 'ATIVO' and u."removidoEm" is null and t.ativo
             and (u."googleSub" = $1 or (u."googleSub" is null and $3::boolean and lower(u.email) = $2))`,
         [info.sub, email, info.email_verified === true && !!email],
       );
       if (!rows.length) return fail(res, 'sem-conta');
-      await startSession(res, email, rows);
+      // A sessão usa o e-mail do cadastro (a conta pode ter sido achada pelo Google já ligado, com outro e-mail)
+      await startSession(res, rows[0].email?.trim().toLowerCase() || email, rows);
       const next = safeNext(parseCookie(req.headers.cookie)[NEXT_COOKIE]);
       setCookie(res, '', 0, NEXT_COOKIE);
       res.redirect(next ?? '/');

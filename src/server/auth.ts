@@ -35,7 +35,8 @@ declare module 'express-serve-static-core' {
   }
 }
 
-const COOKIE = 'lex_session';
+// Prefixo __Host-: o navegador só aceita o cookie com Secure, sem Domain e com Path=/ (outro subdomínio não o sobrescreve)
+const COOKIE = '__Host-lex_session';
 const SESSION_MS = 12 * 60 * 60 * 1000;
 // Sessões no banco (lexagile.sessao): valem em qualquer cópia do servidor (Vercel e afins) e sobrevivem a reinícios.
 // A memória é só um atalho para não ir ao banco a cada requisição.
@@ -142,20 +143,27 @@ export async function saveSession(session: Session) {
   }
 }
 
+// Lê os cookies sem quebrar: valor com "=" fica inteiro e "%" malformado (cookie de outro sistema) é ignorado
 export function parseCookie(header = ''): Record<string, string> {
-  return Object.fromEntries(
-    header
-      .split(';')
-      .map((part) => part.trim().split('='))
-      .filter(([k, v]) => k && v)
-      .map(([k, v]) => [k, decodeURIComponent(v)]),
-  );
+  const cookies: Record<string, string> = {};
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=');
+    if (i <= 0) continue;
+    const key = part.slice(0, i).trim();
+    const raw = part.slice(i + 1).trim();
+    if (!key || !raw) continue;
+    try {
+      cookies[key] = decodeURIComponent(raw);
+    } catch {
+      cookies[key] = raw;
+    }
+  }
+  return cookies;
 }
 
-// Cookie httpOnly (o JavaScript da página não lê); em produção só trafega em HTTPS
+// Cookie httpOnly (o JavaScript da página não lê), sempre Secure (só HTTPS; o navegador aceita também em http://localhost)
 export function setCookie(res: Response, value: string, maxAgeMs: number, name = COOKIE) {
-  const secure = process.env['NODE_ENV'] === 'production' ? '; Secure' : '';
-  res.append('Set-Cookie', `${name}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(maxAgeMs / 1000)}${secure}`);
+  res.append('Set-Cookie', `${name}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${Math.floor(maxAgeMs / 1000)}`);
 }
 
 // Abre a sessão com os usuários (um por empresa) que provaram ser a pessoa — por senha ou pelo Google

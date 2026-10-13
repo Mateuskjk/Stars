@@ -4,6 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { MembersStore } from '../members/members-store';
 import { Company, CompanyData, CompanyStore, DEFAULT_VIEW, ViewSettings, compressImage } from './company-store';
 import { RecentsStore } from '../home/recents-store';
+import { cssImage } from '../projects/project-store';
 
 type Filter = 'active' | 'inactive' | 'all';
 
@@ -26,6 +27,7 @@ const TIME_ZONES = Intl.supportedValuesOf('timeZone');
   host: { class: 'companies' },
 })
 export class Companies {
+  protected readonly cssImage = cssImage;
   protected readonly store = inject(CompanyStore);
   private readonly members = inject(MembersStore);
   protected readonly timeZones = TIME_ZONES;

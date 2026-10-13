@@ -6,6 +6,16 @@ import { db } from './db';
 import { Session, requireAuth } from './auth';
 import { HttpError, newId } from './migration';
 import { isAllowedEmail } from './domains';
+import { hit } from './limits';
+
+// Escrever no chat: Observador é só leitura; e no máximo 30 mensagens por minuto por pessoa (contra spam)
+async function canWrite(s: Session, tenantId: string) {
+  const m = s.memberships.find((x) => x.tenantId === tenantId);
+  if (!m) throw new HttpError(404, 'Empresa não encontrada.');
+  if (m.papel === 'OBSERVADOR') throw new HttpError(403, 'Seu acesso nesta empresa é só leitura.');
+  if ((await hit(`chat:${s.email.toLowerCase()}`, 60)) > 30) throw new HttpError(429, 'Muitas mensagens seguidas. Espere um pouco.');
+  return m.usuarioId;
+}
 
 const tenantsOf = (s: Session) => s.memberships.map((m) => m.tenantId);
 const meOf = (s: Session) => s.memberships.map((m) => m.usuarioId);
@@ -82,7 +92,7 @@ export function chatRouter() {
       const tenantId = await canalVisivel(s, id);
       const texto = typeof req.body?.texto === 'string' ? req.body.texto.trim() : '';
       if (!texto || texto.length > 4000) throw new HttpError(400, 'Mensagem vazia ou longa demais (até 4000 caracteres).');
-      const autorId = s.memberships.find((m) => m.tenantId === tenantId)!.usuarioId;
+      const autorId = await canWrite(s, tenantId);
       const msg = { id: newId(), texto, em: new Date().toISOString(), autor: s.nome, minha: true };
       await db().query(`insert into "Mensagem" (id, "canalId", "autorId", texto) values ($1, $2, $3, $4)`, [msg.id, id, autorId, texto]);
       return msg;
@@ -95,8 +105,7 @@ export function chatRouter() {
     route(async (req, s) => {
       const tenantId = String(req.body?.tenantId ?? '');
       const email = String(req.body?.email ?? '').trim().toLowerCase();
-      const me = s.memberships.find((m) => m.tenantId === tenantId)?.usuarioId;
-      if (!me) throw new HttpError(404, 'Empresa não encontrada.');
+      const me = await canWrite(s, tenantId);
       if (!(await isAllowedEmail(email))) throw new HttpError(400, 'Essa pessoa não tem acesso ao LexÁgile.');
       const { rows: outros } = await db().query<{ id: string }>(
         `select id from "Usuario" where lower(email) = $1 and "tenantId" = $2 and situacao = 'ATIVO' and "removidoEm" is null limit 1`,

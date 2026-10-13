@@ -345,6 +345,7 @@ export function migrationRouter() {
       const inicio = isoDate(req.body?.dataInicio);
       const fim = req.body?.previsaoTermino ? isoDate(req.body.previsaoTermino) : null;
       const id = newId();
+      await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [tenantId]); // número único por empresa (max + 1)
       await client.query(
         `insert into "Projeto" (id, numero, nome, "dataInicio", "previsaoTermino", "responsavelId", "setorId", "tenantId", "atualizadoEm")
          values ($1, (select coalesce(max(numero), 0) + 1 from "Projeto" where "tenantId" = $7), $2, $3, $4, $5, $6, $7, now())`,

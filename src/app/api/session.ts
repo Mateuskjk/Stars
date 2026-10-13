@@ -42,9 +42,15 @@ export class SessionStore {
     (await this.sync()).selectCompany(id);
   }
 
-  // Sai e recarrega a página, para não sobrar nenhum dado da sessão na memória
+  // Sai e recarrega a página, para não sobrar nenhum dado da sessão na memória nem no navegador
+  // (computador compartilhado): apaga o que o app guardou, menos o tema
   async logout() {
     await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
+    try {
+      for (const key of Object.keys(localStorage)) if (key.startsWith('stars.') && key !== 'stars.theme') localStorage.removeItem(key);
+    } catch {
+      // armazenamento bloqueado: nada a apagar
+    }
     location.assign('/');
   }
 }

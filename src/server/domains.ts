@@ -45,7 +45,11 @@ export async function allowedDomains(): Promise<string[]> {
   }
 }
 
-export const domainOf = (email: string) => email.trim().toLowerCase().split('@')[1] ?? '';
+// Domínio do e-mail. Exatamente um "@" (x@empresa.com.br@outro.com não passa como empresa.com.br)
+export const domainOf = (email: string) => {
+  const parts = email.trim().toLowerCase().split('@');
+  return parts.length === 2 && parts[0] ? parts[1] : '';
+};
 
 export async function isAllowedEmail(email: string) {
   const domain = domainOf(email);

@@ -67,7 +67,9 @@ const COVERS = [
 ];
 
 // Capa do projeto (cards, carrosséis, cabeçalho): a foto, se houver; senão o gradiente do projeto
-const coverFor = (id: number, image?: string | null) => (image ? `center / cover no-repeat url("${image}")` : COVERS[(id - 1) % COVERS.length]);
+// Imagem de fundo: o endereço vai entre aspas e escapado (JSON.stringify), nunca cru dentro de url(...)
+export const cssImage = (src: string) => `center / cover no-repeat url(${JSON.stringify(src)})`;
+const coverFor = (id: number, image?: string | null) => (image ? cssImage(image) : COVERS[(id - 1) % COVERS.length]);
 
 // ponytail: projetos de exemplo, só em memória (somem ao recarregar); trocar por API quando o backend existir
 const SEED: NewProject[] = [

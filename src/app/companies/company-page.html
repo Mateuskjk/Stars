@@ -3,7 +3,7 @@
   <header class="company-page__header">
     <div
       class="company-page__cover"
-      [style.background]="c.image ? 'center / cover no-repeat url(' + c.image + ')' : c.cover"
+      [style.background]="c.image ? cssImage(c.image) : c.cover"
       aria-hidden="true"
     ></div>
     <div class="company-page__main">

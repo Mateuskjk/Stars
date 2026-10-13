@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "stars-preview", "runtimeExecutable": "npx", "runtimeArgs": ["ng", "serve", "--port", "4300"], "port": 4300 }
+    { "name": "stars-preview", "runtimeExecutable": "npx", "runtimeArgs": ["ng", "serve", "--port", "4300"], "port": 4300 },
+    { "name": "stars-prod", "runtimeExecutable": "node", "runtimeArgs": ["dist/Stars/server/server.mjs"], "port": 4000 }
   ]
 }

@@ -1,7 +1,7 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { CarouselItem } from '../carousel/carousel';
 import { MembersStore } from '../members/members-store';
-import { ProjectStore } from '../projects/project-store';
+import { ProjectStore, cssImage } from '../projects/project-store';
 import { AuditStore, diff } from '../audit/audit-store';
 
 export interface ViewSettings {
@@ -95,7 +95,7 @@ export class CompanyStore {
       .filter((company) => company.view.showInCarousel)
       .map((company) => ({
         name: company.name,
-        cover: company.image ? `center / cover no-repeat url("${company.image}")` : company.cover,
+        cover: company.image ? cssImage(company.image) : company.cover,
         link: `/empresas/${company.id}`,
       })),
   );

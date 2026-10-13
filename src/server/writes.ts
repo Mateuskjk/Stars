@@ -23,7 +23,7 @@ export function writer(s: Session, tenantId: string) {
 
 function manager(s: Session, tenantId: string) {
   const m = writer(s, tenantId);
-  if (m.papel !== 'DONO' && m.papel !== 'GESTOR') throw new HttpError(403, 'Só Admin e Supervisor mexem nas sprints.');
+  if (m.papel !== 'DONO' && m.papel !== 'GESTOR') throw new HttpError(403, 'Só Admin e Supervisor podem fazer isso.');
   return m;
 }
 
@@ -42,8 +42,27 @@ const isoDateOrNull = (v: unknown) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || isNaN(Date.parse(s))) throw new HttpError(400, 'Data inválida.');
   return s;
 };
+// Imagem guardada (foto da empresa/projeto): só imagem em data URL (png/jpeg/webp/gif) ou link https simples.
+// Nada de aspas, parênteses ou espaços: o valor vai dentro de url(...) no CSS da tela.
+const IMAGE = /^(data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+|https:\/\/[^\s"'()\\<>]+)$/;
+const imageOrNull = (v: unknown) => {
+  if (v === null || v === '') return null;
+  const s = text(v, 800_000, 'imagem');
+  if (!IMAGE.test(s)) throw new HttpError(400, 'Imagem inválida: envie PNG, JPEG, WebP ou GIF.');
+  return s;
+};
+// Cor do setor: nome (sky, emerald…) ou hexadecimal
+const color = (v: unknown) => {
+  const s = nonEmpty(v, 20, 'cor');
+  if (!/^([a-z]{2,20}|#[0-9a-f]{3,8})$/i.test(s)) throw new HttpError(400, 'Cor inválida.');
+  return s;
+};
 const idOrNull = (v: unknown, field: string) => (v == null || v === '' ? null : nonEmpty(v, 60, field));
 const has = (body: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(body, key);
+
+// Uma gravação "numerada" por vez em cada empresa (dura até o fim da transação): duas pessoas criando ao mesmo
+// tempo não pegam o mesmo número (max + 1) nem abrem duas sprints ativas
+export const lockTenant = (client: PoolClient, tenantId: string) => client.query(`select pg_advisory_xact_lock(hashtext($1))`, [tenantId]);
 
 // O registro existe e é da empresa?
 async function sameTenant(client: PoolClient, table: string, ids: string[], tenantId: string, field: string) {
@@ -207,6 +226,7 @@ export async function createActivity(client: PoolClient, s: Session, body: Recor
     if (!rows[0]) throw new HttpError(400, 'Projeto de outra empresa ou inexistente.');
   }
   const id = newId();
+  await lockTenant(client, tenantId);
   await client.query(
     `insert into "Atividade" (id, numero, titulo, "tenantId", "projetoId", "criadoPorId", "responsavelId", "atualizadoEm")
      values ($1, (select coalesce(max(numero), 0) + 1 from "Atividade" where "tenantId" = $3), $2, $3, $4, $5, $5, now())`,
@@ -266,6 +286,7 @@ export function writesRouter() {
       const inicio = isoDateOrNull(body['inicio']);
       const fim = isoDateOrNull(body['fim']);
       if (!inicio || !fim || fim < inicio) throw new HttpError(400, 'Período da sprint inválido.');
+      await lockTenant(client, tenantId);
       const { rows } = await client.query(`select 1 from "Sprint" where "tenantId" = $1 and situacao = 'ATIVA'`, [tenantId]);
       if (rows.length) throw new HttpError(409, 'Já existe uma sprint ativa nesta empresa. Feche-a antes.');
       const id = newId();
@@ -286,6 +307,12 @@ export function writesRouter() {
       manager(s, rows[0].tenantId);
       const situacao = req.body?.situacao;
       if (!SPRINT_SITUACOES.includes(situacao)) throw new HttpError(400, 'Situação inválida.');
+      if (situacao === 'ATIVA') {
+        // Reabrir uma sprint também respeita "uma ativa por empresa"
+        await lockTenant(client, rows[0].tenantId);
+        const { rows: ativa } = await client.query(`select 1 from "Sprint" where "tenantId" = $1 and situacao = 'ATIVA' and id <> $2`, [rows[0].tenantId, id]);
+        if (ativa.length) throw new HttpError(409, 'Já existe uma sprint ativa nesta empresa. Feche-a antes.');
+      }
       await client.query(`update "Sprint" set situacao = $1 where id = $2`, [situacao, id]);
     }),
   );
@@ -349,7 +376,7 @@ function dailyRoutes(router: Router) {
       const id = String(req.params['id']);
       const { rows } = await client.query(`select "tenantId" from lexagile.extra where tipo = 'daily' and "registroId" = $1`, [id]);
       if (!rows[0] || !membership(s, rows[0].tenantId)) throw new HttpError(404, 'Daily não encontrada.');
-      writer(s, rows[0].tenantId);
+      manager(s, rows[0].tenantId); // apagar o histórico do time: só Supervisor e Admin
       await client.query(`delete from lexagile.extra where tipo = 'daily' and "registroId" = $1`, [id]);
     }),
   );
@@ -377,7 +404,9 @@ const idList = (v: unknown, field: string) => {
 async function saveExtra(client: PoolClient, tipo: string, registroId: string, tenantId: string, extra: unknown) {
   if (extra === undefined || !(await ensureSchema())) return;
   // Até ~900 KB: cabe a foto do projeto (já comprimida no navegador, lado maior de 800px)
-  if (typeof extra !== 'object' || extra === null || JSON.stringify(extra).length > 900_000) throw new HttpError(400, 'Dados extras inválidos.');
+  if (typeof extra !== 'object' || extra === null || Array.isArray(extra) || JSON.stringify(extra).length > 900_000) throw new HttpError(400, 'Dados extras inválidos.');
+  // Campos de imagem dos extras (foto do projeto) seguem a mesma regra da foto da empresa
+  for (const key of ['image', 'cover']) if (key in extra) imageOrNull((extra as Record<string, unknown>)[key]);
   await client.query(
     `insert into lexagile.extra (tipo, "registroId", "tenantId", dados) values ($1, $2, $3, $4)
      on conflict (tipo, "registroId") do update set dados = excluded.dados`,
@@ -404,7 +433,7 @@ async function patchEmpresa(client: PoolClient, id: string, body: Record<string,
   if (has(body, 'sigla')) set('sigla', nonEmpty(body['sigla'], 4, 'sigla').toUpperCase());
   if (has(body, 'ativo')) set('ativo', body['ativo'] === true);
   if (has(body, 'fusoHorario')) set('fusoHorario', nonEmpty(body['fusoHorario'], 60, 'fuso horário'));
-  if (has(body, 'avatarUrl')) set('avatarUrl', body['avatarUrl'] === null ? null : text(body['avatarUrl'], 800_000, 'imagem'));
+  if (has(body, 'avatarUrl')) set('avatarUrl', imageOrNull(body['avatarUrl']));
   await updateRow(client, 'Tenant', id, sets, values, false);
   await saveExtra(client, 'empresa', id, id, body['extra']);
 }
@@ -413,7 +442,7 @@ async function patchSetor(client: PoolClient, id: string, tenantId: string, body
   const sets: string[] = [];
   const values: unknown[] = [];
   if (has(body, 'nome')) sets.push(`nome = $${values.push(nonEmpty(body['nome'], 60, 'nome'))}`);
-  if (has(body, 'cor')) sets.push(`cor = $${values.push(nonEmpty(body['cor'], 20, 'cor'))}`);
+  if (has(body, 'cor')) sets.push(`cor = $${values.push(color(body['cor']))}`);
   await updateRow(client, 'Setor', id, sets, values);
   if (has(body, 'membros') && (await ensureSchema())) {
     const membros = body['membros'];
@@ -506,7 +535,7 @@ function configRoutes(router: Router) {
       await client.query(
         `insert into "Setor" (id, nome, cor, ordem, "tenantId", "atualizadoEm")
          values ($1, $2, $3, (select coalesce(max(ordem), 0) + 1 from "Setor" where "tenantId" = $4), $4, now())`,
-        [id, nonEmpty(body['nome'], 60, 'nome'), typeof body['cor'] === 'string' ? body['cor'] : 'sky', tenantId],
+        [id, nonEmpty(body['nome'], 60, 'nome'), body['cor'] === undefined ? 'sky' : color(body['cor']), tenantId],
       );
       const { nome: _n, cor: _c, tenantId: _t, ...rest } = body;
       await patchSetor(client, id, tenantId, rest);
@@ -634,6 +663,7 @@ function configRoutes(router: Router) {
       const tenantId = nonEmpty(body['tenantId'], 60, 'empresa');
       const me = manager(s, tenantId).usuarioId;
       const id = newId();
+      await lockTenant(client, tenantId);
       await client.query(
         `insert into "Projeto" (id, numero, nome, "dataInicio", "responsavelId", "tenantId", "atualizadoEm")
          values ($1, (select coalesce(max(numero), 0) + 1 from "Projeto" where "tenantId" = $3), $2, now(), $4, $3, now())`,

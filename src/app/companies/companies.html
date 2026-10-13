@@ -21,7 +21,7 @@
 <ul class="companies__grid">
   @for (company of list(); track company.id) {
     <li class="companies__card" [class.is-inactive]="!company.active">
-      <div class="companies__image" [style.background]="company.image ? 'center / cover no-repeat url(' + company.image + ')' : company.cover">
+      <div class="companies__image" [style.background]="company.image ? cssImage(company.image) : company.cover">
         @if (!company.image) {
           <span class="companies__initial">{{ company.name.charAt(0) }}</span>
         }
@@ -84,7 +84,7 @@
         <!-- Imagem -->
         <section class="modal__section">
           <h3 class="modal__label">Imagem da empresa <span class="modal__optional">(aparece no carrossel)</span></h3>
-          <div class="companies__upload-preview" [style.background]="company.image ? 'center / cover no-repeat url(' + company.image + ')' : 'linear-gradient(135deg, #222b44, #8a93b8)'">
+          <div class="companies__upload-preview" [style.background]="company.image ? cssImage(company.image) : 'linear-gradient(135deg, #222b44, #8a93b8)'">
             @if (!company.image) {
               <span class="companies__initial">{{ company.name.charAt(0) || '?' }}</span>
             }

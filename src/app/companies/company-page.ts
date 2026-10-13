@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { RecentsStore } from '../home/recents-store';
 import { MembersStore } from '../members/members-store';
 import { BacklogStore } from '../backlog/backlog-store';
-import { ProjectStore } from '../projects/project-store';
+import { ProjectStore, cssImage } from '../projects/project-store';
 import { ProjectTaskStore } from '../projects/project-tasks';
 import { initials } from '../projects/projects';
 import { CompanyStore } from './company-store';
@@ -30,6 +30,7 @@ export class CompanyPage {
   private readonly backlog = inject(BacklogStore);
 
   protected readonly initials = initials;
+  protected readonly cssImage = cssImage;
   protected readonly locales = LOCALES;
   protected readonly now = signal(new Date());
   protected readonly isAdmin = this.membersStore.isAdmin; // só admin cria setores
