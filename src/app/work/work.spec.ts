@@ -67,5 +67,23 @@ describe('Work', () => {
     fixture.detectChanges();
     dialog.querySelector<HTMLButtonElement>('.confirm-dialog__button')!.click();
     expect(backlog.items().find((i) => i.id === 1)!.status).toBe('refined');
+
+    // Clicar no cartão abre o modal certo aqui mesmo: geral → modal do Backlog; projeto → modal do projeto
+    const backlogModal = el.querySelector<HTMLDialogElement>('dialog[aria-labelledby="editor-title"]')!;
+    const taskModal = el.querySelector<HTMLDialogElement>('dialog[aria-labelledby="task-editor-title"]')!;
+    const card = (title: string) => [...el.querySelectorAll<HTMLElement>('.kanban__card-title')].find((b) => b.textContent?.trim() === title)!;
+    card('Geral minha').click();
+    fixture.detectChanges();
+    expect(backlogModal.open).toBe(true);
+    expect(taskModal.open).toBe(false);
+    backlogModal.close();
+    card('Projeto minha').click();
+    fixture.detectChanges();
+    expect(taskModal.open).toBe(true);
+    taskModal.close();
+
+    // O seletor "Mover" do cartão não abre o modal
+    el.querySelector<HTMLSelectElement>('.kanban__move')!.click();
+    expect(backlogModal.open || taskModal.open).toBe(false);
   });
 });

@@ -1,5 +1,7 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { BacklogStatus, BacklogStore } from '../backlog/backlog-store';
+import { BacklogEditor } from '../backlog/backlog-editor';
+import { ProjectTaskEditor } from '../projects/project-task-editor';
 import { initials } from '../chat/chat';
 import { MembersStore } from '../members/members-store';
 import { SprintStore } from '../planning/sprint-store';
@@ -36,6 +38,7 @@ interface PendingMove {
 // Não cria atividades nem leva para outros kanbans; mover aqui move no Backlog ou no kanban do projeto.
 @Component({
   selector: 'app-work',
+  imports: [BacklogEditor, ProjectTaskEditor],
   templateUrl: './work.html',
   host: { class: 'work' },
 })
@@ -89,6 +92,21 @@ export class Work {
   });
 
   protected readonly board = computed(() => this.columns.map((c) => ({ ...c, cards: this.cards().filter((card) => card.column === c.id) })));
+
+  // ---------- Abrir o cartão: o mesmo modal do Backlog (geral) ou do projeto (ver, editar, comentar, mudar coluna) ----------
+  private readonly backlogEditor = viewChild.required(BacklogEditor);
+  private readonly taskEditor = viewChild.required(ProjectTaskEditor);
+
+  protected openCard(card: WorkCard, event: Event) {
+    if ((event.target as HTMLElement).closest('select')) return; // o seletor "Mover" do cartão não abre o modal
+    if (card.kind === 'backlog') {
+      const item = this.backlog.items().find((i) => i.id === card.id);
+      if (item) this.backlogEditor().openEdit(item);
+    } else {
+      const task = this.tasks.tasks().find((t) => t.id === card.id);
+      if (task) this.taskEditor().open(task);
+    }
+  }
 
   protected isLate(card: WorkCard) {
     return !!card.due && card.column !== 'done' && card.due < today();

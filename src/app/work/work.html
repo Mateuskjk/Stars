@@ -29,6 +29,7 @@
               [class.is-late]="isLate(card)"
               (dragstart)="dragging.set(card.key)"
               (dragend)="endDrag()"
+              (click)="openCard(card, $event)"
             >
               <div class="kanban__card-header">
                 <span class="kanban__project" [title]="card.kind === 'task' ? 'Projeto ' + card.origin : 'Atividade geral (Backlog)'">{{ card.origin }}</span>
@@ -44,7 +45,8 @@
                   </select>
                 }
               </div>
-              <span class="kanban__card-title">{{ card.title }}</span>
+              <!-- Clicar no cartão (ou no nome, pelo teclado) abre o modal da atividade aqui mesmo -->
+              <button class="kanban__card-title work__open" type="button">{{ card.title }}</button>
               <div class="kanban__card-footer">
                 <span class="work__origin" [title]="'Coluna no kanban de origem'">{{ card.kind === 'task' ? 'No projeto' : 'No Backlog' }}: {{ originLabel(card) }}</span>
                 @if (card.locked) {
@@ -102,3 +104,7 @@
     </div>
   }
 </dialog>
+
+<!-- Modais de edição (os mesmos do Backlog e da página do projeto): gravam no kanban de origem -->
+<app-backlog-editor />
+<app-project-task-editor />
