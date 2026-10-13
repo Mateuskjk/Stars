@@ -42,7 +42,7 @@ const isoDateOrNull = (v: unknown) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || isNaN(Date.parse(s))) throw new HttpError(400, 'Data inválida.');
   return s;
 };
-const idOrNull = (v: unknown, field: string) => (v === null || v === '' ? null : nonEmpty(v, 60, field));
+const idOrNull = (v: unknown, field: string) => (v == null || v === '' ? null : nonEmpty(v, 60, field));
 const has = (body: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(body, key);
 
 // O registro existe e é da empresa?

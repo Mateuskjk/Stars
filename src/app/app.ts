@@ -67,6 +67,7 @@ export class App {
       snapshot.start(); // mantém a API pública com os dados atuais
       const id = setInterval(() => this.now.set(new Date()), 60_000);
       destroyRef.onDestroy(() => clearInterval(id));
+      destroyRef.onDestroy(kanbanPan());
     });
   }
 
@@ -191,4 +192,46 @@ export class App {
       this.openMenu.set(null);
     }
   }
+}
+
+// Kanbans: segurar o mouse no fundo do quadro e arrastar rola as colunas para o lado.
+// Cartões (arrastáveis), botões e campos continuam com o comportamento normal.
+const PAN_BOARDS = '.kanban__board, .backlog__board';
+const PAN_SKIP = '[draggable="true"], button, a, input, select, textarea, label, [contenteditable]';
+
+function kanbanPan() {
+  let board: HTMLElement | null = null;
+  let startX = 0;
+  let startScroll = 0;
+  const down = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (e.button !== 0 || target.closest(PAN_SKIP)) return;
+    board = target.closest<HTMLElement>(PAN_BOARDS);
+    if (!board || board.scrollWidth <= board.clientWidth) {
+      board = null;
+      return;
+    }
+    startX = e.clientX;
+    startScroll = board.scrollLeft;
+    board.style.scrollSnapType = 'none'; // o "ímã" das colunas brigaria com o arraste
+    board.style.cursor = 'grabbing';
+    e.preventDefault(); // não seleciona texto
+  };
+  const move = (e: MouseEvent) => {
+    if (board) board.scrollLeft = startScroll - (e.clientX - startX);
+  };
+  const up = () => {
+    if (!board) return;
+    board.style.scrollSnapType = '';
+    board.style.cursor = '';
+    board = null;
+  };
+  document.addEventListener('mousedown', down);
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
+  return () => {
+    document.removeEventListener('mousedown', down);
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+  };
 }

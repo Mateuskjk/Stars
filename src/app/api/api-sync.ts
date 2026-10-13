@@ -701,7 +701,7 @@ export class ApiSync {
         return {
           nome: t.name,
           membros: t.memberIds.map((p) => this.userByPersonTenant.get(`${p}|${tenantId}`)).filter(Boolean),
-          projetos: t.projectIds.filter((p) => this.projectTenant.get(p) === tenantId).map((p) => this.ids.projeto.db(p)),
+          projetos: t.projectIds.filter((p) => this.projectTenant.get(p) === tenantId).map((p) => this.ids.projeto.db(p)).filter(Boolean),
           extra: { focus: t.focus },
         };
       },
