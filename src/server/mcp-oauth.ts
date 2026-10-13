@@ -218,7 +218,7 @@ export function consentRouter() {
       if (f.state) back.searchParams.set('state', f.state);
       if (req.body?.decision !== 'allow') {
         back.searchParams.set('error', 'access_denied');
-        return void res.redirect(back.toString());
+        return void res.redirect(303, back.toString()); // 303: o navegador volta ao Claude com GET (o callback dele recusa POST)
       }
       const code = random();
       await ensureTables();
@@ -229,7 +229,7 @@ export function consentRouter() {
       );
       console.log(`[mcp] ${session.email} autorizou ${client.client_name ?? client.client_id}`);
       back.searchParams.set('code', code);
-      res.redirect(back.toString());
+      res.redirect(303, back.toString()); // 303 (não 302/307): segue com GET, como o callback do Claude exige
     } catch (error) {
       console.error('[mcp] falha na autorização:', (error as Error).message);
       res.status(500).send('Não foi possível autorizar agora. Tente de novo.');
