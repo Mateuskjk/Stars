@@ -10,6 +10,7 @@ import pg from 'pg';
 import { db, ddl, onDbReset } from './db';
 import { decryptKey, encryptKey } from './ai';
 import type { DomainEvent } from './events';
+import { hit } from './limits';
 
 // ---------- Proteção contra SSRF ----------
 // Webhook só pode apontar para a internet pública: nada de localhost, rede interna ou metadados de nuvem.
@@ -19,10 +20,12 @@ for (const [net, prefix] of [
   ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], // CGNAT e loopback
   ['169.254.0.0', 16], // link-local / metadados de nuvem
   ['172.16.0.0', 12], ['192.168.0.0', 16], ['224.0.0.0', 3], // privadas, multicast e reservados
+  ['192.0.0.0', 24], ['198.18.0.0', 15], // IETF e testes de rede
 ] as const) blocked.addSubnet(net, prefix, 'ipv4');
 for (const [net, prefix] of [
   ['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10],
   ['::', 96], ['64:ff9b::', 96], ['2002::', 16], // IPv4 embutido (compatível, NAT64, 6to4); o mapeado (::ffff:) o Node confere nas regras IPv4
+  ['64:ff9b:1::', 48], ['2001::', 32], ['::ffff:0:0:0', 96], ['100::', 64], ['fec0::', 10], // NAT64 local, Teredo, SIIT, descarte, site-local
 ] as const) blocked.addSubnet(net, prefix, 'ipv6');
 
 export function isPrivateAddress(ip: string): boolean {
@@ -79,6 +82,16 @@ export const ensureTables = () =>
       throw error;
     }));
 
+// Segredo que não abre (LEXAGILE_SECRET foi trocada): pula só aquela linha e avisa no log
+function readable<R extends { id: string }, T>(row: R, open: (r: R) => T): T[] {
+  try {
+    return [open(row)];
+  } catch {
+    console.error('[integracoes] segredo ilegível (LEXAGILE_SECRET trocada?):', row.id);
+    return [];
+  }
+}
+
 type HookRow = { id: string; owner: string; dados: Omit<Webhook, 'id' | 'owner' | 'secret'>; segredoCifrado: string };
 const toHook = (r: HookRow): Webhook => ({ ...r.dados, id: r.id, owner: r.owner, secret: decryptKey(r.segredoCifrado) });
 
@@ -86,7 +99,7 @@ const hooks = {
   async list(owner: string) {
     await ensureTables();
     const { rows } = await db().query<HookRow>(`select * from lexagile.webhook where owner = $1 order by dados->>'name'`, [owner]);
-    return rows.map(toHook);
+    return rows.flatMap((r) => readable(r, toHook));
   },
   // Sem dono = qualquer um (para saber se o id já existe)
   async get(id: string, owner?: string) {
@@ -127,17 +140,18 @@ function safeLookup(host: string, options: object, callback: (err: Error | null,
 
 function postSafely(url: string, headers: Record<string, string>, body: string) {
   return new Promise<number>((resolve, reject) => {
-    const req = httpsRequest(url, { method: 'POST', headers, timeout: 10_000, lookup: safeLookup as never }, (res) => {
-      res.resume();
+    // 10s no TOTAL (o "timeout" do socket só conta o tempo parado: um servidor que responde byte a byte o enganaria)
+    const req = httpsRequest(url, { method: 'POST', headers, timeout: 10_000, lookup: safeLookup as never, signal: AbortSignal.timeout(10_000) }, (res) => {
       resolve(res.statusCode ?? 0);
+      res.destroy(); // só o status interessa: não lê o corpo
     });
     req.on('timeout', () => req.destroy(new Error('Tempo esgotado.')));
-    req.on('error', reject);
+    req.on('error', (error) => reject(error.name === 'AbortError' ? new Error('Tempo esgotado.') : error));
     req.end(body);
   });
 }
 
-async function deliver(hook: Webhook, event: string, data: unknown) {
+export async function deliver(hook: Webhook, event: string, data: unknown) {
   const body = JSON.stringify({ id: randomUUID(), event, created_at: new Date().toISOString(), data });
   const timestamp = String(Math.floor(Date.now() / 1000));
   const problem = await checkWebhookUrl(hook.url); // confere de novo na hora de enviar (o DNS pode ter mudado)
@@ -161,7 +175,10 @@ async function deliver(hook: Webhook, event: string, data: unknown) {
       hook.lastDelivery = { at: new Date().toISOString(), ok: false, error: error instanceof Error ? error.message.slice(0, 200) : 'Falha no envio', event };
     }
   }
-  await hooks.save(hook).catch(() => undefined);
+  // Só a "última entrega", e só se o webhook ainda existe: apagado ou editado durante o envio continua como o Admin deixou
+  await db()
+    .query(`update lexagile.webhook set dados = jsonb_set(dados, '{lastDelivery}', $2::jsonb) where id = $1`, [hook.id, JSON.stringify(hook.lastDelivery)])
+    .catch(() => undefined);
   return hook.lastDelivery;
 }
 
@@ -181,7 +198,7 @@ export async function deliverEvents(events: DomainEvent[]) {
                           and u.papel = 'DONO' and u.situacao = 'ATIVO' and u."removidoEm" is null)`,
         [e.tenantId, e.event],
       );
-      for (const row of rows) deliveries.push(deliver(toHook(row), e.event, e.data));
+      for (const hook of rows.flatMap((r) => readable(r, toHook))) deliveries.push(deliver(hook, e.event, e.data));
     }
     await Promise.race([Promise.allSettled(deliveries), new Promise((resolve) => setTimeout(resolve, 8000))]);
   } catch (error) {
@@ -216,7 +233,7 @@ const databases = {
   async list(owner: string) {
     await ensureTables();
     const { rows } = await db().query<DbRow>(`select * from lexagile.integracao_banco where owner = $1 order by dados->>'name'`, [owner]);
-    return rows.map(toDb);
+    return rows.flatMap((r) => readable(r, toDb));
   },
   async get(id: string, owner?: string) {
     await ensureTables();
@@ -246,8 +263,13 @@ function parseDb(body: any, existing?: DbConnection): Omit<DbConnection, 'id' | 
   const port = Number(body?.port ?? 5432);
   const database = String(body?.database ?? '').trim();
   const user = String(body?.user ?? '').trim();
-  const password = typeof body?.password === 'string' && body.password ? body.password : (existing?.password ?? '');
-  const ssl = ['disable', 'require', 'verify-full'].includes(body?.ssl) ? body.ssl : 'require';
+  const ssl = ['disable', 'require', 'verify-full'].includes(body?.ssl) ? body.ssl : 'verify-full'; // padrão: confere o certificado
+  // Senha em branco = manter a atual, MAS só para o mesmo destino: trocar o servidor (ou o usuário, ou o SSL) e manter
+  // a senha guardada entregaria a senha a um servidor qualquer no próximo "Testar"
+  const typed = typeof body?.password === 'string' && body.password ? body.password : '';
+  const sameTarget = !!existing && existing.host === host && existing.port === port && existing.database === database && existing.user === user && existing.ssl === ssl;
+  if (!typed && existing?.password && !sameTarget) return 'Você mudou o servidor, o banco, o usuário ou o SSL: digite a senha de novo.';
+  const password = typed || (sameTarget ? existing!.password : '');
   const schema = String(body?.schema ?? 'public').trim() || 'public';
   if (!name) return 'Dê um nome para a conexão.';
   if (!HOST_PATTERN.test(host)) return 'Host inválido.';
@@ -358,7 +380,15 @@ export function integrationsRouter() {
     res.json({ ok: true });
   }));
 
+  // "Testar" conecta em servidores de fora: no máximo 10 por minuto por Admin (não vira scanner de portas)
+  const testLimit = async (req: Request, res: Response) => {
+    if ((await hit(`teste-integracao:${ownerOf(req)}`, 60)) <= 10) return false;
+    res.status(429).json({ error: 'Muitos testes seguidos. Espere um minuto.' });
+    return true;
+  };
+
   router.post('/webhooks/:id/test', safe(async (req, res) => {
+    if (await testLimit(req, res)) return;
     const hook = await hooks.get(String(req.params['id']), ownerOf(req));
     if (!hook) return void res.status(404).json({ error: 'Webhook não encontrado.' });
     const result = await deliver(hook, 'webhook.test', { message: 'Teste de entrega do LexÁgile', webhook: hook.name });
@@ -386,6 +416,7 @@ export function integrationsRouter() {
   }));
 
   router.post('/databases/:id/test', safe(async (req, res) => {
+    if (await testLimit(req, res)) return;
     const conn = await databases.get(String(req.params['id']), ownerOf(req));
     if (!conn) return void res.status(404).json({ error: 'Conexão não encontrada.' });
     // Sem varredura da rede interna: resolve o host uma vez, confere o IP e conecta NESSE IP (sem 2ª consulta de DNS)

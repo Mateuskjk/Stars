@@ -47,7 +47,8 @@ export const visibleProjectSql = (installed: boolean) => `
   p."tenantId" = any($1::text[]) and (
     p."tenantId" = any($3::text[])
     or p."responsavelId" = any($2::text[])
-    or p."equipeId" in (select "equipeId" from "EquipeMembro" where "usuarioId" = any($2::text[]))
+    or p."equipeId" in (select em."equipeId" from "EquipeMembro" em join "Equipe" eq on eq.id = em."equipeId" and eq.ativa
+                         where em."usuarioId" = any($2::text[]))
     or exists (select 1 from "Atividade" a where a."projetoId" = p.id and ${visibleActivitySql(installed)})${
       installed ? `
     or p."setorId" in (select "setorId" from lexagile.setor_membro where "usuarioId" = any($2::text[]))` : ''

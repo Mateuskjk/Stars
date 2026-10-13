@@ -11,7 +11,9 @@ type Access = 'none' | 'view' | 'edit';
 type Feature = 'dashboards' | 'chat' | 'projects' | 'daily' | 'backlog' | 'planning' | 'notes' | 'settings';
 
 interface TokenOwner {
-  issuer: string; // e-mail do Admin que gerou: o token só lê o retrato enviado por ele (dados que ele já vê)
+  issuer: string; // e-mail do Admin que gerou
+  email: string; // e-mail do membro dono do token: o token lê o que ESSA pessoa vê no app
+  tenants: string[]; // empresas em que o Admin era Dono e o membro estava ativo, na emissão
   memberId: number;
   name: string;
   role: string;
@@ -32,6 +34,10 @@ export const ensureTables = () =>
       `create schema if not exists lexagile;
        create table if not exists lexagile.api_token ("tokenHash" text primary key, issuer text not null, "memberId" int not null,
          nome text not null, papel text not null, permissoes jsonb not null, "criadoEm" timestamptz not null default now());
+       -- Token amarrado ao membro e às empresas, com validade (os antigos, sem isso, deixam de valer)
+       alter table lexagile.api_token add column if not exists email text;
+       alter table lexagile.api_token add column if not exists tenants text[];
+       alter table lexagile.api_token add column if not exists expira timestamptz;
        create table if not exists lexagile.api_acesso (id text primary key, issuer text not null, em timestamptz not null default now(),
          ator text not null, metodo text not null, caminho text not null, status int not null, ip text not null);`,
     )
@@ -43,7 +49,8 @@ export const ensureTables = () =>
 async function ownerOfToken(token: string): Promise<TokenOwner | undefined> {
   await ensureTables();
   const { rows } = await db().query<TokenOwner>(
-    `select issuer, "memberId", nome as name, papel as role, permissoes as permissions from lexagile.api_token where "tokenHash" = $1`,
+    `select issuer, email, tenants, "memberId", nome as name, papel as role, permissoes as permissions from lexagile.api_token
+      where "tokenHash" = $1 and email is not null and tenants is not null and expira > now()`,
     [hashToken(token)],
   );
   return rows[0];
@@ -188,14 +195,16 @@ export function openApiSpec(serverUrl: string) {
   };
 }
 
-// ---------- Dados: direto do banco, com o que o Admin que emitiu o token vê HOJE no app ----------
-// (empresas e cargos relidos a cada chamada: Admin removido ou rebaixado → o token perde o acesso junto)
+// ---------- Dados: direto do banco, com o que o MEMBRO dono do token vê HOJE no app ----------
+// Só nas empresas do token em que o Admin que emitiu ainda é Dono e o membro ainda está ativo (tudo relido a cada chamada:
+// Admin rebaixado ou membro removido → o token perde o acesso àquela empresa).
 type Row = Record<string, unknown>;
 const ROLE_OF: Record<string, string> = { DONO: 'admin', GESTOR: 'supervisor', ATENDENTE: 'member', OBSERVADOR: 'member' };
 
-async function issuerSession(issuer: string): Promise<Session | null> {
-  const memberships = await liveMemberships(issuer, []);
-  return memberships.length ? { key: 'api', nome: issuer, email: issuer, memberships, expiresAt: Date.now() + 60_000 } : null;
+export async function tokenSession(owner: Pick<TokenOwner, 'issuer' | 'email' | 'tenants'>): Promise<Session | null> {
+  const issuerOwns = new Set((await liveMemberships(owner.issuer, [])).filter((m) => m.papel === 'DONO').map((m) => m.tenantId));
+  const memberships = (await liveMemberships(owner.email, [])).filter((m) => owner.tenants.includes(m.tenantId) && issuerOwns.has(m.tenantId));
+  return memberships.length ? { key: 'api', nome: owner.email, email: owner.email, memberships, expiresAt: Date.now() + 60_000 } : null;
 }
 
 export async function readCollection(collection: string, s: Session): Promise<Row[]> {
@@ -250,10 +259,10 @@ export async function readCollection(collection: string, s: Session): Promise<Ro
     const { rows } = await db().query(
       `select e.id, e.nome as name, t.nome as company,
               coalesce((select array_agg(m."usuarioId") from "EquipeMembro" m where m."equipeId" = e.id), '{}') as "memberIds",
-              coalesce((select array_agg(p.id) from "Projeto" p where p."equipeId" = e.id), '{}') as "projectIds"
+              coalesce((select array_agg(p.id) from "Projeto" p where p."equipeId" = e.id and ${visibleProjectSql(installed)}), '{}') as "projectIds"
          from "Equipe" e join "Tenant" t on t.id = e."tenantId"
         where e."tenantId" = any($1::text[]) and e.ativa order by t.nome, e.nome`,
-      [params[0]],
+      params,
     );
     return rows;
   }
@@ -275,13 +284,16 @@ export function publicApiRouter() {
   const router = Router();
 
   router.get('/openapi.json', (req, res) => {
-    res.json(openApiSpec(`${req.protocol}://${req.get('host')}/api/v1`));
+    const base = (process.env['APP_URL'] || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''); // APP_URL: não confia no Host
+    res.json(openApiSpec(`${base}/api/v1`));
   });
 
   // Autenticação + limite + trilha de acesso (inclusive das tentativas recusadas)
   router.use(async (req: Request, res: Response, next: NextFunction) => {
     const header = req.get('authorization') ?? '';
     const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    // Antes de ir ao banco: no máximo 120 chamadas por minuto por IP (com ou sem token válido)
+    if ((await hit(`api-ip:${req.ip ?? ''}`, 60)) > 120) return void res.status(429).json({ error: 'Muitas requisições. Espere um minuto.' });
     let owner: TokenOwner | undefined;
     try {
       owner = token ? await ownerOfToken(token) : undefined;
@@ -289,10 +301,11 @@ export function publicApiRouter() {
       return void res.status(503).json({ error: 'API indisponível agora. Tente de novo.' });
     }
     res.on('finish', () => {
+      if (!owner) return; // trilha só de tokens válidos (a de quem chuta tokens não interessa a ninguém e enche o banco)
       void db()
         .query(
           `insert into lexagile.api_acesso (id, issuer, ator, metodo, caminho, status, ip) values ($1, $2, $3, $4, $5, $6, $7)`,
-          [randomUUID(), owner?.issuer ?? '', owner?.name ?? (token ? 'Token inválido' : 'Sem token'), req.method, req.originalUrl.split('?')[0].slice(0, 300), res.statusCode, req.ip ?? ''],
+          [randomUUID(), owner.issuer, owner.name, req.method, req.originalUrl.split('?')[0].slice(0, 300), res.statusCode, req.ip ?? ''],
         )
         .then(() => (Math.random() < 0.01 ? db().query(`delete from lexagile.api_acesso where em < now() - interval '30 days'`) : undefined))
         .catch(() => undefined);
@@ -303,7 +316,11 @@ export function publicApiRouter() {
     next();
   });
 
-  router.get('/me', (_req, res) => void res.json(res.locals['owner']));
+  // Sem os e-mails (de quem emitiu e do membro) nem as empresas internas
+  router.get('/me', (_req, res) => {
+    const { memberId, name, role, permissions } = res.locals['owner'] as TokenOwner;
+    res.json({ memberId, name, role, permissions });
+  });
 
   for (const endpoint of ENDPOINTS.filter((e) => e.collection)) {
     const expressPath = endpoint.path.replace(/\{(\w+)\}/g, ':$1');
@@ -313,8 +330,8 @@ export function publicApiRouter() {
       if (endpoint.feature && !['view', 'edit'].includes(owner.permissions[endpoint.feature])) {
         return void res.status(403).json({ error: `Sem permissão para ${endpoint.tag.toLowerCase()}.` });
       }
-      const session = await issuerSession(owner.issuer);
-      if (!session) return void res.status(401).json({ error: 'Quem emitiu este token não tem mais acesso ao LexÁgile. Peça um token novo.' });
+      const session = await tokenSession(owner);
+      if (!session) return void res.status(401).json({ error: 'Este token não tem mais acesso (a pessoa ou quem emitiu saiu da empresa). Peça um token novo.' });
       const items = (await readCollection(endpoint.collection!, session)) as { id: string; status?: string }[];
       if (req.params['id'] !== undefined) {
         const item = items.find((i) => String(i.id) === req.params['id']);
@@ -356,10 +373,16 @@ export function publicApiInternalRouter() {
     const memberId = memberIdOf(req);
     const token = String(req.body?.token ?? '');
     if (!Number.isInteger(memberId) || !/^stars_[0-9a-f]{48}$/.test(token)) return void res.status(400).json({ error: 'Token inválido.' });
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    // O token vale só onde quem emite é Dono E a pessoa está ativa
+    const owns = new Set(req.session!.memberships.filter((m) => m.papel === 'DONO').map((m) => m.tenantId));
+    const tenants = (await liveMemberships(email, [])).map((m) => m.tenantId).filter((t) => owns.has(t));
+    if (!email || !tenants.length) return void res.status(400).json({ error: 'Essa pessoa não está ativa em nenhuma empresa em que você é Admin.' });
     await db().query(`delete from lexagile.api_token where issuer = $1 and "memberId" = $2`, [issuerOf(req), memberId]);
     await db().query(
-      `insert into lexagile.api_token ("tokenHash", issuer, "memberId", nome, papel, permissoes) values ($1, $2, $3, $4, $5, $6)`,
-      [hashToken(token), issuerOf(req), memberId, String(req.body?.name ?? '').slice(0, 120), ROLES.includes(req.body?.role) ? req.body.role : 'member', JSON.stringify(cleanPermissions(req.body?.permissions))],
+      `insert into lexagile.api_token ("tokenHash", issuer, "memberId", nome, papel, permissoes, email, tenants, expira)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, now() + interval '1 year')`,
+      [hashToken(token), issuerOf(req), memberId, String(req.body?.name ?? '').slice(0, 120), ROLES.includes(req.body?.role) ? req.body.role : 'member', JSON.stringify(cleanPermissions(req.body?.permissions)), email, [...new Set(tenants)]],
     );
     res.json({ ok: true });
   }));

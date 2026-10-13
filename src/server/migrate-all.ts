@@ -35,6 +35,7 @@ export async function grantAppRole() {
   const { rows } = await db().query(`select 1 from pg_roles where rolname = 'lexagile_app'`);
   if (!rows.length) return false;
   await db().query(`grant usage on schema lexagile to lexagile_app;
-    grant select, insert, update, delete on all tables in schema lexagile to lexagile_app`);
+    grant select, insert, update, delete on all tables in schema lexagile to lexagile_app;
+    grant usage, select on all sequences in schema lexagile to lexagile_app`);
   return true;
 }

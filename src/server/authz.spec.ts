@@ -175,20 +175,75 @@ describe('CSRF', () => {
 });
 
 describe('API pública (tokens)', () => {
-  it('Admin gera token, muda a permissão (PATCH) e revoga; permissão ausente nega; lê do banco só a empresa dele', async () => {
+  it('token vale para o MEMBRO: lê o que ele vê (não o que o Admin vê), só na empresa; PATCH e revogação', async () => {
     const token = 'stars_' + randomBytes(24).toString('hex');
-    expect((await env.call('donoA', 'PUT', '/api/internal/tokens/7', { token, name: 'T', permissions: {} })).status).toBe(200);
+    const emitir = { token, name: 'Atendente', email: 'atendente.a@lexgroup.com.br', permissions: {} };
+    expect((await env.call('donoA', 'PUT', '/api/internal/tokens/7', emitir)).status).toBe(200);
     const bearer = { authorization: `Bearer ${token}` };
     expect((await env.call(null, 'GET', '/api/v1/projects', undefined, bearer)).status).toBe(403); // sem permissão: nega
     expect((await env.call('donoA', 'PATCH', '/api/internal/tokens/7', { permissions: { projects: 'view' } })).status).toBe(200);
-    // Lê do banco o que o Admin que emitiu vê: os projetos da A, nunca os da B
+    // Visão do Atendente: o projeto do setor dele sim; o escondido e os da empresa B não
     const ids = ((await env.call(null, 'GET', '/api/v1/projects', undefined, bearer)).data as { id: string }[]).map((p) => p.id);
-    expect(ids).toEqual(expect.arrayContaining([IDS.projetoVisivel, IDS.projetoEscondido]));
+    expect(ids).toContain(IDS.projetoVisivel);
+    expect(ids).not.toContain(IDS.projetoEscondido);
     expect(ids).not.toContain(IDS.projetoB);
-    expect((await env.call(null, 'GET', `/api/v1/projects/${IDS.projetoB}`, undefined, bearer)).status).toBe(404);
+    expect((await env.call(null, 'GET', `/api/v1/projects/${IDS.projetoEscondido}`, undefined, bearer)).status).toBe(404);
+    // /me sem e-mails
+    const me = (await env.call(null, 'GET', '/api/v1/me', undefined, bearer)).data;
+    expect(JSON.stringify(me)).not.toContain('@');
     expect((await env.call('donoB', 'DELETE', '/api/internal/tokens/7')).status).toBe(200); // B não revoga o da A
     expect((await env.call(null, 'GET', '/api/v1/projects', undefined, bearer)).status).toBe(200);
     expect((await env.call('donoA', 'DELETE', '/api/internal/tokens/7')).status).toBe(200);
     expect((await env.call(null, 'GET', '/api/v1/projects', undefined, bearer)).status).toBe(401);
+  });
+
+  it('não emite token para quem não está ativo numa empresa em que o Admin é Dono', async () => {
+    const token = 'stars_' + randomBytes(24).toString('hex');
+    const r = await env.call('donoA', 'PUT', '/api/internal/tokens/8', { token, name: 'B', email: 'dono.b@lexgroup.com.br', permissions: { projects: 'view' } });
+    expect(r.status).toBe(400);
+  });
+});
+
+describe('limite de login (no banco)', () => {
+  it('15 tentativas erradas disparadas ao mesmo tempo: só 5 chegam a conferir a senha', async () => {
+    const tries = await Promise.all(
+      Array.from({ length: 15 }, () => env.call(null, 'POST', '/api/auth/login', { email: 'alvo.paralelo@lexgroup.com.br', senha: 'errada' })),
+    );
+    expect(tries.filter((r) => r.status === 401)).toHaveLength(5);
+    expect(tries.filter((r) => r.status === 429)).toHaveLength(10);
+  });
+});
+
+describe('endurecimento (2ª análise)', () => {
+  it('CSRF não é contornado escrevendo o caminho em maiúsculas', async () => {
+    const r = await env.call('donoA', 'POST', '/API/data/atividades', { tenantId: A, titulo: 'x' }, { 'sec-fetch-site': 'cross-site' });
+    expect(r.status).toBe(403);
+  });
+
+  it('fuso horário inválido é recusado (quebraria a tela de todos)', async () => {
+    expect((await env.call('donoA', 'PATCH', `/api/data/empresas/${A}`, { fusoHorario: 'Lua/Base_Alfa' })).status).toBe(400);
+    expect((await env.call('donoA', 'PATCH', `/api/data/empresas/${A}`, { fusoHorario: 'America/Manaus' })).status).toBe(200);
+  });
+
+  it('"não pode mudar o próprio cargo" vale mesmo com a sessão em outro e-mail (conta achada pelo Google)', async () => {
+    const token = randomBytes(32).toString('base64url');
+    await env.db.query(`insert into lexagile.sessao ("tokenHash", nome, email, memberships, "expiraEm") values ($1, 'x', 'outro.email@lexgroup.com.br', $2, now() + interval '1 hour')`, [
+      createHash('sha256').update(token).digest('hex'),
+      JSON.stringify([{ usuarioId: 'u-dono-a', tenantId: A, papel: 'DONO' }]),
+    ]);
+    const r = await env.call(null, 'PATCH', '/api/data/pessoas', { email: 'dono.a@lexgroup.com.br', papel: 'ATENDENTE' }, { cookie: `__Host-lex_session=${token}` });
+    expect(r.status).toBe(400);
+    expect(await papelDe('u-dono-a')).toBe('DONO');
+  });
+
+  it('configuração da IA: quem não é superadmin não vê prompt nem final da chave', async () => {
+    const { encryptKey } = await import('./ai');
+    await env.db.query(`insert into lexagile.ia_config (id, dados, "chaveCifrada", assistente) values ('ia-1', $1, $2, true)`, [
+      JSON.stringify({ name: 'Assistente', provider: 'anthropic', model: 'claude-haiku', systemPrompt: 'PROMPT SECRETO', keyHint: 'abcd', lastTest: null }),
+      encryptKey('sk-teste'),
+    ]);
+    const r = await env.call('atendenteA', 'GET', '/api/ai/configs');
+    expect(r.status).toBe(200);
+    expect(r.data[0]).toEqual({ id: 'ia-1', name: 'Assistente', provider: 'anthropic', model: 'claude-haiku', assistant: true });
   });
 });

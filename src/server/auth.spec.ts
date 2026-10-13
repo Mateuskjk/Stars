@@ -1,6 +1,5 @@
 import { randomBytes, scryptSync } from 'node:crypto';
-import { loginKeys, tooManyAttempts, verifyPassword } from './auth';
-import { hit } from './limits';
+import { loginKeys, overLimit, verifyPassword } from './auth';
 
 // Gera um hash no mesmo formato do banco: scrypt$N$r$p$salt$hash
 function makeHash(password: string, saltAsText = false) {
@@ -27,15 +26,17 @@ describe('verifyPassword', () => {
   });
 });
 
-describe('tooManyAttempts', () => {
-  it('sem falhas registradas, libera', async () => {
-    expect(await tooManyAttempts(loginKeys('ninguem@x.com', '1.1.1.1'))).toBe(false);
+describe('limite de tentativas de login', () => {
+  it('5 tentativas do mesmo e-mail no mesmo IP passam; a 6ª é bloqueada; outro IP ainda entra', async () => {
+    const email = `vitima${Math.random()}@x.com`;
+    for (let i = 0; i < 5; i++) expect(await overLimit(loginKeys(email, '6.6.6.6'))).toBe(false);
+    expect(await overLimit(loginKeys(email, '6.6.6.6'))).toBe(true);
+    expect(await overLimit(loginKeys(email, '7.7.7.7'))).toBe(false);
   });
 
-  it('5 erros do mesmo e-mail no mesmo IP bloqueiam só esse par (outro IP ainda entra)', async () => {
-    const email = `vitima${Math.random()}@x.com`;
-    for (let i = 0; i < 5; i++) for (const k of Object.keys(loginKeys(email, '6.6.6.6'))) await hit(k, 900);
-    expect(await tooManyAttempts(loginKeys(email, '6.6.6.6'))).toBe(true);
-    expect(await tooManyAttempts(loginKeys(email, '7.7.7.7'))).toBe(false);
+  it('tentativas em paralelo não passam do limite (conta antes de conferir a senha)', async () => {
+    const email = `paralelo${Math.random()}@x.com`;
+    const results = await Promise.all(Array.from({ length: 50 }, () => overLimit(loginKeys(email, '8.8.8.8'))));
+    expect(results.filter((blocked) => !blocked)).toHaveLength(5);
   });
 });

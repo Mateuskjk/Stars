@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { NextFunction, Request, Response, Router, json } from 'express';
 import type { PoolClient } from 'pg';
 import { db, ddl, onDbReset } from './db';
-import { Session, requireAuth, saveSession } from './auth';
+import { Session, requireAuth, saveSession, SUPERADMIN_ONLY, isSuperAdmin } from './auth';
 
 export const INSTALL_SQL = `
 create schema if not exists lexagile;
@@ -160,7 +160,7 @@ function action(name: string, handler: (client: PoolClient, req: Request, s: Ses
       const { result, detail } = await handler(client, req, req.session!);
       if (await isInstalled()) {
         await client.query(`insert into lexagile.migracao_log ("usuarioId", acao, detalhe) values ($1, $2, $3)`, [
-          req.session!.memberships[0].usuarioId,
+          adminUserIn(req.session!, adminTenants(req.session!)[0]) ?? req.session!.memberships[0].usuarioId, // um usuário Dono de quem fez
           name,
           detail,
         ]);
@@ -199,7 +199,9 @@ export function migrationRouter() {
 
   router.post(
     '/instalar',
-    action('instalar', async (client) => {
+    action('instalar', async (client, req) => {
+      // Cria estruturas que valem para todas as empresas: só o superadmin
+      if (!isSuperAdmin(req.session!)) throw new HttpError(403, SUPERADMIN_ONLY);
       await client.query(INSTALL_SQL);
       schemaReady = null; // a API de dados volta a conferir o schema
       return { detail: 'schema lexagile criado/atualizado' };

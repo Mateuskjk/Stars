@@ -10,8 +10,8 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { InvalidClientMetadataError, InvalidGrantError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { redirectUriMatches } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
-import { db, ddl, onDbReset } from './db';
-import { Membership, Session, liveMemberships, readSession, usersForEmail } from './auth';
+import { db, ddl, onDbReset, isDevelopment } from './db';
+import { Membership, Session, liveMemberships, readSession } from './auth';
 
 const ACCESS_S = 60 * 60; // token de acesso: 1 hora
 const REFRESH_S = 30 * 24 * 60 * 60; // renovação: 30 dias (cada uso gera um novo)
@@ -30,7 +30,7 @@ export function allowedRedirect(raw: string) {
   if (CLAUDE_CALLBACKS.includes(raw)) return true;
   try {
     const url = new URL(raw);
-    return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) && !url.username && !url.password;
+    return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) && !url.username && !url.password && !url.hash;
   } catch {
     return false;
   }
@@ -58,7 +58,10 @@ export function ensureTables() {
        -- Família: todos os tokens que vieram do mesmo "Permitir". Reuso de um refresh já usado derruba a família inteira.
        alter table lexagile.oauth_token add column if not exists familia text;
        alter table lexagile.oauth_token add column if not exists "familiaInicio" timestamptz;
-       alter table lexagile.oauth_token add column if not exists usado boolean not null default false;`,
+       alter table lexagile.oauth_token add column if not exists usado boolean not null default false;
+       alter table lexagile.oauth_token add column if not exists "usadoEm" timestamptz;
+       -- Tokens de antes das famílias não dá para revogar juntos: saem (a pessoa conecta de novo uma vez)
+       delete from lexagile.oauth_token where familia is null;`,
     )
     .then(() => undefined)
     .catch((error) => {
@@ -159,19 +162,21 @@ export const oauthProvider: OAuthServerProvider = {
   async exchangeRefreshToken(client, refreshToken) {
     await ensureTables();
     // Marca como usado (fica guardado até vencer, para reconhecer um reuso)
-    const { rows } = await db().query<{ email: string; familia: string | null; familiaInicio: string | null }>(
-      `update lexagile.oauth_token set usado = true
+    const { rows } = await db().query<{ email: string; familia: string | null; familiaInicio: string | null; memberships: Membership[] }>(
+      `update lexagile.oauth_token set usado = true, "usadoEm" = now()
         where "tokenHash" = $1 and tipo = 'refresh' and "clientId" = $2 and expira > now() and not usado
-        returning email, familia, "familiaInicio"`,
+        returning email, familia, "familiaInicio", memberships`,
       [sha(refreshToken), client.client_id],
     );
     if (!rows[0]) {
       // Refresh já usado aparecendo de novo: alguém copiou o token. Derruba a família inteira (o atacante e o legítimo).
-      const { rows: reused } = await db().query<{ familia: string | null }>(
-        `select familia from lexagile.oauth_token where "tokenHash" = $1 and tipo = 'refresh' and usado`,
+      // (exceto se o reuso veio em até 60s: o próprio cliente repetindo o pedido ou duas abas — só recusa, não derruba)
+      const { rows: reused } = await db().query<{ familia: string | null; recente: boolean }>(
+        `select familia, coalesce("usadoEm" > now() - interval '60 seconds', false) as recente
+           from lexagile.oauth_token where "tokenHash" = $1 and tipo = 'refresh' and usado`,
         [sha(refreshToken)],
       );
-      if (reused[0]?.familia) {
+      if (reused[0]?.familia && !reused[0].recente) {
         await db().query(`delete from lexagile.oauth_token where familia = $1`, [reused[0].familia]);
         console.warn('[mcp] refresh token reutilizado: acesso dessa conexão revogado');
       }
@@ -182,14 +187,12 @@ export const oauthProvider: OAuthServerProvider = {
       await db().query(`delete from lexagile.oauth_token where familia = $1`, [family.id]);
       throw new InvalidGrantError(`Conexão com mais de ${FAMILY_MAX_DAYS} dias. Conecte o LexÁgile de novo.`);
     }
-    // Renova com as empresas e cargos de hoje (se a pessoa saiu ou o domínio foi removido, perde o acesso)
-    const users = await usersForEmail(rows[0].email);
-    if (!users.length) throw new InvalidGrantError('Essa conta não tem mais acesso ao LexÁgile.');
-    return issueTokens(
-      client.client_id,
-      { email: rows[0].email, nome: users[0].nome, memberships: users.map((u) => ({ usuarioId: u.id, tenantId: u.tenantId, papel: u.papel })) },
-      family,
-    );
+    // Renova com as empresas e cargos de hoje (se a pessoa saiu ou o domínio foi removido, perde o acesso).
+    // Mesma regra da sessão do site: pelos usuários do token e pelo e-mail
+    const memberships = await liveMemberships(rows[0].email, rows[0].memberships);
+    if (!memberships.length) throw new InvalidGrantError('Essa conta não tem mais acesso ao LexÁgile.');
+    const { rows: who } = await db().query<{ nome: string }>(`select nome from "Usuario" where id = $1`, [memberships[0].usuarioId]);
+    return issueTokens(client.client_id, { email: rows[0].email, nome: who[0]?.nome ?? rows[0].email, memberships }, family);
   },
 
   async verifyAccessToken(token): Promise<AuthInfo> {
@@ -231,7 +234,7 @@ export const oauthProvider: OAuthServerProvider = {
 // trocar o endereço de retorno ou montar um "Permitir" em nome de outra pessoa.
 const secret = () => {
   const value = process.env['LEXAGILE_SECRET'];
-  if (!value && (process.env['VERCEL'] || process.env['NODE_ENV'] === 'production')) throw new Error('LEXAGILE_SECRET não configurada.');
+  if (!value && !isDevelopment()) throw new Error('LEXAGILE_SECRET não configurada.');
   return value || 'lexagile-dev-secret';
 };
 const FIELDS = ['client_id', 'redirect_uri', 'state', 'code_challenge'] as const;

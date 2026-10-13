@@ -9,7 +9,7 @@ import { PGlite } from '@electric-sql/pglite';
 import express from 'express';
 import type { Pool } from 'pg';
 import { setDbForTests } from '../db';
-import { ensureSessionTable, requireAuth } from '../auth';
+import { authRouter, ensureSessionTable, requireAuth } from '../auth';
 import { INSTALL_SQL, migrationRouter } from '../migration';
 import { dataRouter } from '../data';
 import { writesRouter } from '../writes';
@@ -18,6 +18,7 @@ import { chatRouter } from '../chat';
 import { publicApiInternalRouter, publicApiRouter } from '../public-api';
 import { integrationsRouter } from '../integrations';
 import { csrfGuard } from '../security-headers';
+import { aiRouter } from '../ai';
 import { migrateAll } from '../migrate-all';
 
 export const A = 'tenant-a';
@@ -116,6 +117,7 @@ export async function startTestEnv(): Promise<TestEnv> {
   // As mesmas rotas e na mesma ordem do server.ts (sem o Angular)
   const app = express();
   app.use(csrfGuard);
+  app.use('/api/auth', authRouter());
   app.use('/api/data', dataRouter());
   app.use('/api/data', writesRouter());
   app.use('/api/data', domainsRouter());
@@ -124,6 +126,7 @@ export async function startTestEnv(): Promise<TestEnv> {
   app.use('/api/v1', publicApiRouter());
   app.use('/api/internal', requireAuth, publicApiInternalRouter());
   app.use('/api/integrations', requireAuth, integrationsRouter());
+  app.use('/api/ai', requireAuth, aiRouter());
   const server = app.listen(0);
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 

@@ -1,4 +1,4 @@
-# Verificações a cada push na main e em todo pull request. Se algo falhar, o PR fica vermelho.
+# Verificações a cada push na main e em todo pull request. Actions fixadas por SHA (o Dependabot atualiza). Se algo falhar, o PR fica vermelho.
 # Ferramentas gratuitas que rodam aqui mesmo (o repositório é privado e sem GitHub Advanced Security):
 #   build + testes · npm audit (dependências) · Semgrep (código, regras OWASP) · gitleaks (segredos no histórico)
 name: CI
@@ -22,8 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false # o token do GitHub não fica no disco do runner
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -36,8 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false # o token do GitHub não fica no disco do runner
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
       # Só o que vai para produção; falha em vulnerabilidade alta ou crítica
@@ -48,9 +52,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
-      image: semgrep/semgrep:1.119.0
+      image: semgrep/semgrep:1.119.0@sha256:f552de9f1ad268552aaea0487a9c1694eb08071b01ff3e51fbdb02420ce828a6
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false # o token do GitHub não fica no disco do runner
       # Exceção justificada no código: comentário "nosemgrep: <regra> -- motivo" na linha de cima
       - run: >-
           semgrep scan
@@ -64,12 +70,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           fetch-depth: 0 # histórico inteiro: um segredo apagado num commit novo continua nos antigos
       - name: Instalar gitleaks
         run: |
           curl -sSL -o gitleaks.tgz https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_linux_x64.tar.gz
+          # confere o arquivo baixado contra o checksum publicado na release (não roda binário adulterado)
+          echo "fa0500f6b7e41d28791ebc680f5dd9899cd42b58629218a5f041efa899151a8e  gitleaks.tgz" | sha256sum -c -
           tar xzf gitleaks.tgz gitleaks
       # --redact: o log do Actions nunca mostra o valor encontrado
       - run: ./gitleaks git . --redact --no-banner --verbose

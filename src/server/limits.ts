@@ -40,35 +40,36 @@ export async function hit(key: string, windowS: number): Promise<number> {
       );
       if (Math.random() < 0.01) void db().query(`delete from lexagile.limite where desde < now() - interval '1 day'`).catch(() => undefined);
       return rows[0].n;
-    } catch {
-      // banco indisponível: cai para a memória
+    } catch (error) {
+      fellBack(error); // banco indisponível: cai para a memória (e avisa)
     }
   }
   const now = Date.now();
   const current = memory.get(key);
   if (!current || now - current.since >= windowS * 1000) {
+    memory.delete(key);
     memory.set(key, { n: 1, since: now });
-    if (memory.size > 10_000) memory.clear(); // ponytail: sem banco, não deixa a memória crescer sem fim
+    // Sem banco, a memória não cresce sem fim: sai o mais antigo (nunca "apaga tudo", que zeraria os bloqueios)
+    if (memory.size > 10_000) memory.delete(memory.keys().next().value!);
     return 1;
   }
   return ++current.n;
 }
 
-// Quantas vezes nesta janela (sem somar)
-export async function count(key: string, windowS: number): Promise<number> {
-  if (await ensureTable()) {
-    try {
-      const { rows } = await db().query<{ n: number }>(
-        `select n from lexagile.limite where chave = $1 and desde >= now() - make_interval(secs => $2)`,
-        [key, windowS],
-      );
-      return rows[0]?.n ?? 0;
-    } catch {
-      // banco indisponível: cai para a memória
-    }
-  }
+// Devolve uma tentativa que foi contada antes (ex.: login que acertou a senha não conta contra o limite)
+export async function undo(key: string) {
   const current = memory.get(key);
-  return current && Date.now() - current.since < windowS * 1000 ? current.n : 0;
+  if (current && current.n > 0) current.n--;
+  if (await ensureTable()) {
+    await db().query(`update lexagile.limite set n = greatest(n - 1, 0) where chave = $1`, [key]).catch(fellBack);
+  }
+}
+
+let lastWarning = 0;
+function fellBack(error: unknown) {
+  if (Date.now() - lastWarning < 60_000) return;
+  lastWarning = Date.now();
+  console.error('[limites] banco indisponível, contando só na memória desta instância:', (error as Error)?.message);
 }
 
 export async function reset(key: string) {

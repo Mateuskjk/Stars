@@ -3,9 +3,9 @@
 // A sessão é um token aleatório num cookie httpOnly (o JavaScript da página não consegue ler).
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { NextFunction, Request, Response, Router, json } from 'express';
-import { db, ddl, onDbReset } from './db';
+import { db, ddl, onDbReset, isDevelopment } from './db';
 import { isAllowedEmail } from './domains';
-import { count, hit, reset } from './limits';
+import { hit, reset, undo } from './limits';
 
 // Uma pessoa (e-mail) pode ter um usuário em cada empresa (Tenant)
 export interface Membership {
@@ -95,13 +95,16 @@ const DUMMY_HASH = `scrypt$32768$8$1$${Buffer.alloc(16).toString('base64')}$${Bu
 const WINDOW_S = 15 * 60;
 export const loginKeys = (email: string, ip: string) => ({ [`login:${email}|${ip}`]: 5, [`login-ip:${ip}`]: 20, [`login-email:${email}`]: 30 });
 
-export async function tooManyAttempts(keys: Record<string, number>) {
-  const counts = await Promise.all(Object.entries(keys).map(async ([k, max]) => (await count(k, WINDOW_S)) >= max));
-  return counts.some(Boolean);
+// Conta a tentativa ANTES de conferir a senha (soma atômica no banco): disparar centenas de tentativas ao mesmo
+// tempo não passa do limite. Devolve true se passou do limite.
+export async function overLimit(keys: Record<string, number>) {
+  const over = await Promise.all(Object.entries(keys).map(async ([k, max]) => (await hit(k, WINDOW_S)) > max));
+  return over.some(Boolean);
 }
 
-async function recordFailure(keys: Record<string, number>) {
-  await Promise.all(Object.keys(keys).map((k) => hit(k, WINDOW_S)));
+// Acertou a senha: a tentativa não conta (um escritório inteiro entrando pelo mesmo IP não se bloqueia)
+async function forgive(keys: Record<string, number>) {
+  await Promise.all(Object.keys(keys).map((k) => undo(k)));
 }
 
 // ---------- Sessão ----------
@@ -119,7 +122,7 @@ export async function readSession(req: Request): Promise<Session | undefined> {
   const cached = sessions.get(key);
   if (cached && cached.expiresAt >= Date.now() && Date.now() - (cachedAt.get(key) ?? 0) < CACHE_MS) return cached;
   sessions.delete(key);
-  if (!(await ensureSessionTable())) return cached && cached.expiresAt >= Date.now() ? cached : undefined;
+  if (!(await ensureSessionTable())) return undefined; // sem conferir no banco, não confia na memória (falha fechado)
   const { rows } = await db().query<{ nome: string; email: string; memberships: Membership[]; expira: string }>(
     `select nome, email, memberships, "expiraEm" as expira from lexagile.sessao where "tokenHash" = $1 and "expiraEm" > now()`,
     [key],
@@ -219,12 +222,11 @@ export async function liveMemberships(email: string, before: Membership[]): Prom
 
 // Superadmin: configurações que valem para TODAS as empresas (domínios permitidos, modelos de IA).
 // Ser Dono de uma empresa não basta (senão o Dono da empresa A mexeria no login e na IA da empresa B).
-// Lista de e-mails em LEXAGILE_SUPERADMINS, separados por vírgula. Sem a variável, só em desenvolvimento qualquer Dono vale.
+// Lista de e-mails em LEXAGILE_SUPERADMINS, separados por vírgula. Sem a variável, só em desenvolvimento (NODE_ENV) qualquer Dono vale.
 export function isSuperAdmin(s: Session) {
   const list = (process.env['LEXAGILE_SUPERADMINS'] ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
   if (list.length) return list.includes(s.email.toLowerCase());
-  const production = process.env['NODE_ENV'] === 'production' || !!process.env['VERCEL'];
-  return !production && s.memberships.some((m) => m.papel === 'DONO');
+  return isDevelopment() && s.memberships.some((m) => m.papel === 'DONO');
 }
 export const SUPERADMIN_ONLY = 'Só o superadmin do LexÁgile altera esta configuração (variável LEXAGILE_SUPERADMINS no servidor).';
 
@@ -258,7 +260,7 @@ export function authRouter() {
       res.status(400).json({ error: 'Informe e-mail e senha.' });
       return;
     }
-    if (await tooManyAttempts(keys)) {
+    if (await overLimit(keys)) {
       res.status(429).json({ error: 'Muitas tentativas. Tente de novo em alguns minutos.' });
       return;
     }
@@ -278,11 +280,12 @@ export function authRouter() {
       // E-mail sem conta: faz o mesmo trabalho de conferir a senha, para o tempo de resposta não denunciar
       if (!rows.length) await verifyPassword(senha, DUMMY_HASH);
       if (!matched.length) {
-        await recordFailure(keys);
+        // (a tentativa já foi contada antes de conferir a senha)
         // Mesma mensagem para e-mail inexistente e senha errada (não revela quem tem conta)
         res.status(401).json({ error: 'E-mail ou senha incorretos.' });
         return;
       }
+      await forgive(keys);
       await reset(`login:${email}|${req.ip ?? ''}`); // acertou: zera os erros deste e-mail neste IP
       await startSession(res, email, matched);
       res.json({ nome: matched[0].nome, empresas: matched.length });

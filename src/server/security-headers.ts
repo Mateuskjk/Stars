@@ -26,7 +26,8 @@ export const CONTENT_SECURITY_POLICY = [
 // site. O navegador informa a origem em Sec-Fetch-Site; sem o cabeçalho (curl, servidores), o SameSite continua valendo.
 // A API pública (/api/v1, com token) e o OAuth do MCP (chamado pelos servidores do Claude) ficam de fora.
 export function csrfGuard(req: Request, res: Response, next: NextFunction) {
-  const cookieRoute = (req.path.startsWith('/api/') && !req.path.startsWith('/api/v1')) || req.path === '/oauth/consent';
+  const path = req.path.toLowerCase(); // /API/... chega na mesma rota: a regra não pode depender de maiúsculas
+  const cookieRoute = (path.startsWith('/api/') && !path.startsWith('/api/v1')) || path === '/oauth/consent';
   const site = req.get('sec-fetch-site');
   if (cookieRoute && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && site && site !== 'same-origin' && site !== 'none') {
     return void res.status(403).json({ error: 'Pedido de outro site recusado.' });

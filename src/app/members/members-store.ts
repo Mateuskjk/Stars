@@ -195,7 +195,7 @@ export class MembersStore {
     const response = await fetch(`/api/internal/tokens/${id}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token, name: owner.name, role: owner.role, permissions: owner.permissions }),
+      body: JSON.stringify({ token, name: owner.name, email: owner.email, role: owner.role, permissions: owner.permissions }),
     });
     if (!response.ok) throw new Error('O servidor não registrou o token. Tente de novo.');
     const replaced = !!owner.tokenHint;
