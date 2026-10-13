@@ -10,7 +10,7 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { InvalidClientMetadataError, InvalidGrantError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { redirectUriMatches } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
-import { db, ddl } from './db';
+import { db, ddl, onDbReset } from './db';
 import { Membership, Session, liveMemberships, readSession, usersForEmail } from './auth';
 
 const ACCESS_S = 60 * 60; // token de acesso: 1 hora
@@ -41,6 +41,9 @@ const clientAllowed = (c: OAuthClientInformationFull) => c.redirect_uris.length 
 export const appUrl = () => (process.env['APP_URL'] || `http://localhost:${process.env['PORT'] || 4200}`).replace(/\/$/, '');
 
 let tables: Promise<void> | null = null;
+onDbReset(() => {
+  tables = null;
+});
 export function ensureTables() {
   tables ??= ddl(
       `create schema if not exists lexagile;

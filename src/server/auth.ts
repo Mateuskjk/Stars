@@ -3,7 +3,7 @@
 // A sessão é um token aleatório num cookie httpOnly (o JavaScript da página não consegue ler).
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { NextFunction, Request, Response, Router, json } from 'express';
-import { db, ddl } from './db';
+import { db, ddl, onDbReset } from './db';
 import { isAllowedEmail } from './domains';
 import { count, hit, reset } from './limits';
 
@@ -106,6 +106,11 @@ async function recordFailure(keys: Record<string, number>) {
 
 // ---------- Sessão ----------
 const cachedAt = new Map<string, number>();
+onDbReset(() => {
+  sessionTable = null;
+  sessions.clear();
+  cachedAt.clear();
+});
 
 export async function readSession(req: Request): Promise<Session | undefined> {
   const token = parseCookie(req.headers.cookie)[COOKIE];

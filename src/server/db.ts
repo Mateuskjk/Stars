@@ -18,9 +18,14 @@ function sslOptions(): pg.ConnectionConfig['ssl'] {
   return { rejectUnauthorized: false };
 }
 
+// Trocar de banco zera o que cada módulo guardou sobre o banco anterior ("tabela já criada", caches)
+const resets: (() => void)[] = [];
+export const onDbReset = (reset: () => void) => void resets.push(reset);
+
 // Testes (testing/test-db.ts): um Postgres em memória no lugar do banco real. Nunca usado em produção.
 export function setDbForTests(fake: pg.Pool) {
   pool = fake;
+  for (const reset of resets) reset();
 }
 
 export function db() {

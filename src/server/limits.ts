@@ -1,7 +1,7 @@
 // Limites de tentativas e de uso (login, API pública, assistente de IA) — roda SOMENTE no servidor.
 // Os contadores ficam no banco (lexagile.limite): valem em todas as cópias do servidor na Vercel e
 // sobrevivem a reinícios. Sem banco (testes, desenvolvimento offline), ficam na memória.
-import { db, ddl } from './db';
+import { db, ddl, onDbReset } from './db';
 
 let table: Promise<boolean> | null = null;
 export function ensureTable() {
@@ -21,6 +21,10 @@ export function ensureTable() {
 }
 
 const memory = new Map<string, { n: number; since: number }>();
+onDbReset(() => {
+  table = null;
+  memory.clear();
+});
 
 // Soma 1 no contador da janela (que recomeça depois de windowS segundos) e devolve o total
 export async function hit(key: string, windowS: number): Promise<number> {

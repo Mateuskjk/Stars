@@ -6,7 +6,7 @@
 import { randomBytes } from 'node:crypto';
 import { NextFunction, Request, Response, Router, json } from 'express';
 import type { PoolClient } from 'pg';
-import { db, ddl } from './db';
+import { db, ddl, onDbReset } from './db';
 import { Session, requireAuth, saveSession } from './auth';
 
 export const INSTALL_SQL = `
@@ -74,6 +74,9 @@ export async function isInstalled() {
 // Banco já preparado: garante as tabelas do LexÁgile que vieram em versões mais novas (só cria o que falta,
 // e só dentro do schema "lexagile"). Roda uma vez por processo.
 let schemaReady: Promise<boolean> | null = null;
+onDbReset(() => {
+  schemaReady = null;
+});
 export function ensureSchema() {
   schemaReady ??= isInstalled()
     .then(async (installed) => {

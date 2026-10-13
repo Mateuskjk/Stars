@@ -1,7 +1,7 @@
 // API pública v1 (somente leitura) + registro de tokens e trilha de acesso — roda SOMENTE no servidor.
 import { createHash, randomUUID } from 'node:crypto';
 import { NextFunction, Request, RequestHandler, Response, Router, json } from 'express';
-import { db, parseJson, ddl } from './db';
+import { db, parseJson, ddl, onDbReset } from './db';
 import { hit } from './limits';
 import { Session, liveMemberships } from './auth';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
@@ -24,6 +24,9 @@ interface TokenOwner {
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 let tables: Promise<unknown> | null = null;
+onDbReset(() => {
+  tables = null;
+});
 export const ensureTables = () =>
   (tables ??= ddl(
       `create schema if not exists lexagile;

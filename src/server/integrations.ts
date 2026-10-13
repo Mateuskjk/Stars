@@ -7,7 +7,7 @@ import { request as httpsRequest } from 'node:https';
 import { BlockList, isIP } from 'node:net';
 import { Request, Response, Router, json } from 'express';
 import pg from 'pg';
-import { db, ddl } from './db';
+import { db, ddl, onDbReset } from './db';
 import { decryptKey, encryptKey } from './ai';
 import type { DomainEvent } from './events';
 
@@ -65,6 +65,9 @@ interface Webhook {
 // Guardados no banco (schema lexagile), com o segredo do webhook e a senha do banco cifrados (AES-256-GCM, LEXAGILE_SECRET).
 // Cada webhook/conexão tem dono: só quem criou (Admin) enxerga e mexe.
 let tables: Promise<unknown> | null = null;
+onDbReset(() => {
+  tables = null;
+});
 export const ensureTables = () =>
   (tables ??= ddl(
       `create schema if not exists lexagile;
