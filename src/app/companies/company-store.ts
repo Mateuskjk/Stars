@@ -80,9 +80,13 @@ export class CompanyStore {
   readonly active = computed(() => this.companies().filter((company) => company.active));
   readonly activeNames = computed(() => this.active().map((company) => company.name));
 
-  // Projetos de empresas inativas somem das telas (o ProjectStore não injeta este store: seria circular)
+  // Projetos de empresas inativas somem das telas e, com uma empresa escolhida no seletor, só aparecem
+  // os dela (o ProjectStore não injeta este store: seria circular)
   constructor() {
-    effect(() => this.projects.activeCompanies.set(new Set(this.activeNames())));
+    effect(() => {
+      const current = this.current();
+      this.projects.activeCompanies.set(new Set(current?.active ? [current.name] : this.activeNames()));
+    });
   }
 
   // Carrossel de Empresas: só perfis ativos marcados para aparecer; com imagem, ela vira a capa

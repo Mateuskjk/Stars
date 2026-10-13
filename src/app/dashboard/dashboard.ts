@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, afterNextRender, computed, inject, signal } from '@angular/core';
+import { Component, afterNextRender, computed, inject, linkedSignal, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AiStore } from '../ai/ai-store';
 import { BacklogItem, BacklogStore } from '../backlog/backlog-store';
@@ -38,7 +38,7 @@ export class Dashboard {
   protected readonly restricted = computed(() => !this.access.seesAll());
 
   // ---------- Filtros ----------
-  protected readonly companyId = signal(0); // 0 = todas
+  protected readonly companyId = linkedSignal(() => this.companyStore.currentId() ?? 0); // começa na empresa do seletor; 0 = todas
   protected readonly sectorId = signal(0); // 0 = todos
   protected readonly sprintId = signal<number | null>(null); // null = sprint ativa
   protected readonly person = signal(''); // '' = todas

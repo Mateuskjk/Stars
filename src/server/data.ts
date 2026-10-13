@@ -12,17 +12,17 @@ export const meOf = (s: Session) => s.memberships.map((m) => m.usuarioId);
 // Visibilidade das atividades (mesma regra do front, agora garantida no servidor):
 // vê tudo da empresa: DONO e GESTOR, ou empresa com visibilidade 'TUDO' (definida na migração);
 // os demais veem as próprias (responsável ou criador), as compartilhadas com eles, as da equipe
-// (equipes ativas com visão compartilhada) e, se forem gestores de um setor, tudo daquele setor
+// (equipes ativas com visão compartilhada) e tudo dos setores de que fazem parte
 // (atividades gerais do setor e atividades dos projetos do setor).
 export const SECTOR_MANAGER_SQL = `
     or a.id in (
       select g."atividadeId" from lexagile.atividade_setor g
-        join lexagile.setor_membro sm on sm."setorId" = g."setorId" and sm.gestor
+        join lexagile.setor_membro sm on sm."setorId" = g."setorId"
        where sm."usuarioId" = any($2::text[])
     )
     or a."projetoId" in (
       select p.id from "Projeto" p
-        join lexagile.setor_membro sm on sm."setorId" = p."setorId" and sm.gestor
+        join lexagile.setor_membro sm on sm."setorId" = p."setorId"
        where sm."usuarioId" = any($2::text[])
     )`;
 
@@ -83,6 +83,7 @@ export function dataRouter() {
     }),
   );
 
+  // Setores: quem não vê a empresa toda (Atendente/Observador) só recebe os setores de que faz parte
   router.get(
     '/setores',
     route(async (_req, s) => {
@@ -91,10 +92,13 @@ export function dataRouter() {
           ? `select s.id, s.nome, s.cor, s.ordem, s."tenantId",
                     coalesce((select json_agg(json_build_object('usuarioId', m."usuarioId", 'gestor', m.gestor))
                                 from lexagile.setor_membro m where m."setorId" = s.id), '[]') as membros
-               from "Setor" s where s."tenantId" = any($1::text[]) and not s.arquivado order by s.ordem, s.nome`
+               from "Setor" s where s."tenantId" = any($1::text[]) and not s.arquivado
+                and (s."tenantId" = any($2::text[])
+                     or exists (select 1 from lexagile.setor_membro m where m."setorId" = s.id and m."usuarioId" = any($3::text[])))
+              order by s.ordem, s.nome`
           : `select id, nome, cor, ordem, "tenantId", '[]'::json as membros from "Setor"
               where "tenantId" = any($1::text[]) and not arquivado order by ordem, nome`,
-        [tenantsOf(s)],
+        (await isInstalled()) ? [tenantsOf(s), await seesAllTenants(s, true), meOf(s)] : [tenantsOf(s)],
       );
       return rows;
     }),
@@ -127,15 +131,26 @@ export function dataRouter() {
     }),
   );
 
+  // Projetos: idem — Atendente/Observador só recebe os do seu setor, da sua equipe, os que é responsável
+  // e os que têm alguma atividade que ele vê
   router.get(
     '/projetos',
     route(async (_req, s) => {
+      const installed = await isInstalled();
       const { rows } = await db().query(
         `select id, numero, nome, descricao, objetivo, "dataInicio", "previsaoTermino", status, situacao, prioridade,
                 progresso, "responsavelId", "equipeId", "setorId", "tenantId", arquivado,
                 orcamento, "custoPrevisto", "custoRealizado", "pontosEntrega", links, "criadoEm", "atualizadoEm"
-           from "Projeto" where "tenantId" = any($1::text[]) order by numero nulls last, nome`,
-        [tenantsOf(s)],
+           from "Projeto" p where "tenantId" = any($1::text[]) and (
+             "tenantId" = any($3::text[])
+             or "responsavelId" = any($2::text[])
+             or "equipeId" in (select "equipeId" from "EquipeMembro" where "usuarioId" = any($2::text[]))
+             or exists (select 1 from "Atividade" a where a."projetoId" = p.id and ${visibleActivitySql(installed)})${
+               installed ? `
+             or "setorId" in (select "setorId" from lexagile.setor_membro where "usuarioId" = any($2::text[]))` : ''
+             })
+          order by numero nulls last, nome`,
+        [tenantsOf(s), meOf(s), await seesAllTenants(s, installed)],
       );
       return rows.map((p) => ({ ...p, pontosEntrega: parseJson(p.pontosEntrega, []), links: parseJson(p.links, []) }));
     }),

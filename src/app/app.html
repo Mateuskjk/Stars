@@ -81,6 +81,20 @@
         </ul>
       </nav>
       <div class="bottons">
+        <!-- Empresa em que a pessoa trabalha agora: projetos, Backlog, Planning, sprint e Dashboards seguem ela.
+             Quem está em uma empresa só não vê o seletor (o servidor já manda só a empresa e o setor dela) -->
+        @if (companyStore.active().length > 1) {
+          <select
+            class="company-switch"
+            aria-label="Empresa"
+            title="Empresa"
+            (change)="session.selectCompany(+$any($event.target).value)"
+          >
+            @for (c of companyStore.active(); track c.id) {
+              <option [value]="c.id" [selected]="c.id === companyStore.currentId()">{{ c.name }}</option>
+            }
+          </select>
+        }
         <!-- Tema: lua no modo claro (vai para o escuro), sol no modo escuro (volta para o claro) -->
         <button
           class="nav-button"
@@ -179,19 +193,6 @@
           </button>
           @if (openMenu() === 'user') {
             <ul class="nav-menu__dropdown nav-menu__list">
-              @if (companyStore.companies().length > 1) {
-                <!-- Empresa em que a pessoa trabalha agora: Backlog, Planning e sprint ativa seguem ela -->
-                <li>
-                  <label class="center-options__link nav-menu__toggle">
-                    Empresa
-                    <select class="nav-menu__select" (change)="session.selectCompany(+$any($event.target).value)">
-                      @for (c of companyStore.companies(); track c.id) {
-                        <option [value]="c.id" [selected]="c.id === companyStore.currentId()">{{ c.name }}</option>
-                      }
-                    </select>
-                  </label>
-                </li>
-              }
               <li><a class="center-options__link" routerLink="/conta">Minha conta</a></li>
               <li><a class="center-options__link" routerLink="/api-publica">API pública</a></li>
               <li><a class="center-options__link" routerLink="/erros-navegador">Erros do navegador</a></li>

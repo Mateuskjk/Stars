@@ -623,16 +623,34 @@
   }
 }
 
-// Seletor de empresa no menu do usuário
-.nav-menu__select {
-  max-width: 160px;
-  padding: 4px 6px;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background-color: var(--color-card);
+// Seletor de empresa no topo (só aparece para quem está em mais de uma empresa)
+.company-switch {
+  max-width: 200px;
+  height: 40px;
+  padding: 0 32px 0 16px;
+  border: none;
+  border-radius: 40px;
+  background: $color-surface url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238390a3' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 14px;
+  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
   color: $color-text;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  appearance: none;
+
+  &:hover {
+    background-color: $color-surface-hover;
+  }
+
+  option {
+    background-color: var(--color-card);
+    color: $color-text;
+  }
+
+  @media (max-width: $bp-tablet) {
+    max-width: 120px;
+  }
 }
 
 // Aviso de falha ao gravar no banco
