@@ -36,6 +36,10 @@ export async function grantAppRole() {
   if (!rows.length) return false;
   await db().query(`grant usage on schema lexagile to lexagile_app;
     grant select, insert, update, delete on all tables in schema lexagile to lexagile_app;
-    grant usage, select on all sequences in schema lexagile to lexagile_app`);
+    grant usage, select on all sequences in schema lexagile to lexagile_app;
+    -- Anotações (tela Notas): cada um lê, edita e apaga as suas; o Admin direciona para o perfil certo (troca o autor)
+    grant select, update, delete on "Anotacao" to lexagile_app;
+    drop policy if exists lexagile_app_acesso on "Anotacao";
+    create policy lexagile_app_acesso on "Anotacao" for all to lexagile_app using (true) with check (true);`);
   return true;
 }

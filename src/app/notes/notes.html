@@ -28,6 +28,9 @@
       </button>
     </div>
     <button class="notes__today" type="button" (click)="openToday()">📅 Nota de hoje</button>
+    @if (isAdmin()) {
+      <button class="notes__today" type="button" (click)="openRouting()">📨 Direcionar anotações</button>
+    }
 
     <ul class="notes__list">
       @for (note of list(); track note.id) {
@@ -166,6 +169,47 @@
     <div class="confirm-dialog__actions">
       <button class="confirm-dialog__button" type="button" autofocus (click)="cancelDelete()">Cancelar</button>
       <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDelete()">Excluir</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Admin: anotações do banco (sistema atual) e para qual perfil cada uma vai -->
+<dialog #routeDialog class="confirm-dialog notes__route" aria-labelledby="notes-route-title" (click)="closeOnBackdrop($event, routeDialog)">
+  <div class="confirm-dialog__box notes__route-box">
+    <h2 id="notes-route-title" class="confirm-dialog__title">Direcionar anotações</h2>
+    <p class="confirm-dialog__text">Escolha o perfil de cada anotação. Ela passa a aparecer nas Notas dessa pessoa (e sai das Notas de quem tinha antes).</p>
+    @if (routeMessage()) {
+      <p class="notes__warning" role="status">{{ routeMessage() }}</p>
+    }
+    @if (routing(); as data) {
+      <ul class="notes__route-list">
+        @for (note of data.anotacoes; track note.id) {
+          <li class="notes__route-item" [class.is-changed]="targets()[note.id] !== note.autorId">
+            <span class="notes__route-text">
+              <span class="notes__item-title">{{ note.previa || 'Anotação sem texto' }}</span>
+              <span class="notes__item-meta">De {{ note.autor }}{{ note.autorAtivo ? '' : ' (desativado)' }} · {{ formatTime(toDate(note.atualizadoEm)) }}</span>
+            </span>
+            <select class="modal__input" [attr.aria-label]="'Perfil da anotação ' + (note.previa || 'sem texto')" (change)="setTarget(note.id, $any($event.target).value)">
+              @if (!note.autorAtivo) {
+                <option [value]="note.autorId" [selected]="targets()[note.id] === note.autorId">{{ note.autor }} (desativado)</option>
+              }
+              @for (person of peopleFor(note); track person.id) {
+                <option [value]="person.id" [selected]="targets()[note.id] === person.id">{{ person.nome }}</option>
+              }
+            </select>
+          </li>
+        } @empty {
+          <li class="notes__empty">Nenhuma anotação no banco.</li>
+        }
+      </ul>
+    } @else if (!routeMessage()) {
+      <p class="confirm-dialog__text">Carregando…</p>
+    }
+    <div class="confirm-dialog__actions">
+      <button class="confirm-dialog__button" type="button" (click)="routeDialog.close()">Fechar</button>
+      <button class="confirm-dialog__button confirm-dialog__button--primary" type="button" [disabled]="!changed().length" (click)="saveRouting()">
+        Direcionar{{ changed().length ? ' (' + changed().length + ')' : '' }}
+      </button>
     </div>
   </div>
 </dialog>

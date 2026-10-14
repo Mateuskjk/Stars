@@ -45,6 +45,48 @@ $notes-link: var(--ink-purple);
     border-right: 1px solid $notes-line;
   }
 
+  // Pop-up "Direcionar anotações"
+  &__route-box {
+    width: min(720px, calc(100vw - 32px));
+    max-width: none;
+  }
+
+  &__route-list {
+    display: grid;
+    gap: 6px;
+    max-height: 55vh;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+    text-align: left;
+  }
+
+  &__route-item {
+    display: grid;
+    grid-template-columns: 1fr minmax(160px, 220px);
+    gap: 12px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid $notes-line;
+    border-radius: 10px;
+
+    &.is-changed {
+      border-color: $color-nav-hover;
+      background-color: $notes-soft;
+    }
+
+    @media (max-width: 560px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__route-text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
   &__toolbar {
     display: flex;
     gap: 8px;

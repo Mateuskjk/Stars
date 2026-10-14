@@ -15,6 +15,7 @@ import { mcpRouters } from './server/mcp';
 import { dataRouter } from './server/data';
 import { migrationRouter } from './server/migration';
 import { writesRouter } from './server/writes';
+import { notesRouter } from './server/notes';
 import { integrationsRouter } from './server/integrations';
 import { publicApiInternalRouter, publicApiRouter } from './server/public-api';
 import { SECURITY_HEADERS, csrfGuard } from './server/security-headers';
@@ -62,6 +63,7 @@ app.use('/api/auth', googleRouter());
 app.use('/api/data', dataRouter());
 app.use('/api/data', writesRouter());
 app.use('/api/data', domainsRouter());
+app.use('/api/data', notesRouter());
 app.use('/api/chat', chatRouter());
 
 /**

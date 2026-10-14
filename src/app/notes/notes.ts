@@ -4,9 +4,24 @@ import { ActivatedRoute } from '@angular/router';
 import { formatTime } from '../chat/chat';
 import { formatWeekDate } from '../home/home';
 import { RecentsStore } from '../home/recents-store';
+import { api } from '../api/http';
+import { MembersStore } from '../members/members-store';
 import { LINK, Note, NotesStore, linksIn } from './notes-store';
 
 type Segment = { text: string } | { link: string; exists: boolean };
+interface RoutedNote {
+  id: string;
+  previa: string;
+  tenantId: string;
+  autorId: string;
+  autor: string;
+  autorAtivo: boolean;
+  atualizadoEm: string;
+}
+interface Routing {
+  anotacoes: RoutedNote[];
+  pessoas: { id: string; nome: string; tenantId: string }[];
+}
 
 // Busca sem diferenciar maiúsculas nem acentos
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -173,6 +188,48 @@ export class Notes {
     if (id !== null) this.store.remove(id);
     this.selectedId.set(null);
     this.confirmDialog().nativeElement.close();
+  }
+
+  // ---------- Direcionar anotações do banco para o perfil de cada pessoa (Admin) ----------
+  protected readonly isAdmin = inject(MembersStore).isAdmin;
+  private readonly routeDialog = viewChild.required<ElementRef<HTMLDialogElement>>('routeDialog');
+  protected readonly routing = signal<Routing | null>(null);
+  protected readonly targets = signal<Record<string, string>>({}); // id da anotação → id do usuário escolhido
+  protected readonly routeMessage = signal('');
+  protected readonly changed = computed(() => (this.routing()?.anotacoes ?? []).filter((n) => this.targets()[n.id] !== n.autorId));
+
+  protected async openRouting() {
+    this.routeMessage.set('');
+    this.routing.set(null);
+    this.routeDialog().nativeElement.showModal();
+    try {
+      const data = await api<Routing>('/data/anotacoes/direcionar');
+      this.routing.set(data);
+      this.targets.set(Object.fromEntries(data.anotacoes.map((n) => [n.id, n.autorId])));
+    } catch (error) {
+      this.routeMessage.set((error as Error).message);
+    }
+  }
+
+  // Só as pessoas da mesma empresa da anotação
+  protected peopleFor(note: RoutedNote) {
+    return this.routing()!.pessoas.filter((p) => p.tenantId === note.tenantId);
+  }
+
+  protected setTarget(id: string, userId: string) {
+    this.targets.update((t) => ({ ...t, [id]: userId }));
+  }
+
+  protected async saveRouting() {
+    const itens = this.changed().map((n) => ({ id: n.id, usuarioId: this.targets()[n.id] }));
+    try {
+      const { movidas } = await api<{ movidas: number }>('/data/anotacoes/direcionar', { method: 'POST', body: JSON.stringify({ itens }) });
+      await this.openRouting(); // recarrega com os autores novos
+      this.routeMessage.set(`${movidas} ${movidas === 1 ? 'anotação direcionada' : 'anotações direcionadas'}. Elas aparecem nas Notas de cada pessoa.`);
+      await this.store.pull(); // alguma pode ter vindo (ou saído) para mim
+    } catch (error) {
+      this.routeMessage.set((error as Error).message);
+    }
   }
 
   protected closeOnBackdrop(event: MouseEvent, dialog: HTMLDialogElement) {

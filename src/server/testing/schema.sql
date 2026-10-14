@@ -236,3 +236,22 @@ alter table "Transicao" enable row level security;
 alter table "Canal" enable row level security;
 alter table "CanalMembro" enable row level security;
 alter table "Mensagem" enable row level security;
+
+create table "Anotacao" (
+  "id" text not null,
+  "texto" text not null,
+  "cor" text not null,
+  "ordem" integer not null,
+  "autorId" text not null references "Usuario"(id) on update cascade on delete cascade,
+  "tenantId" text not null references "Tenant"(id) on update cascade on delete cascade,
+  "criadoEm" timestamp without time zone not null,
+  "atualizadoEm" timestamp without time zone not null,
+  primary key (id)
+);
+create table "AnotacaoCompartilhada" (
+  "anotacaoId" text not null references "Anotacao"(id) on update cascade on delete cascade,
+  "usuarioId" text not null references "Usuario"(id) on update cascade on delete cascade,
+  primary key ("anotacaoId", "usuarioId")
+);
+alter table "Anotacao" enable row level security;
+alter table "AnotacaoCompartilhada" enable row level security;

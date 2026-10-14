@@ -42,6 +42,11 @@ begin
   end loop;
 end $$;
 
+-- Anotações (tela Notas): cada um lê, edita e apaga as suas; o Admin direciona para o perfil certo (troca o autor)
+grant select, update, delete on "Anotacao" to lexagile_app;
+drop policy if exists lexagile_app_acesso on "Anotacao";
+create policy lexagile_app_acesso on "Anotacao" for all to lexagile_app using (true) with check (true);
+
 -- 3) Schema próprio do LexÁgile: leitura e gravação (sem DDL: as tabelas vêm do "npm run db:migrate")
 grant usage on schema lexagile to lexagile_app;
 grant select, insert, update, delete on all tables in schema lexagile to lexagile_app;
