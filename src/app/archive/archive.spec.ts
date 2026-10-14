@@ -67,7 +67,7 @@ describe('Arquivo', () => {
     await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(2)); // depois de restaurar e de reativar, os dados recarregam
   });
 
-  it('project activity modal archives instead of deleting and has no step buttons', async () => {
+  it('project activity modal has Arquivar and Excluir (no step buttons)', async () => {
     const fixture = TestBed.createComponent(ProjectTaskEditor);
     fixture.detectChanges();
     const tasks = TestBed.inject(ProjectTaskStore);
@@ -77,10 +77,23 @@ describe('Arquivo', () => {
     const el = fixture.nativeElement as HTMLElement;
     const buttons = [...el.querySelectorAll('button')].map((b) => b.textContent?.trim());
     expect(buttons).not.toContain('← Recuar');
-    expect(buttons).not.toContain('Excluir');
+    expect(buttons).toContain('Excluir');
+    const archive = vi.spyOn(tasks, 'archive');
     [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === 'Arquivar')!.click();
     fixture.detectChanges();
     el.querySelector<HTMLButtonElement>('.confirm-dialog__button--primary')!.click();
+    expect(archive).toHaveBeenCalledWith(task.id);
     expect(tasks.tasks().some((t) => t.id === task.id)).toBe(false);
+
+    // Excluir pede a própria confirmação
+    const other = tasks.tasks()[0];
+    const remove = vi.spyOn(tasks, 'remove');
+    (fixture.componentInstance as ProjectTaskEditor).open(other);
+    fixture.detectChanges();
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === 'Excluir')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('#task-confirm-title')!.textContent).toContain('Excluir');
+    el.querySelector<HTMLButtonElement>('.confirm-dialog__button--danger')!.click();
+    expect(remove).toHaveBeenCalledWith(other.id);
   });
 });

@@ -254,6 +254,13 @@ export class ProjectTaskStore {
     if (details) this.audit.log({ action: 'update', entity: 'Atividade de projeto', name: after.title, details });
   }
 
+  remove(id: number) {
+    const task = this.tasks().find((t) => t.id === id);
+    if (!task) return;
+    this.tasks.update((list) => list.filter((t) => t.id !== id));
+    this.audit.log({ action: 'delete', entity: 'Atividade de projeto', name: task.title, from: this.column(task.status).label });
+  }
+
   // Sai das telas; no banco fica arquivada (a gravação está em api-sync), e aparece em /arquivo
   archive(id: number) {
     const task = this.tasks().find((t) => t.id === id);

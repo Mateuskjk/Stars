@@ -52,4 +52,43 @@ describe('Attachments', () => {
     expect(calls.at(-1)).toMatchObject({ url: '/api/data/anexos/x1', method: 'DELETE' });
     expect([...el.querySelectorAll('.attachment__name')].map((n) => n.textContent)).toEqual(['novo.pdf']);
   });
+
+  it('turns a pasted screenshot into an attachment only while its modal is open', async () => {
+    const posts: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit = {}) => {
+      if (init.method === 'POST') {
+        posts.push(init.headers as Record<string, string>);
+        return Response.json({ id: 'p1', nome: 'print.png', mime: 'image/png', tamanho: 3, criadoEm: '', autor: 'Eu' }, { status: 201 });
+      }
+      return Response.json([]);
+    });
+    const dialog = document.createElement('dialog');
+    document.body.append(dialog);
+    const fixture = TestBed.createComponent(Host);
+    dialog.append(fixture.nativeElement);
+    fixture.componentInstance.id.set('ativ-1');
+    fixture.detectChanges();
+    await tick();
+    const paste = (files: File[]) => {
+      const event = new Event('paste', { cancelable: true }) as ClipboardEvent;
+      Object.defineProperty(event, 'clipboardData', { value: { files } });
+      window.dispatchEvent(event);
+      return event;
+    };
+    const shot = new File(['png'], 'image.png', { type: 'image/png' });
+
+    paste([shot]); // modal fechado: ignora
+    await tick();
+    expect(posts).toHaveLength(0);
+
+    dialog.open = true;
+    expect(paste([new File(['txt'], 'a.txt', { type: 'text/plain' })]).defaultPrevented).toBe(false); // não é imagem: segue normal
+    const event = paste([shot]);
+    expect(event.defaultPrevented).toBe(true);
+    await tick();
+    expect(posts).toHaveLength(1);
+    expect(posts[0]['content-type']).toBe('image/png');
+    expect(posts[0]['x-file-name']).toMatch(/^print-.+.png$/);
+    dialog.remove();
+  });
 });

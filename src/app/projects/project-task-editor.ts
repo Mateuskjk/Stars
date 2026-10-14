@@ -68,14 +68,20 @@ export class ProjectTaskEditor {
     this.dialog().nativeElement.close();
   }
 
-  protected askArchive() {
+  protected readonly confirmMode = signal<'archive' | 'delete'>('archive');
+
+  protected ask(mode: 'archive' | 'delete') {
+    this.confirmMode.set(mode);
     this.confirm().nativeElement.showModal();
   }
 
-  // Sai das telas e fica arquivada no banco (aparece em /arquivo)
-  protected confirmArchive() {
+  // Arquivar: sai das telas e aparece em /arquivo. Excluir: sai das telas (o mesmo do Excluir do Backlog).
+  protected confirmAction() {
     const task = this.draft();
-    if (task) this.store.archive(task.id);
+    if (task) {
+      if (this.confirmMode() === 'archive') this.store.archive(task.id);
+      else this.store.remove(task.id);
+    }
     this.confirm().nativeElement.close();
     this.dialog().nativeElement.close();
   }
