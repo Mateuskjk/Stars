@@ -3,7 +3,7 @@ import { PeopleStore } from '../members/people-store';
 import { ApiSync } from '../api/api-sync';
 import { Attachments } from '../attachments/attachments';
 import { shortDate } from './project-metrics';
-import { ProjectTask, ProjectTaskStore, TaskStatus, sprintOf, sprintWindow, today } from './project-tasks';
+import { ProjectTask, ProjectTaskStore, sprintOf, sprintWindow, today } from './project-tasks';
 
 const POINTS = [1, 2, 3, 5, 8, 13];
 
@@ -41,7 +41,6 @@ export class ProjectTaskEditor {
       label: `Sprint ${n} · ${shortDate(sprintWindow(n).start)} – ${shortDate(sprintWindow(n).end)}${n === this.currentSprint ? ' (atual)' : ''}`,
     }));
   });
-  protected readonly statusIndex = computed(() => this.columns().findIndex((c) => c.id === this.draft()?.status));
 
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
   private readonly confirm = viewChild.required<ElementRef<HTMLDialogElement>>('confirm');
@@ -54,11 +53,6 @@ export class ProjectTaskEditor {
 
   protected patch(changes: Partial<ProjectTask>) {
     this.draft.update((task) => (task ? { ...task, ...changes } : task));
-  }
-
-  protected step(direction: 1 | -1) {
-    const next = this.columns()[this.statusIndex() + direction];
-    if (next) this.patch({ status: next.id as TaskStatus });
   }
 
   protected save(event: Event) {
@@ -74,13 +68,14 @@ export class ProjectTaskEditor {
     this.dialog().nativeElement.close();
   }
 
-  protected askDelete() {
+  protected askArchive() {
     this.confirm().nativeElement.showModal();
   }
 
-  protected confirmDelete() {
+  // Sai das telas e fica arquivada no banco (aparece em /arquivo)
+  protected confirmArchive() {
     const task = this.draft();
-    if (task) this.store.remove(task.id);
+    if (task) this.store.archive(task.id);
     this.confirm().nativeElement.close();
     this.dialog().nativeElement.close();
   }

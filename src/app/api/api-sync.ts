@@ -418,7 +418,11 @@ export class ApiSync {
       this.itemTenant.set(id, a.tenantId);
       const status = backlogStatus(a);
       items.push({
-        ...emptyItem(a.colunaBacklog && backlogIds.has(a.colunaBacklog) && !a.arquivadoTipo ? (a.colunaBacklog as BacklogStatus) : status),
+        ...emptyItem(
+          a.colunaBacklog && backlogIds.has(a.colunaBacklog) && !a.arquivadoTipo && !['archived', 'canceled'].includes(a.colunaBacklog)
+            ? (a.colunaBacklog as BacklogStatus)
+            : status,
+        ),
         id,
         name: a.titulo,
         description: a.descricao,

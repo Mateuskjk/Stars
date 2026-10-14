@@ -4,7 +4,7 @@
 import { Request, Response, Router, json } from 'express';
 import type { PoolClient } from 'pg';
 import { db } from './db';
-import { Session, requireAuth } from './auth';
+import { Session, isSuperAdmin, liveMemberships, requireAuth, saveSession } from './auth';
 import { HttpError, createTenant, ensureSchema, newId } from './migration';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
 import { isAllowedEmail } from './domains';
@@ -601,6 +601,23 @@ function configRoutes(router: Router) {
       queueEvent(client, id, archived ? 'company.archive' : 'company.update', s.nome, { entity: 'Perfil de empresa', name: rows[0]?.nome ?? id });
     }),
   );
+
+  // Reativar empresa suspensa (tela Arquivo). Suspensa ela não está na sessão: a permissão vem do e-mail
+  // (Admin ativo dela) ou do superadmin. Depois, a sessão já ganha a empresa de volta (sem esperar a releitura).
+  router.post('/empresas/:id/reativar', async (req, res) => {
+    const s = req.session!;
+    const { rows } = await db().query<{ nome: string }>(
+      `update "Tenant" t set ativo = true
+        where t.id = $1 and not t.ativo
+          and ($3 or exists (select 1 from "Usuario" u where u."tenantId" = t.id and lower(u.email) = $2
+                                and u.papel = 'DONO' and u.situacao = 'ATIVO' and u."removidoEm" is null))
+        returning nome`,
+      [String(req.params['id']), s.email.trim().toLowerCase(), isSuperAdmin(s)],
+    );
+    if (!rows[0]) return void res.status(404).json({ error: 'Empresa não encontrada.' });
+    await saveSession({ ...s, memberships: await liveMemberships(s.email, s.memberships) });
+    res.json({ ok: true, nome: rows[0].nome });
+  });
 
   // Setores
   router.post(

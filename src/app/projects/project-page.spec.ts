@@ -42,7 +42,7 @@ describe('ProjectPage', () => {
     expect(cards()).toBe(mine().length);
   });
 
-  it('clicking a card opens the activity modal; saving and deleting update the kanban', async () => {
+  it('clicking a card opens the activity modal; saving and archiving update the kanban', async () => {
     await TestBed.configureTestingModule({ imports: [ProjectPage], providers: [provideRouter([])] }).compileComponents();
     const fixture = TestBed.createComponent(ProjectPage);
     fixture.componentRef.setInput('id', '3'); // Portal do cliente
@@ -77,12 +77,12 @@ describe('ProjectPage', () => {
     expect(store.tasks().find((t) => t.id === task.id)).toMatchObject({ title: 'Área logada (v2)', status: 'review', doneAt: null });
     expect(dialog.open).toBe(false);
 
-    // excluir
+    // arquivar (sai do kanban; no banco fica arquivada)
     el.querySelector<HTMLElement>('.kanban__card')!.click();
     fixture.detectChanges();
-    dialog.querySelector<HTMLButtonElement>('.modal__ghost--danger')!.click();
+    dialog.querySelector<HTMLButtonElement>('.modal__danger-zone .modal__ghost')!.click();
     fixture.detectChanges();
-    el.querySelector<HTMLButtonElement>('app-project-task-editor .confirm-dialog__button--danger')!.click();
+    el.querySelector<HTMLButtonElement>('app-project-task-editor .confirm-dialog__button--primary')!.click();
     fixture.detectChanges();
     expect(store.tasks().some((t) => t.title === 'Área logada (v2)')).toBe(false);
   });
