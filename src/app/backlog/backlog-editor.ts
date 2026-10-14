@@ -1,24 +1,24 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { PeopleStore } from '../members/people-store';
-import { DomSanitizer } from '@angular/platform-browser';
 import { formatTime, initials } from '../chat/chat';
 import { CompanyStore } from '../companies/company-store';
 import { SPRINT_COLUMNS, SectorStore, sprintColumnOf } from '../companies/sector-store';
 import { RecentsStore } from '../home/recents-store';
 import { PeoplePicker } from '../members/people-picker';
+import { ApiSync } from '../api/api-sync';
+import { Attachments } from '../attachments/attachments';
 import { SprintStore } from '../planning/sprint-store';
-import { Attachment, BacklogItem, BacklogStatus, BacklogStore, emptyItem, newId, tagColor } from './backlog-store';
+import { BacklogItem, BacklogStatus, BacklogStore, emptyItem, newId, tagColor } from './backlog-store';
 
 // Modal do cartão de atividade (criar, editar, anexos, excluir).
 // Usado no Backlog e na página do setor: abre por cima da tela atual, sem trocar de página.
 @Component({
-  imports: [PeoplePicker],
+  imports: [PeoplePicker, Attachments],
   selector: 'app-backlog-editor',
   templateUrl: './backlog-editor.html',
 })
 export class BacklogEditor {
   private readonly store = inject(BacklogStore);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly recents = inject(RecentsStore);
 
   protected readonly columns = this.store.columns;
@@ -40,6 +40,9 @@ export class BacklogEditor {
   // Rascunho: as mudanças só valem ao clicar em "Salvar atividade"
   protected readonly draft = signal<BacklogItem>(emptyItem());
   protected readonly isNew = computed(() => !this.draft().id);
+  // Id da atividade no banco (os anexos gravam direto lá); nova ou ainda não salva = null
+  private readonly ids = inject(ApiSync).ids;
+  protected readonly dbId = computed(() => (this.isNew() ? null : this.ids.atividade.db(this.draft().id)));
 
   // Na sprint: o Status passa a ser o do kanban de atividades gerais (Não iniciado, Andamento, Revisão, Bloqueado, Finalizado)
   protected readonly sprintColumns = computed(() => {
@@ -145,46 +148,6 @@ export class BacklogEditor {
     // ponytail: autor fixo até existir login
     this.patch({ comments: [...this.draft().comments, { id: newId(), author: 'Você', text, time: new Date() }] });
     input.value = '';
-  }
-
-  // Anexos: só imagens e PDF
-  protected addFiles(input: HTMLInputElement) {
-    const files = [...(input.files ?? [])].filter((file) => file.type.startsWith('image/') || file.type === 'application/pdf');
-    const attachments = files.map((file) => ({
-      id: newId(),
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      url: URL.createObjectURL(file),
-    }));
-    this.patch({ attachments: [...this.draft().attachments, ...attachments] });
-    input.value = '';
-  }
-
-  protected removeAttachment(file: Attachment) {
-    this.patch({ attachments: this.draft().attachments.filter((a) => a.id !== file.id) });
-  }
-
-  protected fileSize(bytes: number) {
-    return bytes < 1_048_576 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1_048_576).toFixed(1)} MB`;
-  }
-
-  // ---------- Visualizador de anexos ----------
-  private readonly viewer = viewChild.required<ElementRef<HTMLDialogElement>>('viewer');
-  protected readonly viewing = signal<Attachment | null>(null);
-  // O PDF abre no visualizador do próprio navegador; o object URL foi criado aqui, então é confiável
-  protected readonly viewingUrl = computed(() => {
-    const file = this.viewing();
-    return file ? this.sanitizer.bypassSecurityTrustResourceUrl(file.url) : null;
-  });
-
-  protected view(file: Attachment) {
-    this.viewing.set(file);
-    this.viewer().nativeElement.showModal();
-  }
-
-  protected closeViewer() {
-    this.viewer().nativeElement.close();
   }
 
   // ---------- Exclusão (com confirmação) ----------

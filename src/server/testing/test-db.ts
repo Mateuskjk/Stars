@@ -14,6 +14,7 @@ import { INSTALL_SQL, migrationRouter } from '../migration';
 import { dataRouter } from '../data';
 import { writesRouter } from '../writes';
 import { notesRouter } from '../notes';
+import { attachmentsRouter } from '../attachments';
 import { domainsRouter } from '../domains';
 import { chatRouter } from '../chat';
 import { publicApiInternalRouter, publicApiRouter } from '../public-api';
@@ -75,6 +76,8 @@ insert into "Canal" (id, nome, tipo, "tenantId") values ('canal-a', 'geral-a', '
 export interface TestEnv {
   db: PGlite;
   call: (who: Who | null, method: string, path: string, body?: unknown, headers?: Record<string, string>) => Promise<{ status: number; data: any }>;
+  // Corpo e resposta crus (upload e download de arquivos)
+  raw: (who: Who | null, method: string, path: string, body?: string, headers?: Record<string, string>) => Promise<{ status: number; text: string; headers: Headers; data: any }>;
   close: () => Promise<void>;
 }
 
@@ -123,6 +126,7 @@ export async function startTestEnv(): Promise<TestEnv> {
   app.use('/api/data', writesRouter());
   app.use('/api/data', domainsRouter());
   app.use('/api/data', notesRouter());
+  app.use('/api/data', attachmentsRouter());
   app.use('/api/chat', chatRouter());
   app.use('/api/migracao', migrationRouter());
   app.use('/api/v1', publicApiRouter());
@@ -148,6 +152,17 @@ export async function startTestEnv(): Promise<TestEnv> {
         data = text;
       }
       return { status: r.status, data };
+    },
+    async raw(who, method, path, body, headers = {}) {
+      const r = await fetch(base + path, { method, headers: { ...(who ? { cookie: cookies[who] } : {}), ...headers }, body });
+      const text = await r.text();
+      let data: unknown = text;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // não é JSON (arquivo)
+      }
+      return { status: r.status, text, headers: r.headers, data };
     },
     async close() {
       server.close();

@@ -1,5 +1,7 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { PeopleStore } from '../members/people-store';
+import { ApiSync } from '../api/api-sync';
+import { Attachments } from '../attachments/attachments';
 import { shortDate } from './project-metrics';
 import { ProjectTask, ProjectTaskStore, TaskStatus, sprintOf, sprintWindow, today } from './project-tasks';
 
@@ -8,6 +10,7 @@ const POINTS = [1, 2, 3, 5, 8, 13];
 // Modal do cartão de atividade de projeto (página do projeto): ver, editar e excluir
 @Component({
   selector: 'app-project-task-editor',
+  imports: [Attachments],
   templateUrl: './project-task-editor.html',
 })
 export class ProjectTaskEditor {
@@ -22,6 +25,12 @@ export class ProjectTaskEditor {
   // Rascunho: as mudanças só valem ao salvar
   protected readonly draft = signal<ProjectTask | null>(null);
   private original: ProjectTask | null = null;
+  // Id da atividade no banco: os anexos gravam direto lá
+  private readonly ids = inject(ApiSync).ids;
+  protected readonly dbId = computed(() => {
+    const task = this.draft();
+    return task ? this.ids.tarefa.db(task.id) : null;
+  });
 
   // Sprints possíveis: da sprint da atividade até 4 sprints depois da atual
   protected readonly sprints = computed(() => {

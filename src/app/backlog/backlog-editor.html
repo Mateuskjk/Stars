@@ -65,33 +65,8 @@
           </div>
         </section>
 
-        <!-- Anexos -->
-        <section class="modal__section">
-          <h3 class="modal__label">Anexos <span class="modal__optional">(imagens e PDF)</span></h3>
-          <ul class="modal__attachments">
-            @for (file of item.attachments; track file.id) {
-              <li class="attachment">
-                <button class="attachment__preview" type="button" [attr.aria-label]="'Visualizar ' + file.name" (click)="view(file)">
-                  @if (file.type === 'application/pdf') {
-                    <span class="attachment__pdf">PDF</span>
-                  } @else {
-                    <img class="attachment__thumb" [src]="file.url" alt="" />
-                  }
-                </button>
-                <span class="attachment__name" [attr.title]="file.name">{{ file.name }}</span>
-                <span class="attachment__size">{{ fileSize(file.size) }}</span>
-                <span class="attachment__actions">
-                  <a class="attachment__link" [href]="file.url" [attr.download]="file.name">Baixar</a>
-                  <button class="attachment__link" type="button" (click)="removeAttachment(file)">Remover</button>
-                </span>
-              </li>
-            }
-          </ul>
-          <label class="modal__upload">
-            <input type="file" accept="image/*,application/pdf" multiple (change)="addFiles($any($event.target))" />
-            <span>+ Adicionar anexos</span>
-          </label>
-        </section>
+        <!-- Anexos (gravados no banco na hora) -->
+        <app-attachments [activityId]="dbId()" />
 
         <!-- Comentários -->
         <section class="modal__section">
@@ -235,24 +210,6 @@
       <button class="modal__primary" type="submit">Salvar atividade</button>
     </footer>
   </form>
-</dialog>
-
-<!-- Visualizador de anexos -->
-<dialog #viewer class="modal modal--viewer" aria-label="Visualizar anexo" (click)="closeOnBackdrop($event, viewer)">
-  @if (viewing(); as file) {
-    <header class="modal__header">
-      <h2 class="modal__title modal__title--file">{{ file.name }}</h2>
-      <a class="modal__primary modal__download" [href]="file.url" [attr.download]="file.name">Baixar</a>
-      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeViewer()">✕</button>
-    </header>
-    <div class="viewer">
-      @if (file.type === 'application/pdf') {
-        <iframe class="viewer__pdf" [src]="viewingUrl()" [title]="file.name"></iframe>
-      } @else {
-        <img class="viewer__image" [src]="file.url" [alt]="file.name" />
-      }
-    </div>
-  }
 </dialog>
 
 <!-- Confirmação de exclusão -->
