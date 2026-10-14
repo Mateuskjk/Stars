@@ -59,8 +59,10 @@ export function attachmentsRouter() {
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(rows[0].nome)}`,
         'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff',
       });
-      res.send(Buffer.from(rows[0].conteudo));
+      // Não é XSS: vai como octet-stream + attachment + nosniff (o navegador só baixa, nunca interpreta como página)
+      res.send(Buffer.from(rows[0].conteudo)); // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write
     }),
   );
 
