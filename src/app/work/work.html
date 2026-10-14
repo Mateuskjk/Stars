@@ -1,7 +1,7 @@
 <header class="backlog__header">
   <div>
     <h2 class="backlog__title">Work</h2>
-    <p class="backlog__subtitle">Suas atividades gerais e de projetos da sprint atual. Mover aqui move também no Backlog e no kanban do projeto.</p>
+    <p class="backlog__subtitle">Suas atividades gerais e de projetos da sprint atual. Mover aqui move também no kanban da sprint do setor e no kanban do projeto.</p>
   </div>
 </header>
 
@@ -24,7 +24,7 @@
           @for (card of column.cards; track card.key) {
             <li
               class="kanban__card"
-              [attr.draggable]="!card.locked"
+              draggable="true"
               [class.is-dragging]="dragging() === card.key"
               [class.is-late]="isLate(card)"
               (dragstart)="dragging.set(card.key)"
@@ -33,8 +33,7 @@
             >
               <div class="kanban__card-header">
                 <span class="kanban__project" [title]="card.kind === 'task' ? 'Projeto ' + card.origin : 'Atividade geral (Backlog)'">{{ card.origin }}</span>
-                @if (!card.locked) {
-                  <select
+                <select
                     class="kanban__move"
                     [attr.aria-label]="'Mover ' + card.title + ' para'"
                     (change)="ask(card.key, $any($event.target).value); $any($event.target).value = card.column"
@@ -43,15 +42,11 @@
                       <option [value]="option.id" [selected]="option.id === card.column">{{ option.label }}</option>
                     }
                   </select>
-                }
               </div>
               <!-- Clicar no cartão (ou no nome, pelo teclado) abre o modal da atividade aqui mesmo -->
               <button class="kanban__card-title work__open" type="button">{{ card.title }}</button>
               <div class="kanban__card-footer">
-                <span class="work__origin" [title]="'Coluna no kanban de origem'">{{ card.kind === 'task' ? 'No projeto' : 'No Backlog' }}: {{ originLabel(card) }}</span>
-                @if (card.locked) {
-                  <span class="work__origin" title="Cartão bloqueado no Backlog">🔒</span>
-                }
+                <span class="work__origin" [title]="'Coluna no kanban de origem'">{{ card.kind === 'task' ? 'No projeto' : 'Na sprint' }}: {{ originLabel(card) }}</span>
                 @if (card.due) {
                   <span class="project-page__due" [class.is-late]="isLate(card)">{{ isLate(card) ? 'Atrasada · ' : '' }}até {{ shortDate(card.due) }}</span>
                 }
@@ -73,14 +68,11 @@
       <h2 id="work-move-title" class="confirm-dialog__title">As colunas são diferentes</h2>
       <p class="confirm-dialog__text">
         <strong>{{ p.card.title }}</strong> vem
-        {{ p.card.kind === 'task' ? 'do projeto ' + p.card.origin : 'do Backlog (atividades gerais)' }}, que tem colunas próprias. Você moveu para
+        {{ p.card.kind === 'task' ? 'do projeto ' + p.card.origin : 'do kanban da sprint do setor (atividades gerais)' }}, que tem colunas próprias. Você moveu para
         <strong>{{ workLabel(p.to) }}</strong> no Work: escolha em qual coluna ele fica lá.
       </p>
-      @if (p.card.locked) {
-        <p class="confirm-dialog__text">Este cartão está bloqueado no Backlog. Desbloqueie lá para mover.</p>
-      } @else {
         <label class="work__field">
-          <span class="modal__label">Coluna {{ p.card.kind === 'task' ? 'no projeto' : 'no Backlog' }}</span>
+          <span class="modal__label">Coluna {{ p.card.kind === 'task' ? 'no projeto' : 'na sprint' }}</span>
           <select class="modal__input" (change)="choose($any($event.target).value)">
             @for (c of originColumns(p.card); track c.id) {
               <option [value]="c.id" [selected]="c.id === p.choice">{{ c.label }}{{ c.id === p.card.originColumn ? ' (atual)' : '' }}</option>
@@ -94,10 +86,9 @@
             Atenção: com essa coluna, no Work ele aparece em <strong>{{ workLabel(workColumnOf(p.card, p.choice)) }}</strong>.
           }
         </p>
-      }
       <div class="confirm-dialog__actions">
         <button class="confirm-dialog__button" type="button" (click)="cancel()">Cancelar</button>
-        <button class="confirm-dialog__button confirm-dialog__button--primary" type="button" [disabled]="p.card.locked || p.choice === p.card.originColumn" (click)="confirm()">
+        <button class="confirm-dialog__button confirm-dialog__button--primary" type="button" [disabled]="p.choice === p.card.originColumn" (click)="confirm()">
           Mover
         </button>
       </div>
