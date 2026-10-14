@@ -46,7 +46,13 @@ describe('Work', () => {
     expect(titles).not.toContain('Projeto sprint passada');
     expect(el.querySelector('a')).toBeNull(); // não leva para outros kanbans
 
-    // Mover a geral para "Em andamento" abre o pop-up sugerindo "Refinado" no Backlog; confirmar move lá
+    // A geral já concluída na sprint do setor aparece em "Concluída", mesmo com o Backlog em outra coluna
+    backlog.items.update((list) => [...list, { ...base, id: 4, name: 'Geral concluída', assignee: me, status: 'refined', sprintStatus: 'done', locked: false, companyId: undefined }]);
+    fixture.detectChanges();
+    const doneColumn = [...el.querySelectorAll('.kanban__column')].find((c) => c.querySelector('.kanban__column-title')?.textContent === 'Concluída')!;
+    expect(doneColumn.textContent).toContain('Geral concluída');
+
+    // Mover a geral para "Em andamento" abre o pop-up sugerindo "Andamento" na sprint do setor; confirmar move lá
     const select = el.querySelector<HTMLSelectElement>('.kanban__move')!;
     select.value = 'doing';
     select.dispatchEvent(new Event('change'));
@@ -54,11 +60,11 @@ describe('Work', () => {
     const dialog = el.querySelector('dialog')!;
     expect(dialog.open).toBe(true);
     expect(dialog.textContent).toContain('As colunas são diferentes');
-    expect(dialog.querySelector<HTMLSelectElement>('.modal__input')!.value).toBe('refined');
+    expect(dialog.querySelector<HTMLSelectElement>('.modal__input')!.value).toBe('doing');
     dialog.querySelector<HTMLButtonElement>('.confirm-dialog__button--primary')!.click();
     fixture.detectChanges();
     expect(dialog.open).toBe(false);
-    expect(backlog.items().find((i) => i.id === 1)!.status).toBe('refined');
+    expect(backlog.items().find((i) => i.id === 1)!.sprintStatus).toBe('doing');
 
     // Cancelar não muda nada
     const again = el.querySelector<HTMLSelectElement>('.kanban__move')!;
@@ -66,7 +72,7 @@ describe('Work', () => {
     again.dispatchEvent(new Event('change'));
     fixture.detectChanges();
     dialog.querySelector<HTMLButtonElement>('.confirm-dialog__button')!.click();
-    expect(backlog.items().find((i) => i.id === 1)!.status).toBe('refined');
+    expect(backlog.items().find((i) => i.id === 1)!.sprintStatus).toBe('doing');
 
     // Clicar no cartão abre o modal certo aqui mesmo: geral → modal do Backlog; projeto → modal do projeto
     const backlogModal = el.querySelector<HTMLDialogElement>('dialog[aria-labelledby="editor-title"]')!;

@@ -1,9 +1,10 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { BacklogStatus, BacklogStore } from '../backlog/backlog-store';
+import { BacklogItem, BacklogStore } from '../backlog/backlog-store';
 import { BacklogEditor } from '../backlog/backlog-editor';
 import { ProjectTaskEditor } from '../projects/project-task-editor';
 import { initials } from '../chat/chat';
 import { MembersStore } from '../members/members-store';
+import { SPRINT_COLUMNS, SectorStore, sprintColumnOf } from '../companies/sector-store';
 import { SprintStore } from '../planning/sprint-store';
 import { ProjectStore } from '../projects/project-store';
 import { ProjectTaskStore, TASK_STATUSES, TaskStatus, sprintOf, today } from '../projects/project-tasks';
@@ -12,9 +13,8 @@ import { ProjectTaskStore, TASK_STATUSES, TaskStatus, sprintOf, today } from '..
 type WorkColumn = 'todo' | 'doing' | 'review' | 'done';
 const WORK_COLUMNS = (Object.keys(TASK_STATUSES) as WorkColumn[]).map((id) => ({ id, ...TASK_STATUSES[id] }));
 
-// Backlog → Work pela posição das colunas padrão; colunas criadas no Backlog ou no projeto caem em "A fazer"
-const FROM_BACKLOG: Partial<Record<BacklogStatus, WorkColumn>> = { 'to-refine': 'todo', refined: 'doing', waiting: 'review', 'refinement-done': 'done' };
-const fromTask = (status: TaskStatus): WorkColumn => (status in TASK_STATUSES ? (status as WorkColumn) : 'todo');
+// Mesmos ids nos kanbans de origem (sprint do setor e projeto); Bloqueado e colunas criadas pelo admin caem em "A fazer"
+const toWork = (status: string): WorkColumn => (status in TASK_STATUSES ? (status as WorkColumn) : 'todo');
 
 interface WorkCard {
   key: string; // b-1 (atividade geral) ou t-1 (atividade de projeto)
@@ -25,7 +25,6 @@ interface WorkCard {
   originColumn: string; // id da coluna no kanban de origem
   column: WorkColumn;
   due: string;
-  locked: boolean;
 }
 
 interface PendingMove {
@@ -48,6 +47,7 @@ export class Work {
   private readonly projects = inject(ProjectStore);
   private readonly members = inject(MembersStore);
   private readonly sprints = inject(SprintStore);
+  private readonly sectors = inject(SectorStore);
   protected readonly initials = initials;
   protected readonly columns = WORK_COLUMNS;
   protected readonly me = computed(() => this.members.current()?.name ?? '');
@@ -62,17 +62,11 @@ export class Work {
       .ofCompany()
       .filter((i) => !!active && i.sprintId === active.id)
       .filter((i) => (i.assignee === me || i.sharedWith.includes(me)) && i.status !== 'archived' && i.status !== 'canceled')
-      .map<WorkCard>((i) => ({
-        key: `b-${i.id}`,
-        id: i.id,
-        kind: 'backlog',
-        title: i.name,
-        origin: 'Atividade geral',
-        originColumn: i.status,
-        column: FROM_BACKLOG[i.status] ?? 'todo',
-        due: i.due,
-        locked: i.locked,
-      }));
+      .map<WorkCard>((i) => {
+        // Na sprint, a atividade geral anda no kanban do setor (não mais nas colunas do Backlog)
+        const originColumn = sprintColumnOf(this.sprintColumns(i), i).id;
+        return { key: `b-${i.id}`, id: i.id, kind: 'backlog', title: i.name, origin: 'Atividade geral', originColumn, column: toWork(originColumn), due: originColumn === 'done' ? '' : i.due };
+      });
     const projects = new Map(this.projects.visible().map((p) => [p.id, p.name]));
     const fromProjects = this.tasks
       .tasks()
@@ -84,9 +78,8 @@ export class Work {
         title: t.title,
         origin: projects.get(t.projectId)!,
         originColumn: t.status,
-        column: fromTask(t.status),
+        column: toWork(t.status),
         due: t.status === 'done' ? '' : t.end,
-        locked: false,
       }));
     return [...general, ...fromProjects];
   });
@@ -113,10 +106,14 @@ export class Work {
   }
 
   // ---------- Colunas do kanban de origem ----------
+  private sprintColumns(item: BacklogItem) {
+    return (item.sectorId && this.sectors.byId(item.sectorId)?.columns) || SPRINT_COLUMNS;
+  }
+
   protected originColumns(card: WorkCard) {
-    return card.kind === 'backlog'
-      ? this.backlog.columns().filter((c) => c.id !== 'archived' && c.id !== 'canceled')
-      : this.tasks.columns();
+    if (card.kind === 'task') return this.tasks.columns();
+    const item = this.backlog.items().find((i) => i.id === card.id);
+    return item ? this.sprintColumns(item) : SPRINT_COLUMNS;
   }
 
   protected originLabel(card: WorkCard, id = card.originColumn) {
@@ -124,7 +121,7 @@ export class Work {
   }
 
   protected workColumnOf(card: WorkCard, originId: string): WorkColumn {
-    return card.kind === 'backlog' ? (FROM_BACKLOG[originId as BacklogStatus] ?? 'todo') : fromTask(originId as TaskStatus);
+    return toWork(originId);
   }
 
   protected workLabel(id: WorkColumn) {
@@ -150,8 +147,9 @@ export class Work {
 
   protected confirm() {
     const p = this.pending();
-    if (p && !p.card.locked && p.choice !== p.card.originColumn) {
-      if (p.card.kind === 'backlog') this.backlog.move(p.card.id, p.choice as BacklogStatus);
+    if (p && p.choice !== p.card.originColumn) {
+      // Mesmo caminho do kanban do setor: ir para Bloqueado bloqueia, sair de lá desbloqueia
+      if (p.card.kind === 'backlog') this.backlog.setSprintStatus(p.card.id, p.choice, { from: this.originLabel(p.card), to: this.originLabel(p.card, p.choice) });
       else this.tasks.setStatus(p.card.id, p.choice as TaskStatus);
     }
     this.dialog().nativeElement.close();
