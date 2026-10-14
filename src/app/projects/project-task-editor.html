@@ -79,7 +79,8 @@
           </label>
 
           <div class="modal__danger-zone">
-            <button class="modal__ghost" type="button" (click)="askArchive()">Arquivar</button>
+            <button class="modal__ghost" type="button" (click)="ask('archive')">Arquivar</button>
+            <button class="modal__ghost modal__ghost--danger" type="button" (click)="ask('delete')">Excluir</button>
           </div>
         </aside>
       </div>
@@ -95,13 +96,26 @@
 <dialog #confirm class="confirm-dialog" aria-labelledby="task-confirm-title" (click)="closeOnBackdrop($event, confirm)">
   <div class="confirm-dialog__box">
     <span class="confirm-dialog__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="M3 4h18v4H3z" /><path d="M5 8v12h14V8" /><path d="M10 12h4" /></svg>
+      @if (confirmMode() === 'archive') {
+        <svg viewBox="0 0 24 24"><path d="M3 4h18v4H3z" /><path d="M5 8v12h14V8" /><path d="M10 12h4" /></svg>
+      } @else {
+        <svg viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" /></svg>
+      }
     </span>
-    <h2 id="task-confirm-title" class="confirm-dialog__title">Arquivar “{{ draft()?.title }}”?</h2>
-    <p class="confirm-dialog__text">A atividade sai do kanban do projeto e dos gráficos do Dash de Projetos. Ela continua guardada e aparece em Arquivo.</p>
+    @if (confirmMode() === 'archive') {
+      <h2 id="task-confirm-title" class="confirm-dialog__title">Arquivar “{{ draft()?.title }}”?</h2>
+      <p class="confirm-dialog__text">A atividade sai do kanban do projeto e dos gráficos do Dash de Projetos. Ela continua guardada e aparece em Arquivo.</p>
+    } @else {
+      <h2 id="task-confirm-title" class="confirm-dialog__title">Excluir “{{ draft()?.title }}”?</h2>
+      <p class="confirm-dialog__text">A atividade sai do kanban do projeto e dos gráficos do Dash de Projetos.</p>
+    }
     <div class="confirm-dialog__actions">
       <button class="confirm-dialog__button" type="button" autofocus (click)="confirm.close()">Cancelar</button>
-      <button class="confirm-dialog__button confirm-dialog__button--primary" type="button" (click)="confirmArchive()">Arquivar</button>
+      @if (confirmMode() === 'archive') {
+        <button class="confirm-dialog__button confirm-dialog__button--primary" type="button" (click)="confirmAction()">Arquivar</button>
+      } @else {
+        <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmAction()">Excluir</button>
+      }
     </div>
   </div>
 </dialog>

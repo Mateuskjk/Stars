@@ -23,6 +23,7 @@
       <input type="file" multiple [disabled]="busy()" (change)="add($any($event.target))" />
       <span>{{ busy() ? 'Enviando…' : '+ Adicionar anexos' }}</span>
     </label>
+    <p class="modal__hint">Ou cole um print aqui com Ctrl+V.</p>
   } @else {
     <p class="modal__hint">Salve a atividade para anexar arquivos.</p>
   }

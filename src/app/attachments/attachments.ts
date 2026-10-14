@@ -19,6 +19,7 @@ const VIEWABLE = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'applica
 @Component({
   selector: 'app-attachments',
   templateUrl: './attachments.html',
+  host: { '(window:paste)': 'onPaste($event)' },
 })
 export class Attachments {
   readonly activityId = input<string | null>(null); // id da atividade no banco (null = ainda não salva)
@@ -27,6 +28,7 @@ export class Attachments {
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly host = inject(ElementRef<HTMLElement>);
 
   constructor() {
     effect(() => {
@@ -48,11 +50,27 @@ export class Attachments {
     }
   }
 
-  protected async add(input: HTMLInputElement) {
-    const id = this.activityId();
+  protected add(input: HTMLInputElement) {
     const chosen = [...(input.files ?? [])];
     input.value = '';
-    if (!id) return;
+    void this.upload(chosen);
+  }
+
+  // Ctrl+V com um print (ou imagem copiada) enquanto o modal desta atividade está aberto vira anexo.
+  // Texto colado continua indo para o campo normalmente.
+  protected onPaste(event: ClipboardEvent) {
+    const dialog = (this.host.nativeElement as HTMLElement).closest('dialog');
+    if (!dialog?.open || !this.activityId()) return;
+    const images = [...(event.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
+    if (!images.length) return;
+    event.preventDefault();
+    const stamp = new Date().toLocaleString('sv-SE').replace(' ', '_').replaceAll(':', '-'); // 2026-10-14_15-30-00
+    void this.upload(images.map((f, i) => new File([f], `print-${stamp}${images.length > 1 ? `-${i + 1}` : ''}.${f.type.split('/')[1] || 'png'}`, { type: f.type })));
+  }
+
+  private async upload(chosen: File[]) {
+    const id = this.activityId();
+    if (!id || !chosen.length) return;
     this.error.set('');
     this.busy.set(true);
     try {
