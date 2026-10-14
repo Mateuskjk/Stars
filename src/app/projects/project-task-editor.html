@@ -31,6 +31,8 @@
               <dd [class.project-dash__bad]="isLate(task)">{{ isLate(task) ? 'Passou do prazo' : task.status === 'done' ? 'Concluída' : 'No prazo' }}</dd>
             </div>
           </dl>
+
+          <app-attachments [activityId]="dbId()" />
         </div>
 
         <aside class="modal__side">

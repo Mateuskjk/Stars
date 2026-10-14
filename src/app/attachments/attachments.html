@@ -1,0 +1,47 @@
+<section class="modal__section">
+  <h3 class="modal__label">Anexos <span class="modal__optional">(até 4 MB cada · salvos na hora)</span></h3>
+  @if (activityId()) {
+    <ul class="modal__attachments">
+      @for (file of files(); track file.id) {
+        <li class="attachment">
+          <button class="attachment__preview" type="button" [attr.aria-label]="(viewable(file) ? 'Visualizar ' : 'Baixar ') + file.nome" (click)="view(file)">
+            <span class="attachment__pdf">{{ kind(file) }}</span>
+          </button>
+          <span class="attachment__name" [attr.title]="file.nome">{{ file.nome }}</span>
+          <span class="attachment__size">{{ size(file.tamanho) }}{{ file.autor ? ' · ' + file.autor : '' }}</span>
+          <span class="attachment__actions">
+            <button class="attachment__link" type="button" (click)="download(file)">Baixar</button>
+            <button class="attachment__link" type="button" (click)="remove(file)">Remover</button>
+          </span>
+        </li>
+      }
+    </ul>
+    @if (error()) {
+      <p class="modal__hint" role="alert">{{ error() }}</p>
+    }
+    <label class="modal__upload" [class.is-busy]="busy()">
+      <input type="file" multiple [disabled]="busy()" (change)="add($any($event.target))" />
+      <span>{{ busy() ? 'Enviando…' : '+ Adicionar anexos' }}</span>
+    </label>
+  } @else {
+    <p class="modal__hint">Salve a atividade para anexar arquivos.</p>
+  }
+</section>
+
+<!-- Visualizador (só imagens e PDF) -->
+<dialog #viewer class="modal modal--viewer" aria-label="Visualizar anexo" (click)="closeOnBackdrop($event)" (close)="onViewerClose()">
+  @if (viewing(); as v) {
+    <header class="modal__header">
+      <h2 class="modal__title modal__title--file">{{ v.file.nome }}</h2>
+      <a class="modal__primary modal__download" [href]="v.url" [attr.download]="v.file.nome">Baixar</a>
+      <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeViewer()">✕</button>
+    </header>
+    <div class="viewer">
+      @if (v.file.mime === 'application/pdf') {
+        <iframe class="viewer__pdf" [src]="viewingUrl()" [title]="v.file.nome"></iframe>
+      } @else {
+        <img class="viewer__image" [src]="v.url" [alt]="v.file.nome" />
+      }
+    </div>
+  }
+</dialog>

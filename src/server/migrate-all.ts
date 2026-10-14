@@ -40,6 +40,10 @@ export async function grantAppRole() {
     -- Anotações (tela Notas): cada um lê, edita e apaga as suas; o Admin direciona para o perfil certo (troca o autor)
     grant select, update, delete on "Anotacao" to lexagile_app;
     drop policy if exists lexagile_app_acesso on "Anotacao";
-    create policy lexagile_app_acesso on "Anotacao" for all to lexagile_app using (true) with check (true);`);
+    create policy lexagile_app_acesso on "Anotacao" for all to lexagile_app using (true) with check (true);
+    -- Anexos das atividades (o arquivo fica no banco): ver/baixar, anexar e remover
+    grant select, insert, delete on "Anexo" to lexagile_app;
+    drop policy if exists lexagile_app_acesso on "Anexo";
+    create policy lexagile_app_acesso on "Anexo" for all to lexagile_app using (true) with check (true);`);
   return true;
 }

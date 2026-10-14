@@ -255,3 +255,16 @@ create table "AnotacaoCompartilhada" (
 );
 alter table "Anotacao" enable row level security;
 alter table "AnotacaoCompartilhada" enable row level security;
+
+create table "Anexo" (
+  "id" text not null,
+  "atividadeId" text not null references "Atividade"(id) on update cascade on delete cascade,
+  "nome" text not null,
+  "mime" text not null,
+  "tamanho" integer not null,
+  "conteudo" bytea not null,
+  "enviadoPorId" text references "Usuario"(id) on update cascade on delete set null,
+  "criadoEm" timestamp without time zone not null,
+  primary key (id)
+);
+alter table "Anexo" enable row level security;
