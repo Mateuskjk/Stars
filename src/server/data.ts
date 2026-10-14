@@ -3,7 +3,7 @@
 // filtra pelas empresas (tenantId) da sessão e aplica a regra de visibilidade das atividades.
 import { Request, Response, Router } from 'express';
 import { db, parseJson } from './db';
-import { Session, requireAuth } from './auth';
+import { Session, isSuperAdmin, requireAuth } from './auth';
 import { ensureSchema, isInstalled } from './migration';
 
 export const tenantsOf = (s: Session) => s.memberships.map((m) => m.tenantId);
@@ -93,6 +93,23 @@ export function dataRouter() {
         `select id, nome, sigla, cor, ordem, "avatarUrl", ativo, visibilidade, "fusoHorario"
            from "Tenant" where id = any($1::text[]) order by ordem, nome`,
         [tenantsOf(s)],
+      );
+      return rows;
+    }),
+  );
+
+  // Empresas suspensas (Tenant.ativo = false): não entram na sessão, então vêm à parte para a tela Arquivo.
+  // Só as em que a pessoa (pelo e-mail) é Admin; o superadmin vê todas.
+  router.get(
+    '/empresas/suspensas',
+    route(async (_req, s) => {
+      const { rows } = await db().query(
+        `select t.id, t.nome, t.sigla, t."avatarUrl",
+                (select count(*)::int from "Usuario" u where u."tenantId" = t.id and u.situacao = 'ATIVO' and u."removidoEm" is null) as membros
+           from "Tenant" t
+          where not t.ativo and ($2 or exists (select 1 from "Usuario" u where u."tenantId" = t.id and lower(u.email) = $1 and u.papel = 'DONO' and u.situacao = 'ATIVO' and u."removidoEm" is null))
+          order by t.nome`,
+        [s.email.trim().toLowerCase(), isSuperAdmin(s)],
       );
       return rows;
     }),
@@ -232,7 +249,8 @@ export function dataRouter() {
       const projetoId = str(req.query['projetoId']);
       if (sprintId) where += ` and a."sprintId" = $${params.push(sprintId)}`;
       if (projetoId) where += ` and a."projetoId" = $${params.push(projetoId)}`;
-      if (req.query['arquivadas'] !== '1') where += ` and a."arquivadoEm" is null`;
+      if (req.query['arquivadas'] === 'somente') where += ` and a."arquivadoEm" is not null`; // tela Arquivo
+      else if (req.query['arquivadas'] !== '1') where += ` and a."arquivadoEm" is null`;
       const { rows } = await db().query(
         `select a.id, a.numero, a.titulo, a.descricao, a.status, a.tipo, a.prioridade, a.estimativa, a.prazo,
                 a."criteriosAceite", a.observacao, a."bloqueioMotivo", a.aceito, a.tags, a."compartilhadoCom",

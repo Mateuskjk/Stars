@@ -1,0 +1,83 @@
+<header class="backlog__header">
+  <div>
+    <h2 class="backlog__title">Arquivo</h2>
+    <p class="backlog__subtitle">Atividades e projetos arquivados ou cancelados e empresas suspensas. Nada aqui foi apagado.</p>
+  </div>
+  <label class="chat__search archive__search">
+    <svg class="chat__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+    <input type="search" placeholder="Buscar no arquivo" aria-label="Buscar no arquivo" [value]="search()" (input)="search.set($any($event.target).value)" />
+  </label>
+</header>
+
+<div class="archive__tabs" role="tablist" aria-label="Tipo">
+  <button type="button" role="tab" [attr.aria-selected]="tab() === 'atividades'" [class.is-active]="tab() === 'atividades'" (click)="tab.set('atividades')">
+    Atividades <span class="kanban__count">{{ counts().atividades }}</span>
+  </button>
+  <button type="button" role="tab" [attr.aria-selected]="tab() === 'projetos'" [class.is-active]="tab() === 'projetos'" (click)="tab.set('projetos')">
+    Projetos <span class="kanban__count">{{ counts().projetos }}</span>
+  </button>
+  <button type="button" role="tab" [attr.aria-selected]="tab() === 'empresas'" [class.is-active]="tab() === 'empresas'" (click)="tab.set('empresas')">
+    Empresas suspensas <span class="kanban__count">{{ counts().empresas }}</span>
+  </button>
+</div>
+
+@if (error()) {
+  <p class="archive__empty" role="alert">{{ error() }}</p>
+}
+@if (message()) {
+  <p class="archive__message" role="status">{{ message() }}</p>
+}
+
+@switch (tab()) {
+  @case ('atividades') {
+    <ul class="archive__list">
+      @for (a of activities(); track a.id) {
+        <li class="archive__item">
+          <span class="archive__name">{{ a.titulo }}</span>
+          <span class="archive__meta">{{ a.origem }}</span>
+          <span class="status-chip" [style.--status-color]="a.arquivadoTipo === 'CANCELADO' ? '#d03b3b' : '#52514e'">
+            {{ a.arquivadoTipo === 'CANCELADO' ? 'Cancelada' : 'Arquivada' }}
+          </span>
+          <span class="archive__meta">{{ date(a.arquivadoEm) }}</span>
+          <button class="archive__action" type="button" [disabled]="busy() !== null" (click)="restoreActivity(a)">
+            {{ busy() === a.id ? 'Restaurando…' : 'Restaurar' }}
+          </button>
+        </li>
+      } @empty {
+        <li class="archive__empty">{{ loading() ? 'Carregando…' : 'Nenhuma atividade arquivada.' }}</li>
+      }
+    </ul>
+  }
+  @case ('projetos') {
+    <ul class="archive__list">
+      @for (p of projects(); track p.id) {
+        <li class="archive__item">
+          <a class="archive__name" [routerLink]="['/projetos', p.id]">{{ p.name }}</a>
+          <span class="archive__meta">{{ p.company || 'Sem empresa' }}</span>
+          <span class="status-chip" [style.--status-color]="p.status === 'canceled' ? '#d03b3b' : '#52514e'">{{ statusLabel(p.status) }}</span>
+          <span class="archive__meta">{{ p.owner }}</span>
+          <button class="archive__action" type="button" (click)="restoreProject(p.id, p.name)">Restaurar</button>
+        </li>
+      } @empty {
+        <li class="archive__empty">Nenhum projeto arquivado.</li>
+      }
+    </ul>
+  }
+  @case ('empresas') {
+    <ul class="archive__list">
+      @for (c of companies(); track c.id) {
+        <li class="archive__item">
+          <span class="archive__name">{{ c.nome }}</span>
+          <span class="archive__meta">{{ c.sigla }}</span>
+          <span class="status-chip" style="--status-color: #eb6834">Suspensa</span>
+          <span class="archive__meta">{{ c.membros === null ? '' : c.membros + (c.membros === 1 ? ' membro' : ' membros') }}</span>
+          <button class="archive__action" type="button" [disabled]="busy() !== null" (click)="reactivate(c)">
+            {{ busy() === c.id ? 'Reativando…' : 'Reativar' }}
+          </button>
+        </li>
+      } @empty {
+        <li class="archive__empty">{{ loading() ? 'Carregando…' : 'Nenhuma empresa suspensa.' }}</li>
+      }
+    </ul>
+  }
+}

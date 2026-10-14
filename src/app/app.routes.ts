@@ -44,6 +44,7 @@ export const routes: Routes = [
       { path: 'integracoes', loadComponent: () => import('./integrations/integrations').then((m) => m.Integrations) },
     ],
   },
+  { path: 'arquivo', loadComponent: () => import('./archive/archive').then((m) => m.Archive) },
   { path: 'conta', loadComponent: () => import('./account/account').then((m) => m.Account) },
   { path: 'perfis', children: [] },
   { path: 'api-publica', loadComponent: () => import('./api-docs/api-docs').then((m) => m.ApiDocs) },
