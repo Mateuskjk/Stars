@@ -5,7 +5,15 @@ import { Session, requireAuth } from './auth';
 import { db } from './db';
 
 const MAX_TEXT = 20_000;
-const mine = (s: Session) => s.memberships.map((m) => m.usuarioId);
+// Os cadastros da pessoa: os da sessão e todos com o mesmo e-mail — inclusive em empresas desativadas,
+// que não entram na sessão (senão as anotações feitas lá ficariam inacessíveis para a própria autora)
+async function mine(s: Session) {
+  const { rows } = await db().query<{ id: string }>(`select id from "Usuario" where id = any($1::text[]) or lower(email) = $2`, [
+    s.memberships.map((m) => m.usuarioId),
+    s.email.trim().toLowerCase(),
+  ]);
+  return rows.map((r) => r.id);
+}
 const adminTenants = (s: Session) => s.memberships.filter((m) => m.papel === 'DONO').map((m) => m.tenantId);
 // As datas da tabela são "timestamp sem fuso" gravadas em UTC (Prisma)
 const UTC_NOW = `(now() at time zone 'utc')`;
@@ -19,7 +27,7 @@ export function notesRouter() {
     const { rows } = await db().query(
       `select id, texto, "criadoEm" at time zone 'utc' as "criadoEm", "atualizadoEm" at time zone 'utc' as "atualizadoEm"
          from "Anotacao" where "autorId" = any($1::text[]) order by ordem, "criadoEm"`,
-      [mine(req.session!)],
+      [await mine(req.session!)],
     );
     res.json(rows);
   });
@@ -72,14 +80,14 @@ export function notesRouter() {
     const r = await db().query(`update "Anotacao" set texto = $1, "atualizadoEm" = ${UTC_NOW} where id = $2 and "autorId" = any($3::text[])`, [
       texto,
       req.params['id'],
-      mine(req.session!),
+      await mine(req.session!),
     ]);
     if (!r.rowCount) return void res.status(404).json({ error: 'Anotação não encontrada.' });
     res.status(204).end();
   });
 
   router.delete('/anotacoes/:id', async (req, res) => {
-    const r = await db().query(`delete from "Anotacao" where id = $1 and "autorId" = any($2::text[])`, [req.params['id'], mine(req.session!)]);
+    const r = await db().query(`delete from "Anotacao" where id = $1 and "autorId" = any($2::text[])`, [req.params['id'], await mine(req.session!)]);
     if (!r.rowCount) return void res.status(404).json({ error: 'Anotação não encontrada.' });
     res.status(204).end();
   });

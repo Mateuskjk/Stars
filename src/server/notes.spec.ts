@@ -9,6 +9,11 @@ beforeAll(async () => {
       ('n-1', E'Ideias\\nlinha 2', 'amarelo', 0, 'u-atendente-a', '${A}', now(), now()),
       ('n-2', 'Do gestor', 'amarelo', 0, 'u-gestor-a', '${A}', now(), now()),
       ('n-b', 'Da B', 'amarelo', 0, 'u-dono-b', '${B}', now(), now());
+    -- Empresa desativada (não entra na sessão) com um cadastro de mesmo e-mail do atendente da A
+    insert into "Tenant" (id, nome, sigla, ativo) values ('tenant-off', 'Desativada', 'DS', false);
+    insert into "Usuario" (id, nome, email, papel, "tenantId") values ('u-atendente-off', 'atendente', 'atendente.a@lexgroup.com.br', 'DONO', 'tenant-off');
+    insert into "Anotacao" (id, texto, cor, ordem, "autorId", "tenantId", "criadoEm", "atualizadoEm") values
+      ('n-off', 'Da empresa desativada', 'amarelo', 1, 'u-atendente-off', 'tenant-off', now(), now());
     set role lexagile_app;`);
 }, 60_000);
 afterAll(async () => env?.close());
@@ -18,7 +23,9 @@ const autorDe = async (id: string) => (await env.db.query<{ autorId: string }>(`
 describe('anotações', () => {
   it('cada um vê, edita e apaga só as suas', async () => {
     const r = await env.call('atendenteA', 'GET', '/api/data/anotacoes');
-    expect((r.data as { id: string }[]).map((n) => n.id)).toEqual(['n-1']);
+    expect((r.data as { id: string }[]).map((n) => n.id)).toEqual(['n-1', 'n-off']); // inclui o cadastro de mesmo e-mail em empresa desativada
+    expect(((await env.call('donoA', 'GET', '/api/data/anotacoes')).data as unknown[]).length).toBe(0);
+    expect((await env.call('donoA', 'PATCH', '/api/data/anotacoes/n-off', { texto: 'invadido' })).status).toBe(404);
     expect((await env.call('atendenteA', 'PATCH', '/api/data/anotacoes/n-2', { texto: 'invadido' })).status).toBe(404);
     expect((await env.call('atendenteA', 'DELETE', '/api/data/anotacoes/n-2')).status).toBe(404);
     expect((await env.call('atendenteA', 'PATCH', '/api/data/anotacoes/n-1', { texto: 'Ideias\nnovas' })).status).toBe(204);
@@ -48,6 +55,6 @@ describe('anotações', () => {
 
     // Agora aparece para o novo dono e some para o antigo
     expect(((await env.call('observadorA', 'GET', '/api/data/anotacoes')).data as { id: string }[]).map((n) => n.id)).toEqual(['n-1']);
-    expect((await env.call('atendenteA', 'GET', '/api/data/anotacoes')).data).toEqual([]);
+    expect(((await env.call('atendenteA', 'GET', '/api/data/anotacoes')).data as { id: string }[]).map((n) => n.id)).toEqual(['n-off']);
   });
 });
