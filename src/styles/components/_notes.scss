@@ -46,9 +46,13 @@ $notes-link: var(--ink-purple);
   }
 
   // Pop-up "Direcionar anotações"
-  &__route-box {
+  // A largura é do <dialog> (o .confirm-dialog padrão tem 400px); a caixa só ocupa o espaço dele
+  &__route.confirm-dialog {
     width: min(720px, calc(100vw - 32px));
-    max-width: none;
+  }
+
+  &__route-box {
+    align-items: stretch;
   }
 
   &__route-list {
