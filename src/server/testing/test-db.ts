@@ -13,6 +13,7 @@ import { authRouter, ensureSessionTable, requireAuth } from '../auth';
 import { INSTALL_SQL, migrationRouter } from '../migration';
 import { dataRouter } from '../data';
 import { writesRouter } from '../writes';
+import { notesRouter } from '../notes';
 import { domainsRouter } from '../domains';
 import { chatRouter } from '../chat';
 import { publicApiInternalRouter, publicApiRouter } from '../public-api';
@@ -121,6 +122,7 @@ export async function startTestEnv(): Promise<TestEnv> {
   app.use('/api/data', dataRouter());
   app.use('/api/data', writesRouter());
   app.use('/api/data', domainsRouter());
+  app.use('/api/data', notesRouter());
   app.use('/api/chat', chatRouter());
   app.use('/api/migracao', migrationRouter());
   app.use('/api/v1', publicApiRouter());
