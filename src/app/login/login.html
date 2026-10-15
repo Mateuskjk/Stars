@@ -104,6 +104,11 @@
         </span>
       </label>
 
+      <label class="login__remember">
+        <input type="checkbox" [checked]="remember()" (change)="remember.set($any($event.target).checked)" />
+        <span>Manter conectado por 7 dias úteis</span>
+      </label>
+
       <button class="modal__primary login__submit" type="submit" [disabled]="busy()">{{ busy() ? 'Entrando…' : 'Entrar' }}</button>
       <p class="login__footnote">Problemas para entrar? Fale com o administrador da sua empresa.</p>
     </form>

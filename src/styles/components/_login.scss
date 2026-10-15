@@ -287,6 +287,23 @@
     }
   }
 
+  // "Manter conectado por 7 dias úteis"
+  &__remember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-muted);
+    font-size: 14px;
+    cursor: pointer;
+
+    input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--color-accent);
+    }
+  }
+
   &__submit {
     height: 46px;
     margin-top: 4px;

@@ -33,8 +33,8 @@ export class SessionStore {
   }
 
   // Erros do login (senha errada, muitas tentativas) sobem para a tela
-  async login(email: string, senha: string) {
-    await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) });
+  async login(email: string, senha: string, lembrar = false) {
+    await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha, lembrar }) });
     await this.check();
   }
 

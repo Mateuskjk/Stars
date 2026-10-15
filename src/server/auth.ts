@@ -38,6 +38,18 @@ declare module 'express-serve-static-core' {
 // Prefixo __Host-: o navegador só aceita o cookie com Secure, sem Domain e com Path=/ (outro subdomínio não o sobrescreve)
 const COOKIE = '__Host-lex_session';
 const SESSION_MS = 12 * 60 * 60 * 1000;
+export const REMEMBER_BUSINESS_DAYS = 7;
+
+// "Manter conectado": vence depois de N dias úteis (sábado e domingo não contam), no mesmo horário, em Brasília
+export function businessDaysFrom(now: number, days: number) {
+  const BRT = 3 * 60 * 60 * 1000; // UTC-3 (sem horário de verão desde 2019)
+  const d = new Date(now - BRT);
+  for (let left = days; left > 0; ) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) left--;
+  }
+  return d.getTime() + BRT;
+}
 // Sessões no banco (lexagile.sessao): valem em qualquer cópia do servidor (Vercel e afins) e sobrevivem a reinícios.
 // A memória é só um atalho para não ir ao banco a cada requisição.
 const sessions = new Map<string, Session>();
@@ -174,14 +186,16 @@ export function setCookie(res: Response, value: string, maxAgeMs: number, name =
 }
 
 // Abre a sessão com os usuários (um por empresa) que provaram ser a pessoa — por senha ou pelo Google
-export async function startSession(res: Response, email: string, users: { id: string; nome: string; papel: string; tenantId: string }[]) {
+// remember: "Manter conectado" marcado (7 dias úteis); sem ele, 12 horas
+export async function startSession(res: Response, email: string, users: { id: string; nome: string; papel: string; tenantId: string }[], remember = false) {
   const token = randomBytes(32).toString('base64url');
+  const now = Date.now();
   const session: Session = {
     key: hashToken(token),
     nome: users[0].nome,
     email,
     memberships: users.map((u) => ({ usuarioId: u.id, tenantId: u.tenantId, papel: u.papel })),
-    expiresAt: Date.now() + SESSION_MS,
+    expiresAt: remember ? businessDaysFrom(now, REMEMBER_BUSINESS_DAYS) : now + SESSION_MS,
   };
   if (await ensureSessionTable()) {
     await db().query(`delete from lexagile.sessao where "expiraEm" < now()`); // limpa as vencidas
@@ -192,7 +206,7 @@ export async function startSession(res: Response, email: string, users: { id: st
   }
   sessions.set(session.key, session);
   cachedAt.set(session.key, Date.now());
-  setCookie(res, token, SESSION_MS);
+  setCookie(res, token, session.expiresAt - now);
 }
 
 // Usuários (um por empresa) com acesso hoje: ativo, empresa ativa e domínio permitido
@@ -287,7 +301,7 @@ export function authRouter() {
       }
       await forgive(keys);
       await reset(`login:${email}|${req.ip ?? ''}`); // acertou: zera os erros deste e-mail neste IP
-      await startSession(res, email, matched);
+      await startSession(res, email, matched, req.body?.lembrar === true);
       res.json({ nome: matched[0].nome, empresas: matched.length });
     } catch (error) {
       console.error('[auth] falha no login:', (error as Error).message);

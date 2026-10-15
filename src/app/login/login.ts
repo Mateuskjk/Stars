@@ -65,7 +65,13 @@ export class Login {
   protected readonly showPassword = signal(false);
   protected readonly google = signal(false);
   protected readonly returnTo = signal<string | null>(null);
-  protected readonly googleHref = () => '/api/auth/google' + (this.returnTo() ? '?next=' + encodeURIComponent(this.returnTo()!) : '');
+  protected readonly remember = signal(false); // "Manter conectado por 7 dias úteis" (vale também para o Google)
+  protected readonly googleHref = () => {
+    const params = new URLSearchParams();
+    if (this.returnTo()) params.set('next', this.returnTo()!);
+    if (this.remember()) params.set('lembrar', '1');
+    return '/api/auth/google' + (params.size ? '?' + params : '');
+  };
 
   // ---------- Slides ----------
   protected readonly slides = SLIDES;
@@ -109,7 +115,7 @@ export class Login {
     this.busy.set(true);
     this.error.set('');
     try {
-      await this.session.login(String(data.get('email')), String(data.get('senha')));
+      await this.session.login(String(data.get('email')), String(data.get('senha')), this.remember());
       if (this.session.status() !== 'in') this.error.set(this.session.error() || 'Não foi possível entrar.');
       else if (this.returnTo()) location.assign(this.returnTo()!); // de volta para "Permitir acesso" do Claude
     } catch (e) {
