@@ -8,6 +8,9 @@
     }
     <div class="main-content">
       <router-outlet />
+      @if (navigating()) {
+        <div class="page-loader"><app-loader /></div>
+      }
     </div>
     <div class="navigation-top">
       <div class="nav-brand">
@@ -340,5 +343,5 @@
     <app-login />
   }
 } @else {
-  <main class="login login--checking"><p class="login__checking">Carregando…</p></main>
+  <main class="login login--checking"><app-loader /></main>
 }

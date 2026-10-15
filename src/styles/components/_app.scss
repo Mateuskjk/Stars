@@ -27,6 +27,7 @@
 }
 
 .main-content {
+  position: relative; // a animação de carregamento cobre só a área da página
   grid-area: main;
   display: flex;
   flex-direction: column;

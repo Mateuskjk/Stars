@@ -1,10 +1,11 @@
 import { Component, DestroyRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { Assistant } from './ai/assistant';
 import { MigrationWizard } from './migration/migration-wizard';
 import { Login } from './login/login';
+import { Loader } from './loader/loader';
 import { SessionStore } from './api/session';
 import { CompanyStore } from './companies/company-store';
 import { AccountStore, NotificationType, greetingFor, hourIn } from './account/account-store';
@@ -16,7 +17,7 @@ type Menu = 'nav' | 'notifications' | 'user';
 const THEME_KEY = 'stars.theme';
 
 @Component({
-  imports: [Assistant, Login, MigrationWizard, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [Assistant, Login, MigrationWizard, RouterLink, RouterLinkActive, RouterOutlet, Loader],
   selector: 'app-root',
   templateUrl: './app.html',
   host: {
@@ -54,6 +55,14 @@ export class App {
     { initialValue: this.router.url },
   );
   protected readonly isHome = computed(() => this.url().split(/[?#]/)[0] === '/');
+  // Trocando de tela (carregando a página): mostra a animação sobre a área da página
+  protected readonly navigating = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationStart || e instanceof NavigationEnd || e instanceof NavigationCancel || e instanceof NavigationError),
+      map((e) => e instanceof NavigationStart),
+    ),
+    { initialValue: false },
+  );
 
   constructor() {
     const destroyRef = inject(DestroyRef);

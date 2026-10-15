@@ -1,0 +1,166 @@
+// Carregamento (app-loader): ∞ correndo → vira a estrela do logo. Ciclo de 3,2s.
+// Cor: a de destaque do tema (azul-escuro no claro, lilás no escuro).
+.loader {
+  display: inline-grid;
+  place-items: center;
+  color: var(--color-accent);
+
+  &__svg {
+    width: 120px;
+    height: 120px;
+  }
+
+  &__track {
+    stroke: color-mix(in srgb, currentColor 14%, transparent);
+  }
+
+  &__trail {
+    stroke: currentColor;
+    stroke-dasharray: 28 72;
+    animation: loader-trail 3.2s linear infinite;
+  }
+
+  &__infinity {
+    transform-origin: 60px 60px;
+    animation: loader-infinity 3.2s ease-in-out infinite;
+  }
+
+  &__star,
+  &__small {
+    fill: currentColor;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  &__star {
+    animation: loader-star 3.2s cubic-bezier(0.3, 1.4, 0.5, 1) infinite;
+  }
+
+  &__small {
+    animation: loader-small 3.2s cubic-bezier(0.3, 1.6, 0.5, 1) infinite;
+  }
+
+  // Quem pede menos movimento: só a estrela pulsando devagar
+  @media (prefers-reduced-motion: reduce) {
+    &__infinity {
+      display: none;
+    }
+
+    &__star,
+    &__small {
+      animation: loader-calm 2s ease-in-out infinite alternate;
+    }
+  }
+}
+
+@keyframes loader-trail {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: -200;
+  }
+}
+
+// ∞ correndo → recolhe no centro → volta no fim do ciclo
+@keyframes loader-infinity {
+  0%,
+  52% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  62%,
+  92% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Estrela grande nasce girando quando o ∞ some, pulsa e some
+@keyframes loader-star {
+  0%,
+  56% {
+    transform: scale(0) rotate(-90deg);
+    opacity: 0;
+  }
+
+  68% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+
+  80% {
+    transform: scale(1.06);
+  }
+
+  88% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  96%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+// Estrelinha aparece logo depois
+@keyframes loader-small {
+  0%,
+  66% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  74%,
+  88% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  96%,
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes loader-calm {
+  from {
+    opacity: 0.45;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+// Sobre a área da página enquanto uma tela nova carrega. Só aparece depois de 0,2s: troca rápida não pisca.
+.page-loader {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background-color: var(--color-surface);
+  animation: page-loader-in 0.15s ease-out 0.2s both;
+}
+
+@keyframes page-loader-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
