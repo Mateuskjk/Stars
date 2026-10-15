@@ -44,7 +44,8 @@ export function googleRouter() {
     if (!googleEnabled()) return fail(res, 'desligado');
     const state = b64url(randomBytes(24));
     const verifier = b64url(randomBytes(32));
-    setCookie(res, `${state}.${verifier}`, STATE_MS, STATE_COOKIE);
+    // "Manter conectado" vai junto no cookie do state (volta no callback)
+    setCookie(res, `${state}.${verifier}.${req.query['lembrar'] === '1' ? 1 : 0}`, STATE_MS, STATE_COOKIE);
     const next = safeNext(req.query['next']);
     setCookie(res, next ? encodeURIComponent(next) : '', next ? STATE_MS : 0, NEXT_COOKIE);
     const params = new URLSearchParams({
@@ -61,7 +62,7 @@ export function googleRouter() {
   });
 
   router.get('/google/callback', async (req, res) => {
-    const [state, verifier] = (parseCookie(req.headers.cookie)[STATE_COOKIE] ?? '').split('.');
+    const [state, verifier, remember] = (parseCookie(req.headers.cookie)[STATE_COOKIE] ?? '').split('.');
     setCookie(res, '', 0, STATE_COOKIE); // o state vale uma vez só
     const returned = String(req.query['state'] ?? '');
     const code = String(req.query['code'] ?? '');
@@ -107,7 +108,7 @@ export function googleRouter() {
       );
       if (!rows.length) return fail(res, 'sem-conta');
       // A sessão usa o e-mail do cadastro (a conta pode ter sido achada pelo Google já ligado, com outro e-mail)
-      await startSession(res, rows[0].email?.trim().toLowerCase() || email, rows);
+      await startSession(res, rows[0].email?.trim().toLowerCase() || email, rows, remember === '1');
       const next = safeNext(parseCookie(req.headers.cookie)[NEXT_COOKIE]);
       setCookie(res, '', 0, NEXT_COOKIE);
       res.redirect(next ?? '/');
