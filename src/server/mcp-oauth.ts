@@ -26,8 +26,15 @@ const random = () => randomBytes(32).toString('base64url');
 // da pessoa (Claude Code no terminal). Sem isso, qualquer um cadastraria um "Claude" falso com retorno para o
 // site dele e pegaria o acesso de quem clicasse em "Permitir".
 const CLAUDE_CALLBACKS = ['https://claude.ai/api/mcp/auth_callback', 'https://claude.com/api/mcp/auth_callback'];
+// Outros clientes de MCP que a empresa usa (ex.: o n8n): endereços de retorno EXATOS, só https, separados por vírgula
+// em LEXAGILE_OAUTH_REDIRECTS (ex.: https://n8n.empresa.com.br/rest/oauth2-credential/callback).
+const extraCallbacks = () =>
+  (process.env['LEXAGILE_OAUTH_REDIRECTS'] ?? '')
+    .split(',')
+    .map((u) => u.trim())
+    .filter((u) => u.startsWith('https://'));
 export function allowedRedirect(raw: string) {
-  if (CLAUDE_CALLBACKS.includes(raw)) return true;
+  if (CLAUDE_CALLBACKS.includes(raw) || extraCallbacks().includes(raw)) return true;
   try {
     const url = new URL(raw);
     return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) && !url.username && !url.password && !url.hash;
@@ -81,7 +88,7 @@ const clientsStore: OAuthRegisteredClientsStore = {
   },
   async registerClient(client) {
     const full = client as OAuthClientInformationFull;
-    if (!clientAllowed(full)) throw new InvalidClientMetadataError('Endereço de retorno não permitido: use o Claude (claude.ai) ou o Claude Code.');
+    if (!clientAllowed(full)) throw new InvalidClientMetadataError('Endereço de retorno não permitido: use o Claude (claude.ai), o Claude Code ou um endereço liberado em LEXAGILE_OAUTH_REDIRECTS.');
     if (JSON.stringify(full).length > 8000) throw new InvalidClientMetadataError('Cadastro grande demais.');
     await ensureTables();
     await db().query(`insert into lexagile.oauth_cliente ("clientId", dados) values ($1, $2)`, [full.client_id, JSON.stringify(full)]);
@@ -271,10 +278,23 @@ function consentPage(client: OAuthClientInformationFull, params: AuthorizationPa
   <li>consultar empresas, projetos, sprints, atividades e pessoas que você pode ver;</li>
   <li>criar atividades, mudar status, comentar e atualizar atividades.</li>
 </ul>
-<p>Você pode desconectar a qualquer momento nas configurações do Claude.</p>
+<p>Você pode desconectar a qualquer momento nas configurações do ${app}.</p>
 <form method="post" action="/oauth/consent">${hidden}<input type="hidden" name="sig" value="${sign(fields, session.key)}">
 <div class="actions"><button type="submit" name="decision" value="deny">Cancelar</button><button type="submit" name="decision" value="allow">Permitir</button></div>
 </form></main></body></html>`;
+}
+
+// Volta ao cliente. Claude e Claude Code: redirect 303 (o CSP form-action do site já os permite). Endereços de
+// LEXAGILE_OAUTH_REDIRECTS (ex.: n8n): o form-action fixo (vercel.json) barraria o redirect; vai por uma página que
+// segue sozinha — só para esses endereços exatos, já conferidos no cadastro do cliente e de novo aqui.
+export function sendBack(res: Response, back: URL) {
+  const base = back.origin + back.pathname;
+  if (!extraCallbacks().includes(base)) return void res.redirect(303, back.toString());
+  const href = esc(back.toString());
+  res.set('Cache-Control', 'no-store').type('html').send(
+    `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${href}"><title>Voltando…</title></head>` +
+      `<body><p>Voltando para <a href="${href}">${esc(back.host)}</a>…</p></body></html>`,
+  );
 }
 
 export function consentRouter() {
@@ -295,7 +315,7 @@ export function consentRouter() {
       if (f.state) back.searchParams.set('state', f.state);
       if (req.body?.decision !== 'allow') {
         back.searchParams.set('error', 'access_denied');
-        return void res.redirect(303, back.toString()); // 303: o navegador volta ao Claude com GET (o callback dele recusa POST)
+        return sendBack(res, back); // 303: o navegador volta ao Claude com GET (o callback dele recusa POST)
       }
       const code = random();
       await ensureTables();
@@ -306,7 +326,7 @@ export function consentRouter() {
       );
       console.log('[mcp] autorização concedida a', JSON.stringify(client.client_name ?? client.client_id));
       back.searchParams.set('code', code);
-      res.redirect(303, back.toString()); // 303 (não 302/307): segue com GET, como o callback do Claude exige
+      sendBack(res, back); // 303 (não 302/307): segue com GET, como o callback do Claude exige
     } catch (error) {
       console.error('[mcp] falha na autorização:', (error as Error).message);
       res.status(500).send('Não foi possível autorizar agora. Tente de novo.');
