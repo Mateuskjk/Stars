@@ -1,6 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { initials } from '../chat/chat';
+import { initials } from '../format';
 import { BacklogItem, BacklogStore, tagColor } from '../backlog/backlog-store';
 import { formatWeekDate } from '../home/home';
 import { SPRINT_DAYS, businessDay, businessIndex } from '../projects/project-tasks';

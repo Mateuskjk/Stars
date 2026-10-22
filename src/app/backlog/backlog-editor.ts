@@ -1,6 +1,6 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { PeopleStore } from '../members/people-store';
-import { formatTime, initials } from '../chat/chat';
+import { formatTime, initials } from '../format';
 import { CompanyStore } from '../companies/company-store';
 import { SPRINT_COLUMNS, SectorStore, sprintColumnOf } from '../companies/sector-store';
 import { RecentsStore } from '../home/recents-store';
@@ -97,10 +97,9 @@ export class BacklogEditor {
     event.preventDefault();
     const item = this.draft();
     if (!item.name.trim()) return;
-    const columns = this.sprintColumns();
     // o responsável não fica entre as pessoas com quem a atividade foi compartilhada
     const sharedWith = item.sharedWith.filter((name) => name !== item.assignee);
-    this.store.save({ ...item, name: item.name.trim(), sharedWith }, (i) => (columns ? sprintColumnOf(columns, i).label : '—'));
+    this.store.save({ ...item, name: item.name.trim(), sharedWith });
     this.closeEditor();
   }
 

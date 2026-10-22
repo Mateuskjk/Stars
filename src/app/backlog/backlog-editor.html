@@ -4,16 +4,6 @@
   <form class="modal__form" (submit)="save($event)">
     <header class="modal__header">
       <h2 id="editor-title" class="modal__title">{{ isNew() ? 'Nova atividade' : 'Editar atividade' }}</h2>
-      <button
-        class="modal__icon-button modal__favorite"
-        type="button"
-        [class.is-active]="item.favorite"
-        [attr.aria-pressed]="item.favorite"
-        [attr.aria-label]="item.favorite ? 'Remover dos favoritos' : 'Favoritar'"
-        (click)="patch({ favorite: !item.favorite })"
-      >
-        {{ item.favorite ? '★' : '☆' }}
-      </button>
       <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeEditor()">✕</button>
     </header>
 

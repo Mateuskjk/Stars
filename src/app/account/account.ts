@@ -1,6 +1,6 @@
 import { Component, ElementRef, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { compressImage } from '../companies/company-store';
-import { AccountStore, DEFAULT_ACCOUNT, NOTIFICATION_TYPES, NotificationType, greetingFor, hourIn } from './account-store';
+import { AccountStore, DEFAULT_ACCOUNT, NOTIFICATION_TYPES, NotificationType } from './account-store';
 
 type Profile = Pick<typeof DEFAULT_ACCOUNT, 'fullName' | 'displayName' | 'email' | 'phone' | 'jobTitle' | 'bio' | 'photo'>;
 
@@ -80,7 +80,6 @@ export class Account {
     const now = new Date();
     return {
       time: now.toLocaleTimeString('pt-BR', { timeZone: zone, hour: '2-digit', minute: '2-digit' }),
-      greeting: greetingFor(hourIn(zone, now)),
     };
   });
 

@@ -1,5 +1,4 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { AuditStore } from '../audit/audit-store';
 import { MembersStore } from '../members/members-store';
 import { CarouselItem } from '../carousel/carousel';
 import { CustomColumnId, KanbanColumn, customColumn } from '../kanban/add-column';
@@ -112,7 +111,6 @@ export class ProjectStore {
   // Situações fixas + colunas criadas no kanban (ponytail: só em memória, como os projetos)
   readonly statuses = signal(PROJECT_STATUSES);
 
-  private readonly audit = inject(AuditStore);
   private readonly members = inject(MembersStore);
 
   // Troca os exemplos pelos projetos do banco (ids 1, 2, 3… na ordem recebida)
@@ -128,33 +126,25 @@ export class ProjectStore {
   addStatus(label: string) {
     if (!this.members.isAdmin()) return; // só admin mexe nas colunas
     this.statuses.update((list) => [...list, customColumn(label, list.length)]);
-    this.audit.log({ action: 'create', entity: 'Coluna de projetos', name: label });
   }
 
   renameStatus(id: ProjectStatus, label: string) {
     if (!this.members.isAdmin()) return; // só admin mexe nas colunas
-    const before = this.label(id);
     this.statuses.update((list) => list.map((s) => (s.id === id ? { ...s, label } : s)));
-    this.audit.log({ action: 'update', entity: 'Coluna de projetos', name: label, from: before, to: label });
   }
 
   // Os projetos da coluna excluída vão para a primeira coluna
   removeStatus(id: ProjectStatus) {
     if (!this.members.isAdmin()) return; // só admin mexe nas colunas
     const fallback = this.statuses()[0];
-    const moved = this.projects().filter((project) => project.status === id).length;
-    const name = this.label(id);
     this.projects.update((list) => list.map((project) => (project.status === id ? { ...project, status: fallback.id } : project)));
     this.statuses.update((list) => list.filter((s) => s.id !== id));
-    this.audit.log({ action: 'delete', entity: 'Coluna de projetos', name, details: moved ? `${moved} projeto(s) movido(s) para ${fallback.label}` : undefined });
   }
 
   setStatus(id: number, status: ProjectStatus) {
     const before = this.projects().find((project) => project.id === id);
     if (!before || before.status === status) return;
     this.projects.update((list) => list.map((project) => (project.id === id ? { ...project, status } : project)));
-    const action = status === 'archived' ? 'archive' : status === 'canceled' ? 'cancel' : 'move';
-    this.audit.log({ action, entity: 'Projeto', name: before.name, from: this.label(before.status), to: this.label(status) });
   }
 
   private change(id: number, changes: Partial<Project>) {
@@ -165,7 +155,6 @@ export class ProjectStore {
     const project = this.projects().find((p) => p.id === id);
     if (!project) return;
     this.change(id, { image, cover: coverFor(id, image) });
-    this.audit.log({ action: 'update', entity: 'Projeto', name: project.name, details: image ? 'Foto adicionada' : 'Foto removida' });
   }
 
   // Agregar: o projeto vira secundário de outro (só um nível: um principal não vira secundário)
@@ -173,16 +162,7 @@ export class ProjectStore {
     const project = this.projects().find((p) => p.id === id);
     const parent = parentId ? this.projects().find((p) => p.id === parentId) : null;
     if (!project || id === parentId || (parentId && (!parent || parent.parentId || this.childrenOf(id).length))) return;
-    const before = project.parentId ? this.projects().find((p) => p.id === project.parentId)?.name : null;
     this.change(id, { parentId });
-    this.audit.log({
-      action: 'update',
-      entity: 'Projeto',
-      name: project.name,
-      from: before ?? 'Independente',
-      to: parent?.name ?? 'Independente',
-      details: parent ? 'Agregado a outro projeto' : 'Separado do projeto principal',
-    });
   }
 
   // Excluir: some das telas (no banco fica arquivado e marcado como excluído); os agregados viram independentes
@@ -190,18 +170,10 @@ export class ProjectStore {
     const project = this.projects().find((p) => p.id === id);
     if (!project) return;
     this.projects.update((list) => list.filter((p) => p.id !== id).map((p) => (p.parentId === id ? { ...p, parentId: null } : p)));
-    this.audit.log({ action: 'delete', entity: 'Projeto', name: project.name });
   }
 
   add(project: NewProject) {
     this.projects.update((list) => [...list, this.build(project)]);
-    this.audit.log({
-      action: 'create',
-      entity: 'Projeto',
-      name: project.name,
-      to: this.label(project.status),
-      details: project.company ? `Empresa: ${project.company}` : undefined,
-    });
   }
 
   private build(project: NewProject): Project {

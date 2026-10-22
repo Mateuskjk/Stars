@@ -46,7 +46,6 @@
           [value]="profile.displayName"
           (input)="patch({ displayName: $any($event.target).value })"
         />
-        <span class="modal__hint">Usado na saudação “{{ preview().greeting }}, …”.</span>
       </label>
     </div>
     <div class="members__row">
@@ -92,7 +91,7 @@
             <option [value]="zone" [selected]="zone === store.account().timeZone">{{ zoneLabel(zone) }}</option>
           }
         </select>
-        <span class="modal__hint">Agora: {{ preview().time }} · {{ preview().greeting }}. Vale para a saudação e a data do dia.</span>
+        <span class="modal__hint">Agora: {{ preview().time }}. Vale para os horários e a data do dia.</span>
       </label>
 
       <label class="modal__toggle">

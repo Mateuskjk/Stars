@@ -114,6 +114,6 @@ describe('SectorPage', () => {
     fixture.componentRef.setInput('id', '1');
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.company-page__sectors .backlog__new')).toBeNull();
-    expect(TestBed.inject(SectorStore).create(1, 'Acme Ltda', { name: 'RH', description: '', manager: '', memberIds: [] })).toBeNull();
+    expect(TestBed.inject(SectorStore).create(1, { name: 'RH', description: '', manager: '', memberIds: [] })).toBeNull();
   });
 });

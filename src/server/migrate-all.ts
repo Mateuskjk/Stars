@@ -1,8 +1,8 @@
 // Cria ou atualiza TODAS as tabelas do schema lexagile, de uma vez. Precisa do usuário DONO do banco (postgres):
 // o usuário do app em produção (lexagile_app) não tem permissão de DDL. Rodado por "npm run db:migrate" e pelos testes.
-import { db } from './db';
+import { db, ddl } from './db';
 import { ensureSessionTable } from './auth';
-import { ensureSchema } from './migration';
+import { INSTALL_SQL, ensureSchema } from './schema';
 import { ensureTable as ensureAi } from './ai';
 import { ensureTable as ensureDomains } from './domains';
 import { ensureTables as ensureIntegrations } from './integrations';
@@ -10,14 +10,15 @@ import { ensureTable as ensureLimits } from './limits';
 import { ensureTables as ensureOauth } from './mcp-oauth';
 import { ensureTables as ensurePublicApi } from './public-api';
 
-// Tabelas que o app espera encontrar (as do INSTALL_SQL só existem depois do assistente de migração)
+// Tabelas que o app espera encontrar
 const EXPECTED = [
-  'sessao', 'limite', 'dominio', 'ia_config', 'webhook', 'integracao_banco', 'api_token', 'api_acesso',
-  'oauth_cliente', 'oauth_codigo', 'oauth_token',
+  'sessao', 'limite', 'dominio', 'ia_config', 'webhook', 'integracao_banco', 'api_token',
+  'oauth_cliente', 'oauth_codigo', 'oauth_token', 'empresa_config', 'setor_membro', 'atividade_setor', 'sprint_periodo',
 ];
 
 export async function migrateAll() {
-  const installed = await ensureSchema(); // INSTALL_SQL (empresa_config, setor_membro, extra…), se o assistente já rodou
+  await ddl(`create schema if not exists lexagile; ${INSTALL_SQL}`); // empresa_config, setor_membro, extra…
+  await ensureSchema(); // deixa o schema marcado como pronto neste processo (as gravações não tentam DDL de novo)
   await ensureSessionTable();
   await ensureLimits();
   await ensureDomains();
@@ -27,7 +28,7 @@ export async function migrateAll() {
   await ensureOauth();
   const { rows } = await db().query<{ t: string }>(`select relname as t from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'lexagile'`);
   const have = new Set(rows.map((r) => r.t));
-  return { installed, missing: EXPECTED.filter((t) => !have.has(t)) };
+  return { missing: EXPECTED.filter((t) => !have.has(t)) };
 }
 
 // Se o papel restrito do app existe, garante que ele acessa as tabelas novas do schema lexagile

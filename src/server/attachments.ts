@@ -5,7 +5,7 @@ import type { PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { requireAuth } from './auth';
 import { db } from './db';
-import { HttpError } from './migration';
+import { HttpError } from './schema';
 import { visibleActivity, writer } from './writes';
 
 // A Vercel recusa pedidos acima de ~4,5 MB

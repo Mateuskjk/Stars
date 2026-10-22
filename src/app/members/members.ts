@@ -2,7 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { initials } from '../chat/chat';
+import { initials } from '../format';
 import { RecentsStore } from '../home/recents-store';
 import { ResponsiveTable } from '../responsive-table';
 import { AllowedDomains } from './allowed-domains';

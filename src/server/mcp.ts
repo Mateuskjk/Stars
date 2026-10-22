@@ -11,7 +11,7 @@ import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middlew
 import { db } from './db';
 import { Session } from './auth';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
-import { HttpError, ensureSchema } from './migration';
+import { HttpError, ensureSchema } from './schema';
 import { applyActivity, createActivity, visibleActivity } from './writes';
 import { takeEvents } from './events';
 import { deliverEvents } from './integrations';

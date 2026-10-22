@@ -2,7 +2,6 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { CarouselItem } from '../carousel/carousel';
 import { MembersStore } from '../members/members-store';
 import { ProjectStore, cssImage } from '../projects/project-store';
-import { AuditStore, diff } from '../audit/audit-store';
 
 export interface ViewSettings {
   locale: 'pt-BR' | 'en-US' | 'es-ES';
@@ -71,7 +70,6 @@ const SEED: Company[] = [
 export class CompanyStore {
   private readonly members = inject(MembersStore);
   private readonly projects = inject(ProjectStore);
-  private readonly audit = inject(AuditStore);
   readonly companies = signal<Company[]>(SEED);
   // Empresa em que a pessoa está trabalhando (Backlog, Planning, sprint ativa); null = todas (exemplos)
   readonly currentId = signal<number | null>(null);
@@ -103,7 +101,6 @@ export class CompanyStore {
   create(data: CompanyData) {
     const id = Math.max(0, ...this.companies().map((company) => company.id)) + 1;
     this.companies.update((list) => [...list, { ...data, name: data.name.trim(), id, cover: COVERS[(id - 1) % COVERS.length] }]);
-    this.audit.log({ action: 'create', entity: 'Perfil de empresa', name: data.name.trim() });
     return id;
   }
 
@@ -117,34 +114,12 @@ export class CompanyStore {
       this.members.members.update((list) => list.map((m) => (m.company === old.name ? { ...m, company: name } : m)));
       this.projects.projects.update((list) => list.map((p) => (p.company === old.name ? { ...p, company: name } : p)));
     }
-    const flat = (c: CompanyData) => ({ ...c, ...c.view, image: c.image ? 'com imagem' : 'sem imagem' });
-    const details = diff(flat(old), flat({ ...data, name }), {
-      name: 'Nome',
-      description: 'Descrição',
-      site: 'Site',
-      image: 'Imagem',
-      timeZone: 'Fuso',
-      active: 'Ativo',
-      locale: 'Idioma',
-      dateFormat: 'Formato de data',
-      currency: 'Moeda',
-      weekStart: 'Início da semana',
-      showInCarousel: 'No carrossel',
-    });
-    if (details) this.audit.log({ action: 'update', entity: 'Perfil de empresa', name, details });
   }
 
   setActive(id: number, active: boolean) {
     const company = this.companies().find((c) => c.id === id);
     if (!company || company.active === active) return;
     this.companies.update((list) => list.map((c) => (c.id === id ? { ...c, active } : c)));
-    this.audit.log({
-      action: active ? 'update' : 'archive',
-      entity: 'Perfil de empresa',
-      name: company.name,
-      from: active ? 'Inativo' : 'Ativo',
-      to: active ? 'Ativo' : 'Inativo',
-    });
   }
 
   isNameTaken(name: string, exceptId: number | null) {

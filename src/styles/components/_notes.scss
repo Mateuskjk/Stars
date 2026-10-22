@@ -266,15 +266,6 @@ $notes-link: var(--ink-purple);
     font-size: 13px;
   }
 
-  &__link-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 10px 16px 0;
-  }
-
   &__hint {
     color: $notes-muted;
     font-size: 12px;
@@ -285,17 +276,6 @@ $notes-link: var(--ink-purple);
       background-color: $notes-soft;
       color: $notes-link;
     }
-  }
-
-  &__link-select {
-    padding: 6px 10px;
-    border: 1px solid $notes-line;
-    border-radius: 8px;
-    background-color: var(--color-card);
-    color: $color-title;
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
   }
 
   &__content {
@@ -322,28 +302,6 @@ $notes-link: var(--ink-purple);
     white-space: pre-wrap; // respeita as quebras de linha da nota
   }
 
-  // Link entre notas (roxo, como no Obsidian); tracejado = a nota ainda não existe
-  &__link {
-    display: inline;
-    padding: 0 2px;
-    border: none;
-    border-bottom: 1px solid currentColor;
-    background: none;
-    color: $notes-link;
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-
-    &:hover {
-      background-color: color-mix(in srgb, var(--ink-purple) 8%, var(--color-card));
-    }
-
-    &.is-missing {
-      border-bottom-style: dashed;
-      opacity: 0.7;
-    }
-  }
-
   &__footer {
     display: flex;
     flex-direction: column;
@@ -358,13 +316,6 @@ $notes-link: var(--ink-purple);
     font-size: 13px;
   }
 
-  &__backlinks {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 14px;
-    list-style: none;
-    font-size: 14px;
-  }
 }
 
 // ---------- Responsivo ----------

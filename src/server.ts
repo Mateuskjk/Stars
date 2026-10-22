@@ -10,10 +10,8 @@ import { aiRouter } from './server/ai';
 import { authRouter, requireAuth } from './server/auth';
 import { googleRouter } from './server/google-auth';
 import { domainsRouter } from './server/domains';
-import { chatRouter } from './server/chat';
 import { mcpRouters } from './server/mcp';
 import { dataRouter } from './server/data';
-import { migrationRouter } from './server/migration';
 import { writesRouter } from './server/writes';
 import { notesRouter } from './server/notes';
 import { attachmentsRouter } from './server/attachments';
@@ -66,13 +64,11 @@ app.use('/api/data', writesRouter());
 app.use('/api/data', domainsRouter());
 app.use('/api/data', notesRouter());
 app.use('/api/data', attachmentsRouter());
-app.use('/api/chat', chatRouter());
 
 /**
  * MCP: o Claude (site/app e Claude Code) conecta em /mcp com login OAuth (conta do LexÁgile).
  */
 app.use(mcpRouters());
-app.use('/api/migracao', migrationRouter());
 
 /**
  * API da integração com IA (as chaves ficam só no servidor).

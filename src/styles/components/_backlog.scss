@@ -237,11 +237,6 @@ $backlog-column: var(--color-soft);
     margin-left: auto;
   }
 
-  &__star {
-    color: #eda100;
-    font-size: 14px;
-  }
-
   &__avatar {
     display: inline-grid;
     place-items: center;
@@ -555,7 +550,7 @@ $backlog-column: var(--color-soft);
   }
 }
 
-// Atividade atrasada (Backlog, setor, Favoritos e kanban do projeto): cartão em âmbar.
+// Atividade atrasada (Backlog, setor e kanban do projeto): cartão em âmbar.
 // Bloqueado (vermelho) tem prioridade.
 .backlog-card.is-late:not(.is-locked),
 .kanban__card.is-late {

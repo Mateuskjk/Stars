@@ -1,11 +1,6 @@
 <!-- Sem login, só a tela de entrada (o servidor também recusa os dados sem sessão) -->
 @if (session.status() === 'in') {
-  <div class="container-main" [class.has-date]="isHome()">
-    @if (isHome()) {
-      <div class="week-date week-date--page">
-        <p class="week-date__title">{{ weekDate() }}</p>
-      </div>
-    }
+  <div class="container-main">
     <div class="main-content">
       <router-outlet />
       @if (navigating()) {
@@ -39,14 +34,12 @@
         <ul class="center-options__list">
           <li><a class="center-options__link" routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Home</a></li>
           <li><a class="center-options__link" routerLink="/dashboards" routerLinkActive="is-active">Dashboards</a></li>
-          <li><a class="center-options__link" routerLink="/conversas" routerLinkActive="is-active">Conversas</a></li>
           <li class="center-options__dropdown" routerLinkActive="is-active" [class.is-expanded]="openSubmenu() === 'projetos'">
             <button class="center-options__link" type="button" aria-haspopup="true" [attr.aria-expanded]="openSubmenu() === 'projetos'" (click)="toggleSubmenu('projetos')">
               Projetos
               <svg class="center-options__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button>
             <ul class="center-options__submenu">
-              <li><a class="center-options__link" routerLink="/projetos">Dash de Projetos</a></li>
               <li><a class="center-options__link" routerLink="/projetos/visaoGeral">Geral</a></li>
               <li><a class="center-options__link" routerLink="/projetos/novo">Criar Novo Projeto</a></li>
             </ul>
@@ -62,8 +55,6 @@
               <li><a class="center-options__link" routerLink="/workspace/backlog">Backlog</a></li>
               <li><a class="center-options__link" routerLink="/workspace/planning">Planning</a></li>
               <li><a class="center-options__link" routerLink="/workspace/notes">Notes</a></li>
-              <li><a class="center-options__link" routerLink="/workspace/favorites">Favorites</a></li>
-              <li><a class="center-options__link" routerLink="/workspace/brain">Brain</a></li>
               <li><a class="center-options__link" routerLink="/arquivo">Arquivo</a></li>
             </ul>
           </li>
@@ -77,10 +68,7 @@
               <li><a class="center-options__link" routerLink="/configuracoes/membros">Membros</a></li>
               <li><a class="center-options__link" routerLink="/configuracoes/equipes">Equipes</a></li>
               <li><a class="center-options__link" routerLink="/configuracoes/integracao-ia">Integração com IA</a></li>
-              <li><a class="center-options__link" routerLink="/configuracoes/relatorios">Relatórios</a></li>
-              <li><a class="center-options__link" routerLink="/configuracoes/auditorias">Auditorias</a></li>
               <li><a class="center-options__link" routerLink="/configuracoes/integracoes">Integrações</a></li>
-              <li><button class="center-options__link" type="button" (click)="openMigration()">Migração do banco</button></li>
             </ul>
           </li>
         </ul>
@@ -230,9 +218,6 @@
       </div>
     </div>
     <div class="left-content">
-      <div class="hello-world">
-        <h1 class="hello-world__title">{{ greeting() }}, {{ userName() }}</h1>
-      </div>
       <div class="side-card">
         <h2 class="side-card__title">
           <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -284,7 +269,7 @@
               </a>
             </li>
           } @empty {
-            <li class="side-card__empty">O que você abrir (projetos, notas, cartões, conversas e dashboards) aparece aqui.</li>
+            <li class="side-card__empty">O que você abrir (projetos, notas, cartões e dashboards) aparece aqui.</li>
           }
         </ul>
       </div>
@@ -332,10 +317,6 @@
   <!-- Assistente de IA (botão flutuante em todas as telas) -->
   @if (account.account().assistantEnabled) {
     <app-assistant />
-  }
-  <!-- Migração do banco: só carrega quando um admin abre -->
-  @defer (when migrationRequested()) {
-    <app-migration-wizard #migration />
   }
 } @else if (session.status() === 'out') {
   <!-- Carregada à parte: só quem está sem sessão baixa a tela de entrada -->

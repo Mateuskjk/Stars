@@ -1,5 +1,5 @@
 import { Component, ElementRef, computed, inject, input, output, signal, viewChild } from '@angular/core';
-import { initials } from '../chat/chat';
+import { initials } from '../format';
 import { MembersStore } from './members-store';
 
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();

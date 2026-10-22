@@ -1,5 +1,14 @@
 @use '../variables' as *;
 
+// Tela com as duas abas (Sprints e setores | Projetos)
+.dashboards {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
 // Cores de apoio dos gráficos (tinta de texto, grade e eixo)
 $chart-ink-secondary: var(--color-muted);
 $chart-ink-muted: var(--color-muted);

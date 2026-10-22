@@ -104,10 +104,10 @@
     </span>
     @if (confirmMode() === 'archive') {
       <h2 id="task-confirm-title" class="confirm-dialog__title">Arquivar “{{ draft()?.title }}”?</h2>
-      <p class="confirm-dialog__text">A atividade sai do kanban do projeto e dos gráficos do Dash de Projetos. Ela continua guardada e aparece em Arquivo.</p>
+      <p class="confirm-dialog__text">A atividade sai do kanban do projeto e dos gráficos dos Dashboards. Ela continua guardada e aparece em Arquivo.</p>
     } @else {
       <h2 id="task-confirm-title" class="confirm-dialog__title">Excluir “{{ draft()?.title }}”?</h2>
-      <p class="confirm-dialog__text">A atividade sai do kanban do projeto e dos gráficos do Dash de Projetos.</p>
+      <p class="confirm-dialog__text">A atividade sai do kanban do projeto e dos gráficos dos Dashboards.</p>
     }
     <div class="confirm-dialog__actions">
       <button class="confirm-dialog__button" type="button" autofocus (click)="confirm.close()">Cancelar</button>

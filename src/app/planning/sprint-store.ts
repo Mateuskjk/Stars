@@ -1,5 +1,4 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { AuditStore } from '../audit/audit-store';
 import { sprintOf, sprintWindow, today } from '../projects/project-tasks';
 import { CompanyStore } from '../companies/company-store';
 
@@ -45,7 +44,6 @@ export class SprintStore {
   readonly active = computed(() => this.ofCompany().find((sprint) => sprint.status === 'active') ?? null);
   readonly nextNumber = computed(() => Math.max(0, ...this.sprints().map((sprint) => sprint.id)) + 1);
 
-  private readonly audit = inject(AuditStore);
 
   // Sprint ativa de uma empresa (página do setor)
   activeOf(companyId: number | undefined) {
@@ -59,14 +57,11 @@ export class SprintStore {
   create(sprint: Omit<Sprint, 'id' | 'status'>) {
     if (this.active()) return;
     this.sprints.update((list) => [...list, { ...sprint, id: this.nextNumber(), status: 'active', companyId: this.companyId() ?? undefined }]);
-    this.audit.log({ action: 'create', entity: 'Sprint', name: sprint.name, to: SPRINT_STATUS.active.label, details: `Período: ${sprint.start} a ${sprint.end}` });
   }
 
   setStatus(id: number, status: SprintStatus) {
     const before = this.sprints().find((sprint) => sprint.id === id);
     if (!before || before.status === status) return;
     this.sprints.update((list) => list.map((sprint) => (sprint.id === id ? { ...sprint, status } : sprint)));
-    const action = status === 'closed' ? 'close' : status === 'archived' ? 'archive' : status === 'canceled' ? 'cancel' : 'update';
-    this.audit.log({ action, entity: 'Sprint', name: before.name, from: SPRINT_STATUS[before.status].label, to: SPRINT_STATUS[status].label });
   }
 }

@@ -17,13 +17,11 @@ describe('RecentsStore', () => {
     recents.visit('project', 2);
     recents.visit('note', note.id);
     recents.visit('card', card.id);
-    recents.visit('chat', 1);
     recents.visit('project', 2); // de novo: sobe para o topo, sem repetir
     recents.visit('project', 999); // não existe
 
     expect(recents.items().map((i) => `${i.type}: ${i.title}`)).toEqual([
       'Projeto: App mobile',
-      'Conversa: Ana Souza',
       `Cartão: ${card.name}`,
       `Nota: ${note.title}`,
     ]);
@@ -31,8 +29,8 @@ describe('RecentsStore', () => {
     // apagou a nota: some dos Recentes; renomeou o cartão: o nome novo aparece
     notes.notes.update((list) => list.filter((n) => n.id !== note.id));
     backlog.items.update((list) => list.map((i) => (i.id === card.id ? { ...i, name: 'Cartão renomeado' } : i)));
-    expect(recents.items().map((i) => i.title)).toEqual(['App mobile', 'Ana Souza', 'Cartão renomeado']);
-    expect(JSON.parse(localStorage.getItem('stars.recents')!)).toHaveLength(5);
+    expect(recents.items().map((i) => i.title)).toEqual(['App mobile', 'Cartão renomeado']);
+    expect(JSON.parse(localStorage.getItem('stars.recents')!)).toHaveLength(4);
   });
 
   it('keeps accessed profiles (members, teams, companies) in their own list', () => {

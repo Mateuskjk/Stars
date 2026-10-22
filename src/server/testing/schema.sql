@@ -169,15 +169,6 @@ create table "Comentario" (
   primary key (id)
 );
 
-create table "Favorito" (
-  "id" text not null,
-  "usuarioId" text not null,
-  "atividadeId" text not null,
-  "criadoEm" timestamp(3) without time zone not null default CURRENT_TIMESTAMP,
-  primary key (id)
-);
-CREATE UNIQUE INDEX "Favorito_usuarioId_atividadeId_key" ON "Favorito" USING btree ("usuarioId", "atividadeId");
-
 create table "Transicao" (
   "id" text not null,
   "regraId" text not null,
@@ -190,35 +181,6 @@ create table "Transicao" (
   primary key (id)
 );
 
-create table "Canal" (
-  "id" text not null,
-  "nome" text not null,
-  "descricao" text not null default ''::text,
-  "tipo" text not null default 'PUBLICO'::text,
-  "tenantId" text not null,
-  "categoriaId" text,
-  "criadoPorId" text,
-  "criadoEm" timestamp(3) without time zone not null default CURRENT_TIMESTAMP,
-  primary key (id)
-);
-CREATE UNIQUE INDEX "Canal_tenantId_nome_key" ON "Canal" USING btree ("tenantId", nome);
-
-create table "CanalMembro" (
-  "canalId" text not null,
-  "usuarioId" text not null,
-  "papel" text not null default 'MEMBRO'::text,
-  "entrouEm" timestamp(3) without time zone not null default CURRENT_TIMESTAMP,
-  primary key ("canalId", "usuarioId")
-);
-
-create table "Mensagem" (
-  "id" text not null,
-  "canalId" text not null,
-  "autorId" text,
-  "texto" text not null,
-  "criadoEm" timestamp(3) without time zone not null default CURRENT_TIMESTAMP,
-  primary key (id)
-);
 -- Como no banco real: RLS ligado em todas, sem políticas (a API pública do Supabase não vê nada).
 -- O acesso do lexagile_app vem das políticas de scripts/db-role.sql.
 alter table "Tenant" enable row level security;
@@ -231,11 +193,7 @@ alter table "Sprint" enable row level security;
 alter table "Atividade" enable row level security;
 alter table "Subtarefa" enable row level security;
 alter table "Comentario" enable row level security;
-alter table "Favorito" enable row level security;
 alter table "Transicao" enable row level security;
-alter table "Canal" enable row level security;
-alter table "CanalMembro" enable row level security;
-alter table "Mensagem" enable row level security;
 
 create table "Anotacao" (
   "id" text not null,

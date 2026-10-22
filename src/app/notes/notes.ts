@@ -1,14 +1,13 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { formatTime } from '../chat/chat';
+import { formatTime } from '../format';
 import { formatWeekDate } from '../home/home';
 import { RecentsStore } from '../home/recents-store';
 import { api } from '../api/http';
 import { MembersStore } from '../members/members-store';
-import { LINK, Note, NotesStore, linksIn } from './notes-store';
+import { Note, NotesStore } from './notes-store';
 
-type Segment = { text: string } | { link: string; exists: boolean };
 interface RoutedNote {
   id: string;
   previa: string;
@@ -51,34 +50,6 @@ export class Notes {
   });
 
   protected readonly selected = computed(() => this.store.notes().find((note) => note.id === this.selectedId()) ?? null);
-  protected readonly backlinks = computed(() => {
-    const note = this.selected();
-    return note ? this.store.backlinks(note) : [];
-  });
-  protected readonly outgoing = computed(() => {
-    const note = this.selected();
-    return note ? linksIn(note.content).length : 0;
-  });
-  protected readonly duplicateTitle = computed(() => {
-    const note = this.selected();
-    return !!note && this.store.notes().some((other) => other.id !== note.id && normalize(other.title.trim()) === normalize(note.title.trim()));
-  });
-  protected readonly others = computed(() => this.store.notes().filter((note) => note.id !== this.selectedId()));
-
-  // Texto da nota quebrado em pedaços: texto comum e links [[...]]
-  protected readonly segments = computed<Segment[]>(() => {
-    const content = this.selected()?.content ?? '';
-    const parts: Segment[] = [];
-    let last = 0;
-    for (const match of content.matchAll(LINK)) {
-      if (match.index > last) parts.push({ text: content.slice(last, match.index) });
-      const title = match[1].trim();
-      parts.push({ link: title, exists: !!this.store.findByTitle(title) });
-      last = match.index + match[0].length;
-    }
-    if (last < content.length) parts.push({ text: content.slice(last) });
-    return parts;
-  });
 
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -87,7 +58,7 @@ export class Notes {
   constructor() {
     afterNextRender(() => {
       this.store.load();
-      // Vindo do Brain ou dos Recentes: /workspace/notes?nota=ID abre a nota direto
+      // Vindo dos Recentes: /workspace/notes?nota=ID abre a nota direto
       this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
         const note = this.store.notes().find((n) => n.id === Number(params.get('nota')));
         if (note) this.open(note);
@@ -95,20 +66,12 @@ export class Notes {
     });
   }
 
-  protected isLink(segment: Segment): segment is { link: string; exists: boolean } {
-    return 'link' in segment;
-  }
-
   protected toDate(iso: string) {
     return new Date(iso);
   }
 
-  protected linkCount(note: Note) {
-    return linksIn(note.content).length;
-  }
-
   protected preview(note: Note) {
-    return note.content.replace(LINK, '$1').replace(/\s+/g, ' ').slice(0, 80);
+    return note.content.replace(/\s+/g, ' ').slice(0, 80);
   }
 
   protected open(note: Note, mode: 'read' | 'edit' = note.content ? 'read' : 'edit') {
@@ -132,44 +95,19 @@ export class Notes {
     this.open(note, 'edit');
   }
 
-  // Clicar num link abre a nota; se ela não existir, cria (igual ao Obsidian)
-  protected openLink(title: string) {
-    const note = this.store.findByTitle(title) ?? this.store.create(title);
-    this.open(note);
-  }
-
-  // Renomear: o título de quando a nota foi aberta fica guardado; ao sair do campo, os links são atualizados
+  // Título apagado por inteiro: ao sair do campo, volta o de antes
   private titleBeforeEdit = '';
 
   protected commitTitle() {
     const note = this.selected();
     if (!note || note.title === this.titleBeforeEdit) return;
     if (!note.title.trim()) this.store.update(note.id, { title: this.titleBeforeEdit || 'Sem título' });
-    this.store.rename(note.id, this.titleBeforeEdit, this.selected()!.title);
     this.titleBeforeEdit = this.selected()!.title;
   }
 
   protected edit(field: 'title' | 'content', value: string) {
     const id = this.selectedId();
     if (id !== null) this.store.update(id, { [field]: value });
-  }
-
-  // Inserir [[link]] onde está o cursor
-  private readonly editor = viewChild<ElementRef<HTMLTextAreaElement>>('editor');
-
-  protected insertLink(select: HTMLSelectElement) {
-    const title = select.value;
-    select.value = '';
-    const textarea = this.editor()?.nativeElement;
-    if (!title || !textarea) return;
-    const { selectionStart: start, selectionEnd: end, value } = textarea;
-    const link = `[[${title}]]`;
-    this.edit('content', value.slice(0, start) + link + value.slice(end));
-    // devolve o cursor para depois do link
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + link.length, start + link.length);
-    });
   }
 
   // Exclusão com confirmação

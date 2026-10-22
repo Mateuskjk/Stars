@@ -1,4 +1,4 @@
-// Pessoas do sistema (arquivo próprio: vários stores usam, sem depender da tela de Conversas)
+// Pessoas de exemplo (modo sem banco: testes e demonstração)
 export interface User {
   id: number;
   name: string;

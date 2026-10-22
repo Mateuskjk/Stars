@@ -9,7 +9,7 @@
           <span class="status-chip" [style.--status-color]="st.color">{{ st.label }}</span>
         }
         <span class="status-chip" [style.--status-color]="summary().health.color" title="Saúde pelo burn-up">{{ summary().health.label }}</span>
-        <a class="modal__ghost planning__small project-page__dash" [routerLink]="['/projetos']" [queryParams]="{ projeto: p.id }">Ver no Dash de Projetos</a>
+        <a class="modal__ghost planning__small project-page__dash" [routerLink]="['/dashboards']" [queryParams]="{ aba: 'projetos', projeto: p.id }">Ver nos Dashboards</a>
       </div>
       @if (p.description) {
         <p class="project-page__description">{{ p.description }}</p>

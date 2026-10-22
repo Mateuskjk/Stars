@@ -37,8 +37,6 @@ describe('outra empresa (Dono da B tentando mexer na A)', () => {
       ['POST', '/api/data/projetos', { tenantId: A, nome: 'invadido' }],
       ['POST', '/api/data/equipes', { tenantId: A, nome: 'invadido' }],
       ['POST', '/api/data/dailies', { tenantId: A, record: { date: new Date().toISOString(), participants: [] } }],
-      ['POST', `/api/chat/conversas/${IDS.canalA}/mensagens`, { texto: 'invadido' }],
-      ['PATCH', `/api/migracao/projetos/${IDS.projetoVisivel}`, { nome: 'invadido' }],
     ];
     for (const [method, path, body] of tries) {
       const r = await env.call('donoB', method, path, body);
@@ -47,8 +45,7 @@ describe('outra empresa (Dono da B tentando mexer na A)', () => {
     expect(await tituloDe(IDS.atividadeDoAtendente)).toBe('Do atendente');
   });
 
-  it('não lê o chat nem as dailies da A', async () => {
-    expect(denied((await env.call('donoB', 'GET', `/api/chat/conversas/${IDS.canalA}/mensagens`)).status)).toBe(true);
+  it('não lê as dailies da A', async () => {
     expect((await env.call('donoB', 'GET', `/api/data/dailies?tenantId=${A}`)).data).toEqual([]);
   });
 
@@ -68,8 +65,6 @@ describe('Observador (só leitura)', () => {
       ['POST', '/api/data/equipes', { tenantId: A, nome: 'x' }],
       ['POST', '/api/data/dailies', { tenantId: A, record: { date: new Date().toISOString(), participants: [] } }],
       ['PATCH', `/api/data/empresas/${A}`, { nome: 'x' }],
-      ['POST', `/api/chat/conversas/${IDS.canalA}/mensagens`, { texto: 'x' }],
-      ['POST', '/api/chat/diretas', { tenantId: A, email: 'dono.a@lexgroup.com.br' }],
     ];
     for (const [method, path, body] of tries) {
       const r = await env.call('observadorA', method, path, body);
@@ -79,7 +74,6 @@ describe('Observador (só leitura)', () => {
 
   it('continua lendo', async () => {
     expect((await env.call('observadorA', 'GET', '/api/data/projetos')).status).toBe(200);
-    expect((await env.call('observadorA', 'GET', `/api/chat/conversas/${IDS.canalA}/mensagens`)).status).toBe(200);
   });
 });
 
@@ -97,9 +91,7 @@ describe('Atendente (sem configuração)', () => {
       ['POST', '/api/data/sprints', { tenantId: A, nome: 'x', inicio: '2026-01-01', fim: '2026-01-10' }],
       ['PATCH', `/api/data/sprints/${IDS.sprintAtivaA}`, { situacao: 'FECHADA' }],
       ['POST', '/api/data/dominios', { dominio: 'gmail.com' }],
-      ['GET', '/api/migracao/status', undefined],
       ['PUT', '/api/internal/tokens/1', { token: 'stars_' + 'a'.repeat(48), role: 'admin', permissions: {} }],
-      ['GET', '/api/internal/api-access', undefined],
       ['GET', '/api/integrations/webhooks', undefined],
     ];
     for (const [method, path, body] of tries) {
@@ -160,7 +152,7 @@ describe('sessão', () => {
   });
 
   it('sem login, nada', async () => {
-    for (const path of ['/api/data/projetos', '/api/data/atividades', '/api/chat/conversas', '/api/migracao/status']) {
+    for (const path of ['/api/data/projetos', '/api/data/atividades']) {
       expect((await env.call(null, 'GET', path)).status, path).toBe(401);
     }
   });

@@ -12,9 +12,8 @@ try {
 if (process.env['DATABASE_ADMIN_URL']) process.env['DATABASE_URL'] = process.env['DATABASE_ADMIN_URL'];
 
 try {
-  const { installed, missing } = await migrateAll();
+  const { missing } = await migrateAll();
   const granted = await grantAppRole();
-  if (!installed) console.log('• Assistente de migração ainda não rodou: as tabelas de empresas/setores/sprints vêm dele (Configurações › Migração do banco).');
   console.log(granted ? '• Permissões do usuário lexagile_app atualizadas.' : '• Usuário lexagile_app não existe (ok se o app ainda usa o postgres).');
   if (missing.length) {
     console.error(`✘ Faltam tabelas: ${missing.join(', ')}. Confira se DATABASE_ADMIN_URL usa o usuário dono (postgres).`);

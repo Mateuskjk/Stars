@@ -72,9 +72,6 @@
                   @if (card.locked) {
                     <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
                   }
-                  @if (card.favorite) {
-                    <span class="backlog-card__star" title="Favorito" aria-label="Favorito">★</span>
-                  }
                   @if (card.assignee) {
                     <span class="backlog-card__avatar" [attr.title]="card.assignee">{{ initials(card.assignee) }}</span>
                   }

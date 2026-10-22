@@ -77,14 +77,6 @@ $modal-soft: var(--color-soft);
     }
   }
 
-  &__favorite {
-    font-size: 22px;
-
-    &.is-active {
-      color: #eda100;
-    }
-  }
-
   // O corpo rola; cabeçalho e rodapé ficam fixos
   &__body {
     display: grid;

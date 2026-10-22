@@ -1,5 +1,4 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { AuditStore, diff } from '../audit/audit-store';
 import { BacklogStore } from '../backlog/backlog-store';
 import { CustomColumnId, KanbanColumn, customColumn } from '../kanban/add-column';
 import { MembersStore } from '../members/members-store';
@@ -56,7 +55,6 @@ const SEED: Omit<Sector, 'id' | 'color' | 'columns'>[] = [
 
 @Injectable({ providedIn: 'root' })
 export class SectorStore {
-  private readonly audit = inject(AuditStore);
   private readonly members = inject(MembersStore);
   private readonly backlog = inject(BacklogStore);
   readonly sectors = signal<Sector[]>(SEED.map((sector, i) => ({ ...sector, id: i + 1, color: COLORS[i % COLORS.length], columns: SPRINT_COLUMNS })));
@@ -79,14 +77,13 @@ export class SectorStore {
     return this.ofCompany(companyId).some((sector) => sector.id !== exceptId && sector.name.toLowerCase() === target);
   }
 
-  create(companyId: number, companyName: string, data: SectorData) {
+  create(companyId: number, data: SectorData) {
     if (!this.members.isAdmin()) return null; // só admin cria setores
     const name = data.name.trim();
     if (!name || this.isNameTaken(companyId, name)) return null;
     const id = Math.max(0, ...this.sectors().map((s) => s.id)) + 1;
     const sector: Sector = { ...data, name, description: data.description.trim(), id, companyId, color: COLORS[(id - 1) % COLORS.length], columns: SPRINT_COLUMNS };
     this.sectors.update((list) => [...list, sector]);
-    this.audit.log({ action: 'create', entity: 'Setor', name, details: `Empresa: ${companyName}${data.manager ? ` · Gestor: ${data.manager}` : ''}` });
     return sector;
   }
 
@@ -96,12 +93,6 @@ export class SectorStore {
     const name = data.name.trim();
     if (!name || this.isNameTaken(before.companyId, name, id)) return false;
     this.sectors.update((list) => list.map((s) => (s.id === id ? { ...s, ...data, name, description: data.description.trim() } : s)));
-    const details = diff(
-      { ...before, memberIds: before.memberIds.length },
-      { ...before, ...data, name, memberIds: data.memberIds.length },
-      { name: 'Nome', description: 'Descrição', manager: 'Gestor', memberIds: 'Membros' },
-    );
-    if (details) this.audit.log({ action: 'update', entity: 'Setor', name, details });
     return true;
   }
 
@@ -109,32 +100,27 @@ export class SectorStore {
   remove(id: number) {
     const sector = this.byId(id);
     if (!this.members.isAdmin() || !sector) return;
-    const linked = this.backlog.items().filter((item) => item.sectorId === id).length;
     this.backlog.items.update((list) => list.map((item) => (item.sectorId === id ? { ...item, sectorId: undefined } : item)));
     this.sectors.update((list) => list.filter((s) => s.id !== id));
-    this.audit.log({ action: 'delete', entity: 'Setor', name: sector.name, details: linked ? `${linked} atividade(s) ficaram sem setor no Backlog` : undefined });
   }
 
   // ---------- Colunas do kanban da sprint (só admin) ----------
   addColumn(id: number, label: string) {
-    this.editColumns(id, (columns) => [...columns, customColumn(label, columns.length)], { action: 'create', name: label });
+    this.editColumns(id, (columns) => [...columns, customColumn(label, columns.length)]);
   }
 
   renameColumn(id: number, columnId: SprintColumnId, label: string) {
-    const from = this.byId(id)?.columns.find((c) => c.id === columnId)?.label;
-    this.editColumns(id, (columns) => columns.map((c) => (c.id === columnId ? { ...c, label } : c)), { action: 'update', name: label, from, to: label });
+    this.editColumns(id, (columns) => columns.map((c) => (c.id === columnId ? { ...c, label } : c)));
   }
 
   // As atividades da coluna excluída voltam para a primeira coluna
   removeColumn(id: number, columnId: SprintColumnId) {
-    const label = this.byId(id)?.columns.find((c) => c.id === columnId)?.label ?? columnId;
-    this.editColumns(id, (columns) => columns.filter((c) => c.id !== columnId), { action: 'delete', name: label });
+    this.editColumns(id, (columns) => columns.filter((c) => c.id !== columnId));
     this.backlog.items.update((list) => list.map((item) => (item.sectorId === id && item.sprintStatus === columnId ? { ...item, sprintStatus: undefined } : item)));
   }
 
-  private editColumns(id: number, change: (columns: Sector['columns']) => Sector['columns'], log: { action: 'create' | 'update' | 'delete'; name: string; from?: string; to?: string }) {
+  private editColumns(id: number, change: (columns: Sector['columns']) => Sector['columns']) {
     if (!this.members.isAdmin()) return; // só admin mexe nas colunas
     this.sectors.update((list) => list.map((s) => (s.id === id ? { ...s, columns: change(s.columns) } : s)));
-    this.audit.log({ ...log, entity: 'Coluna do kanban do setor' });
   }
 }
