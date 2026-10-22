@@ -14,6 +14,7 @@ import { INSTALL_SQL } from '../schema';
 import { dataRouter } from '../data';
 import { writesRouter } from '../writes';
 import { notesRouter } from '../notes';
+import { accountRouter } from '../account';
 import { attachmentsRouter } from '../attachments';
 import { domainsRouter } from '../domains';
 import { publicApiInternalRouter, publicApiRouter } from '../public-api';
@@ -122,6 +123,7 @@ export async function startTestEnv(): Promise<TestEnv> {
   app.use('/api/data', writesRouter());
   app.use('/api/data', domainsRouter());
   app.use('/api/data', notesRouter());
+  app.use('/api/data', accountRouter());
   app.use('/api/data', attachmentsRouter());
   app.use('/api/v1', publicApiRouter());
   app.use('/api/internal', requireAuth, publicApiInternalRouter());

@@ -3,7 +3,6 @@ import { PeopleStore } from '../members/people-store';
 import { formatTime, initials } from '../format';
 import { CompanyStore } from '../companies/company-store';
 import { SPRINT_COLUMNS, SectorStore, sprintColumnOf } from '../companies/sector-store';
-import { RecentsStore } from '../home/recents-store';
 import { PeoplePicker } from '../members/people-picker';
 import { ApiSync } from '../api/api-sync';
 import { Attachments } from '../attachments/attachments';
@@ -19,7 +18,6 @@ import { BacklogItem, BacklogStatus, BacklogStore, emptyItem, newId, tagColor } 
 })
 export class BacklogEditor {
   private readonly store = inject(BacklogStore);
-  private readonly recents = inject(RecentsStore);
 
   protected readonly columns = this.store.columns;
   protected readonly people = inject(PeopleStore).names; // membros reais da empresa escolhida
@@ -74,7 +72,6 @@ export class BacklogEditor {
   }
 
   openEdit(item: BacklogItem) {
-    this.recents.visit('card', item.id);
     this.draft.set({
       ...item,
       tags: [...item.tags],

@@ -1,5 +1,4 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
-import { CarouselItem } from '../carousel/carousel';
 import { MembersStore } from '../members/members-store';
 import { ProjectStore, cssImage } from '../projects/project-store';
 
@@ -65,7 +64,14 @@ const SEED: Company[] = [
   seed(6, 'Órbita Logística', 'Transporte e armazenagem', 'Europe/Lisbon', { currency: 'EUR', weekStart: 'monday' }),
 ];
 
-// Perfis de empresas: fonte única dos nomes usados em membros, equipes, projetos e no carrossel da Home
+// Card de empresa na Home
+export interface CarouselItem {
+  name: string;
+  cover: string; // gradiente, ou a imagem da empresa
+  link: string;
+}
+
+// Perfis de empresas: fonte única dos nomes usados em membros, equipes, projetos e nos cards da Home
 @Injectable({ providedIn: 'root' })
 export class CompanyStore {
   private readonly members = inject(MembersStore);
@@ -87,7 +93,7 @@ export class CompanyStore {
     });
   }
 
-  // Carrossel de Empresas: só perfis ativos marcados para aparecer; com imagem, ela vira a capa
+  // Cards de Empresas na Home: só perfis ativos marcados para aparecer; com imagem, ela vira a capa
   readonly carouselItems = computed<CarouselItem[]>(() =>
     this.active()
       .filter((company) => company.view.showInCarousel)

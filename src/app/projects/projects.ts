@@ -1,6 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { Carousel } from '../carousel/carousel';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
@@ -15,7 +14,7 @@ export function initials(name: string) {
 }
 
 @Component({
-  imports: [Carousel, AddColumn, ColumnTitle, RouterLink],
+  imports: [AddColumn, ColumnTitle, RouterLink],
   selector: 'app-projects',
   templateUrl: './projects.html',
   host: { class: 'projects' },
@@ -23,7 +22,6 @@ export function initials(name: string) {
 export class Projects {
   private readonly store = inject(ProjectStore);
   private readonly router = inject(Router);
-  protected readonly projects = this.store.carouselItems;
   protected readonly columns = this.store.statuses;
   protected readonly initials = initials;
   // Criar, renomear e excluir colunas: só admin

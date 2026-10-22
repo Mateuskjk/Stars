@@ -4,7 +4,7 @@ import { ProjectStore } from '../projects/project-store';
 import { CompanyStore } from './company-store';
 
 describe('CompanyStore', () => {
-  it('feeds the Home carousel only with active profiles shown in the carousel, using the image as cover', () => {
+  it('feeds the Home company cards only with active profiles marked to show, using the image as cover', () => {
     const store = TestBed.inject(CompanyStore);
     const acme = store.companies().find((c) => c.name === 'Acme Ltda')!;
     const nova = store.companies().find((c) => c.name === 'Nova Tech')!;

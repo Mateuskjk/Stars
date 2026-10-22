@@ -5,7 +5,7 @@
   grid-template-areas:
     'nav  nav'
     'left main';
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 240px 1fr;
   grid-template-rows: 74px 1fr;
   gap: 10px 20px; // linhas, colunas
   min-height: calc(100vh - 30px);
@@ -60,9 +60,6 @@
 
 .left-content {
   grid-area: left;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 // Data no topo de algumas telas (Daily, Notas, Planning)
@@ -85,85 +82,259 @@
   }
 }
 
-.side-card {
-  padding: 16px;
+// ---------- Menu principal (sidebar) ----------
+// Ocupa a altura toda da coluna: o fim da sidebar fica alinhado com o fim do main-content
+.sidebar {
+  padding: 12px;
   border-radius: 15px;
   background-color: $color-surface;
   box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
 
-  &__title {
+  // Acompanha a rolagem com a altura da janela (abaixo da barra do topo)
+  &__inner {
+    position: sticky;
+    top: 12px;
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    color: $color-title;
-    font-size: 16px;
+    flex-direction: column;
+    gap: 4px;
+    height: calc(100dvh - 132px);
+    overflow-y: auto;
   }
 
-  &__icon {
-    width: 18px;
-    height: 18px;
-    fill: none;
-    stroke: $color-title;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+  &__group {
+    margin: 10px 10px 2px;
+    color: var(--color-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     list-style: none;
-
-    li + li {
-      border-top: 1px solid $color-surface-hover;
-    }
   }
 
-  &__item {
+  &__link {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    // margem negativa: o fundo do hover passa da borda sem recuar o texto
-    margin: 0 -8px;
-    padding: 8px;
-    border-radius: 8px;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 10px;
     color: $color-text;
     font-size: 14px;
     text-decoration: none;
-    transition: background-color 0.2s;
+    transition:
+      background-color 0.2s,
+      color 0.2s;
 
     &:hover {
       background-color: $color-surface-hover;
     }
+
+    &.is-active {
+      background-color: $color-nav-hover;
+      color: $color-nav-text-hover;
+    }
   }
 
-  &__empty {
-    color: var(--color-muted);
-    font-size: 13px;
-    line-height: 1.4;
+  &__icon {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
+}
 
-  &__label {
+// ---------- Conta (rodapé da sidebar) ----------
+.user-menu {
+  position: relative;
+  margin-top: auto; // vai para o fim da sidebar
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line);
+
+  &__button {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    width: 100%;
+    padding: 8px;
+    border: none;
+    border-radius: 12px;
+    background: none;
+    color: $color-title;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover,
+    &[aria-expanded='true'] {
+      background-color: $color-surface-hover;
+    }
   }
 
   &__avatar {
     display: grid;
     place-items: center;
-    width: 24px;
-    height: 24px;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    overflow: hidden;
     border-radius: 50%;
-    background-color: $color-nav-hover;
-    color: $color-surface;
-    font-size: 10px;
+    background-color: var(--color-soft-strong);
+    color: $color-title;
+    font-size: 13px;
+    font-weight: 700;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  &__text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__name,
+  &__email {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__name {
+    font-size: 14px;
     font-weight: 600;
   }
 
-  &__type {
-    margin-right: 6px;
-    color: $color-icon;
+  &__email {
+    color: var(--color-muted);
     font-size: 12px;
+  }
+
+  // Opções abrem para cima, por cima do menu
+  &__list {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 6px);
+    left: 0;
+    z-index: 30;
+    padding: 6px;
+    border-radius: 14px;
+    background-color: $color-surface;
+    box-shadow: var(--shadow-ring), 0 10px 30px rgb(var(--shadow-color) / calc(0.3 * var(--shadow-strength)));
+  }
+}
+
+// ---------- Seletor de empresa (topo da sidebar) ----------
+.company-picker {
+  position: relative;
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-line);
+
+  &__button,
+  &__option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 8px;
+    border: none;
+    border-radius: 12px;
+    background: none;
+    color: $color-title;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover:not(:disabled),
+    &[aria-expanded='true'] {
+      background-color: $color-surface-hover;
+    }
+
+    &:disabled {
+      cursor: default;
+    }
+  }
+
+  &__avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background-color: #fff;
+    object-fit: cover;
+  }
+
+  &__avatar--initial {
+    display: grid;
+    place-items: center;
+    background-color: var(--color-soft-strong);
+    color: $color-title;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  &__name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__chevron {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: var(--color-muted);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  // Lista aberta: desce por cima do menu, com a mesma largura do seletor
+  &__list {
+    position: absolute;
+    top: calc(100% - 8px);
+    right: 0;
+    left: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 60vh;
+    padding: 6px;
+    overflow-y: auto;
+    list-style: none;
+    border-radius: 14px;
+    background-color: $color-surface;
+    box-shadow: var(--shadow-ring), 0 10px 30px rgb(var(--shadow-color) / calc(0.3 * var(--shadow-strength)));
+  }
+
+  &__option {
+    font-weight: 500;
+
+    &.is-current {
+      background-color: $color-surface-hover;
+    }
   }
 }
 
@@ -197,100 +368,26 @@
   }
 }
 
-.center-options {
-  padding: 6px;
+// Item dos menus do sino e do avatar
+.center-options__link {
+  display: block;
+  padding: 8px 14px;
+  border: none;
   border-radius: 25px;
-  background-color: $color-surface;
-  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+  background: none;
+  color: $color-nav-text;
+  font: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 
-  &__list {
-    display: flex;
-    gap: 4px;
-    list-style: none;
-  }
-
-  &__link {
-    display: block;
-    padding: 8px 14px;
-    border: none;
-    border-radius: 25px;
-    background: none;
-    color: $color-nav-text;
-    font: inherit;
-    text-decoration: none;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      background-color 0.2s,
-      color 0.2s;
-
-    &:hover,
-    &.is-active {
-      background-color: $color-nav-hover;
-      color: $color-nav-text-hover;
-    }
-  }
-
-  &__dropdown {
-    position: relative;
-
-    > .center-options__link {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    &.is-active > .center-options__link {
-      background-color: $color-nav-hover;
-      color: $color-nav-text-hover;
-    }
-
-    &:hover,
-    &:focus-within {
-      .center-options__submenu {
-        display: flex;
-      }
-
-      .center-options__chevron {
-        transform: rotate(180deg);
-      }
-    }
-  }
-
-  // Setinha que indica que o item abre um submenu
-  &__chevron {
-    flex-shrink: 0;
-    width: 14px;
-    height: 14px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    transition: transform 0.2s;
-  }
-
-  &__dropdown:last-child &__submenu {
-    right: 0;
-    left: auto;
-  }
-
-  &__submenu {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 10;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 100%;
-    // 12px em cima: a primeira opção não encosta na borda da barra
-    // (o submenu continua colado no botão, então o hover não se perde no caminho)
-    padding: 12px 6px 6px;
-    list-style: none;
-    border-radius: 0 0 10px 10px;
-    background-color: $color-surface;
-    box-shadow: var(--shadow-ring), 0 6px 12px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+  &:hover,
+  &.is-active {
+    background-color: $color-nav-hover;
+    color: $color-nav-text-hover;
   }
 }
 
@@ -475,7 +572,7 @@
   gap: 10px;
 }
 
-// Botão ☰: só aparece quando o menu do meio vira painel
+// Botão ☰: só aparece quando a sidebar vira painel (tablet e celular)
 .nav-toggle {
   display: none;
 }
@@ -492,10 +589,29 @@
     grid-template-rows: 74px 1fr;
   }
 
-  // Os cards da lateral (Acesso rápido, Recentes, Perfis acessados) somem:
-  // o menu ☰ já leva às telas e eles só empurravam o conteúdo
-  .left-content {
+  // A sidebar sai da grade e vira um painel que abre pelo ☰, abaixo da barra
+  .sidebar {
     display: none;
+    position: fixed;
+    top: 92px;
+    right: 12px;
+    left: 12px;
+    z-index: 20;
+    max-height: calc(100dvh - 110px);
+    box-shadow: var(--shadow-ring), 0 6px 12px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+
+    overflow-y: auto;
+
+    &.is-open {
+      display: block;
+    }
+  }
+
+  // No painel o menu ocupa só o necessário
+  .sidebar__inner {
+    position: static;
+    height: auto;
+    overflow: visible;
   }
 
   .navigation-top {
@@ -504,65 +620,6 @@
 
   .nav-toggle {
     display: grid;
-  }
-
-  // Menu do meio vira um painel que desce abaixo da barra
-  .center-options {
-    display: none;
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    left: 0;
-    z-index: 20;
-    border-radius: 15px;
-    box-shadow: var(--shadow-ring), 0 6px 12px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
-
-    &.is-open {
-      display: block;
-    }
-
-    &__list {
-      flex-direction: column;
-    }
-
-    &__link {
-      width: 100%;
-      text-align: left;
-    }
-
-    // Submenu do Workspace sempre aberto dentro do painel
-    // Submenus começam fechados; o clique no item abre (a setinha gira)
-    &__submenu {
-      display: none;
-      position: static;
-      padding: 0 0 0 16px;
-      box-shadow: none;
-    }
-
-    &__dropdown > .center-options__link {
-      justify-content: space-between;
-    }
-
-    &__dropdown:hover,
-    &__dropdown:focus-within {
-      .center-options__submenu {
-        display: none;
-      }
-
-      .center-options__chevron {
-        transform: none;
-      }
-    }
-
-    .center-options__dropdown.is-expanded {
-      .center-options__submenu {
-        display: block;
-      }
-
-      .center-options__chevron {
-        transform: rotate(180deg);
-      }
-    }
   }
 }
 
@@ -615,36 +672,6 @@
     &__name {
       display: none; // só as estrelas, para caber os botões
     }
-  }
-}
-
-// Seletor de empresa no topo (só aparece para quem está em mais de uma empresa)
-.company-switch {
-  max-width: 200px;
-  height: 40px;
-  padding: 0 32px 0 16px;
-  border: none;
-  border-radius: 40px;
-  background: $color-surface url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238390a3' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 14px;
-  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
-  color: $color-text;
-  font: inherit;
-  font-size: 14px;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  appearance: none;
-
-  &:hover {
-    background-color: $color-surface-hover;
-  }
-
-  option {
-    background-color: var(--color-card);
-    color: $color-text;
-  }
-
-  @media (max-width: $bp-tablet) {
-    max-width: 120px;
   }
 }
 

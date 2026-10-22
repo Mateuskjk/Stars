@@ -4,13 +4,13 @@ import { ProjectCreate } from './project-create';
 import { ProjectStore } from './project-store';
 
 describe('ProjectCreate', () => {
-  it('creates a project from the last table row and feeds the carousel', async () => {
+  it('creates a project from the last table row', async () => {
     await TestBed.configureTestingModule({ imports: [ProjectCreate], providers: [provideRouter([])] }).compileComponents();
     const fixture = TestBed.createComponent(ProjectCreate);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     const store = TestBed.inject(ProjectStore);
-    const before = store.carouselItems().length;
+    const before = store.topLevel().length;
 
     const field = (name: string) => el.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)!;
     field('name').value = 'Portal B2B';
@@ -22,7 +22,7 @@ describe('ProjectCreate', () => {
 
     const created = store.projects().at(-1)!;
     expect(created).toMatchObject({ name: 'Portal B2B', status: 'review', costInitial: 1500.5, sector: 'Financeiro' });
-    expect(store.carouselItems()).toHaveLength(before + 1);
+    expect(store.topLevel()).toHaveLength(before + 1);
     expect(el.querySelectorAll('tbody tr')).toHaveLength(before + 1);
     expect(field('name').value).toBe(''); // linha de criação limpa para o próximo
   });

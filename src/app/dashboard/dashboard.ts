@@ -7,7 +7,6 @@ import { H, PAD, Tip, TipState, lineChart, pieChart, plotH, tipAt, watchChartWid
 import { ActivityAccess } from '../companies/activity-access';
 import { CompanyStore } from '../companies/company-store';
 import { SPRINT_COLUMNS, SectorStore, sprintColumnOf } from '../companies/sector-store';
-import { RecentsStore } from '../home/recents-store';
 import { SprintStore } from '../planning/sprint-store';
 import { GanttItem, HEALTH, ProjectSummary, burnDown, burnUp, gantt, health, insights, shortDate, weekday } from '../projects/project-metrics';
 import { ProjectTask, SPRINT_DAYS, sprintOf, sprintWindow, today } from '../projects/project-tasks';
@@ -242,11 +241,7 @@ export class Dashboard {
 
   constructor() {
     watchChartWidth('.project-dash__charts .dash-card', this.chartWidth);
-    const recents = inject(RecentsStore);
-    afterNextRender(() => {
-      this.ai.load();
-      recents.visit('dashboard', 'dashboards');
-    });
+    afterNextRender(() => this.ai.load());
   }
 
   // Quantas atividades da sprint estão em cada status (colunas de outros setores contam como "Não iniciado")

@@ -6,7 +6,6 @@ import { initials } from '../format';
 import { Member, MembersStore } from '../members/members-store';
 import { ProjectStore } from '../projects/project-store';
 import { Team, TeamData, TeamsStore } from './teams-store';
-import { RecentsStore } from '../home/recents-store';
 
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const empty = (): TeamData => ({ name: '', focus: '', memberIds: [], projectIds: [], activityIds: [] });
@@ -76,7 +75,6 @@ export class Teams {
     this.openEditor();
   }
 
-  private readonly recents = inject(RecentsStore);
 
   constructor() {
     const route = inject(ActivatedRoute);
@@ -91,7 +89,6 @@ export class Teams {
   }
 
   protected openEdit(team: Team) {
-    this.recents.visit('team', team.id);
     this.editingId.set(team.id);
     // Quem perdeu a elegibilidade (saiu da empresa, foi removido…) não volta para o rascunho
     const eligible = new Set(this.eligible().map((member) => member.id));

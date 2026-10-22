@@ -1,2 +1,15 @@
-<app-carousel title="Projetos" [items]="projects()" />
-<app-carousel class="carousel--large" title="Empresas" [items]="companies()" />
+<!-- Empresas: cards fixos (380 × 300) que quebram linha quando não cabem -->
+<section class="company-cards" aria-labelledby="home-empresas">
+  <h2 id="home-empresas" class="company-cards__title">Empresas</h2>
+  <ul class="company-cards__list">
+    @for (item of companies(); track item.link) {
+      <li class="company-cards__card">
+        <div class="company-cards__image" [style.background]="item.cover"></div>
+        <div class="company-cards__footer">
+          <span class="company-cards__name">{{ item.name }}</span>
+          <a class="company-cards__open" [routerLink]="item.link">Abrir</a>
+        </div>
+      </li>
+    }
+  </ul>
+</section>

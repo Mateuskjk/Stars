@@ -3,7 +3,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { formatTime } from '../format';
 import { formatWeekDate } from '../home/home';
-import { RecentsStore } from '../home/recents-store';
 import { api } from '../api/http';
 import { MembersStore } from '../members/members-store';
 import { Note, NotesStore } from './notes-store';
@@ -53,7 +52,6 @@ export class Notes {
 
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly recents = inject(RecentsStore);
 
   constructor() {
     afterNextRender(() => {
@@ -78,7 +76,6 @@ export class Notes {
     this.commitTitle(); // se estava renomeando outra nota, conclui antes de trocar
     this.selectedId.set(note.id);
     this.titleBeforeEdit = note.title;
-    this.recents.visit('note', note.id);
     this.mode.set(mode);
   }
 

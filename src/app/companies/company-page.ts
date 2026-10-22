@@ -1,6 +1,5 @@
-import { Component, DestroyRef, afterNextRender, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, afterNextRender, computed, inject, input, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { RecentsStore } from '../home/recents-store';
 import { MembersStore } from '../members/members-store';
 import { BacklogStore } from '../backlog/backlog-store';
 import { ProjectStore, cssImage } from '../projects/project-store';
@@ -76,11 +75,6 @@ export class CompanyPage {
   });
 
   constructor() {
-    const recents = inject(RecentsStore);
-    effect(() => {
-      const company = this.company();
-      if (company) untracked(() => recents.visit('company', company.id));
-    });
     // Hora local da empresa, atualizada a cada minuto
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
