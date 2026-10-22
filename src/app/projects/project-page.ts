@@ -1,8 +1,7 @@
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { PeopleStore } from '../members/people-store';
 import { Router, RouterLink } from '@angular/router';
 import { compressImage } from '../companies/company-store';
-import { RecentsStore } from '../home/recents-store';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
@@ -112,15 +111,6 @@ export class ProjectPage {
   // Nome do agregado no cartão (as do próprio projeto não levam etiqueta)
   protected subprojectOf(task: ProjectTask) {
     return task.projectId === Number(this.id()) ? null : (this.children().find((c) => c.id === task.projectId)?.name ?? null);
-  }
-
-  constructor() {
-    // Entra nos "Recentes" da lateral
-    const recents = inject(RecentsStore);
-    effect(() => {
-      const project = this.project();
-      if (project) untracked(() => recents.visit('project', project.id));
-    });
   }
 
   // ---------- Resumo do andamento ----------

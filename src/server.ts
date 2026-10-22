@@ -14,6 +14,7 @@ import { mcpRouters } from './server/mcp';
 import { dataRouter } from './server/data';
 import { writesRouter } from './server/writes';
 import { notesRouter } from './server/notes';
+import { accountRouter } from './server/account';
 import { attachmentsRouter } from './server/attachments';
 import { integrationsRouter } from './server/integrations';
 import { publicApiInternalRouter, publicApiRouter } from './server/public-api';
@@ -63,6 +64,7 @@ app.use('/api/data', dataRouter());
 app.use('/api/data', writesRouter());
 app.use('/api/data', domainsRouter());
 app.use('/api/data', notesRouter());
+app.use('/api/data', accountRouter());
 app.use('/api/data', attachmentsRouter());
 
 /**

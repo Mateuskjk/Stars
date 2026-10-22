@@ -1,6 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { MembersStore } from '../members/members-store';
-import { CarouselItem } from '../carousel/carousel';
 import { CustomColumnId, KanbanColumn, customColumn } from '../kanban/add-column';
 
 export type ProjectStatus =
@@ -99,10 +98,6 @@ export class ProjectStore {
     const ids = new Set(this.visible().map((p) => p.id));
     return this.visible().filter((p) => !p.parentId || !ids.has(p.parentId));
   });
-
-  readonly carouselItems = computed<CarouselItem[]>(() =>
-    this.topLevel().map((project) => ({ name: project.name, cover: project.cover, link: `/projetos/${project.id}` })),
-  );
 
   childrenOf(id: number) {
     return this.visible().filter((p) => p.parentId === id);

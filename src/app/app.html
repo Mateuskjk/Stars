@@ -30,64 +30,7 @@
           <span class="logo-sys__name">LexÁgile</span>
         </a>
       </div>
-      <nav class="center-options" [class.is-open]="openMenu() === 'nav'" (click)="closeNavOnLinkClick($event)">
-        <ul class="center-options__list">
-          <li><a class="center-options__link" routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Home</a></li>
-          <li><a class="center-options__link" routerLink="/dashboards" routerLinkActive="is-active">Dashboards</a></li>
-          <li class="center-options__dropdown" routerLinkActive="is-active" [class.is-expanded]="openSubmenu() === 'projetos'">
-            <button class="center-options__link" type="button" aria-haspopup="true" [attr.aria-expanded]="openSubmenu() === 'projetos'" (click)="toggleSubmenu('projetos')">
-              Projetos
-              <svg class="center-options__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-            </button>
-            <ul class="center-options__submenu">
-              <li><a class="center-options__link" routerLink="/projetos/visaoGeral">Geral</a></li>
-              <li><a class="center-options__link" routerLink="/projetos/novo">Criar Novo Projeto</a></li>
-            </ul>
-          </li>
-          <li class="center-options__dropdown" routerLinkActive="is-active" [class.is-expanded]="openSubmenu() === 'workspace'">
-            <button class="center-options__link" type="button" aria-haspopup="true" [attr.aria-expanded]="openSubmenu() === 'workspace'" (click)="toggleSubmenu('workspace')">
-              Workspace
-              <svg class="center-options__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-            </button>
-            <ul class="center-options__submenu">
-              <li><a class="center-options__link" routerLink="/workspace/work">Work</a></li>
-              <li><a class="center-options__link" routerLink="/workspace/daily">Daily</a></li>
-              <li><a class="center-options__link" routerLink="/workspace/backlog">Backlog</a></li>
-              <li><a class="center-options__link" routerLink="/workspace/planning">Planning</a></li>
-              <li><a class="center-options__link" routerLink="/workspace/notes">Notes</a></li>
-              <li><a class="center-options__link" routerLink="/arquivo">Arquivo</a></li>
-            </ul>
-          </li>
-          <li class="center-options__dropdown" routerLinkActive="is-active" [class.is-expanded]="openSubmenu() === 'configuracoes'">
-            <button class="center-options__link" type="button" aria-haspopup="true" [attr.aria-expanded]="openSubmenu() === 'configuracoes'" (click)="toggleSubmenu('configuracoes')">
-              Configurações
-              <svg class="center-options__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-            </button>
-            <ul class="center-options__submenu">
-              <li><a class="center-options__link" routerLink="/configuracoes/perfis-empresas">Perfis Empresas</a></li>
-              <li><a class="center-options__link" routerLink="/configuracoes/membros">Membros</a></li>
-              <li><a class="center-options__link" routerLink="/configuracoes/equipes">Equipes</a></li>
-              <li><a class="center-options__link" routerLink="/configuracoes/integracao-ia">Integração com IA</a></li>
-              <li><a class="center-options__link" routerLink="/configuracoes/integracoes">Integrações</a></li>
-            </ul>
-          </li>
-        </ul>
-      </nav>
       <div class="bottons">
-        <!-- Empresa em que a pessoa trabalha agora: projetos, Backlog, Planning, sprint e Dashboards seguem ela.
-             Quem está em uma empresa só não vê o seletor (o servidor já manda só a empresa e o setor dela) -->
-        @if (companyStore.active().length > 1) {
-          <select
-            class="company-switch"
-            aria-label="Empresa"
-            title="Empresa"
-            (change)="session.selectCompany(+$any($event.target).value)"
-          >
-            @for (c of companyStore.active(); track c.id) {
-              <option [value]="c.id" [selected]="c.id === companyStore.currentId()">{{ c.name }}</option>
-            }
-          </select>
-        }
         <!-- Tema: lua no modo claro (vai para o escuro), sol no modo escuro (volta para o claro) -->
         <button
           class="nav-button"
@@ -164,28 +107,68 @@
             </svg>
           </button>
         </div>
-
-        <div class="nav-menu">
-          <button
-            class="nav-button"
-            type="button"
-            aria-label="Menu do usuário"
-            [attr.aria-expanded]="openMenu() === 'user'"
-            (click)="toggleMenu('user')"
-          >
-            @if (account.account().photo; as photo) {
-              <img class="nav-button__photo" [src]="photo" alt="" />
-            } @else if (account.account().fullName || account.account().displayName) {
-              <span class="nav-button__initials">{{ account.initials() }}</span>
-            } @else {
-              <svg class="nav-button__icon" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21a8 8 0 0 1 16 0" />
-              </svg>
+      </div>
+    </div>
+    <!-- Menu principal. No tablet/celular vira um painel que abre pelo ☰ -->
+    <nav class="left-content sidebar" [class.is-open]="openMenu() === 'nav'" aria-label="Menu principal" (click)="closeNavOnLinkClick($event)">
+      <!-- O fundo estica até o fim do conteúdo; o menu acompanha a rolagem (empresa no topo, conta no rodapé) -->
+      <div class="sidebar__inner">
+        <!-- Empresa em que a pessoa trabalha agora: projetos, Backlog, Planning, sprint e Dashboards seguem ela.
+             Quem está em uma empresa só vê a empresa, sem lista para trocar -->
+        @if (companyStore.current(); as current) {
+          <div class="company-picker">
+            <button
+              class="company-picker__button"
+              type="button"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="companyMenu()"
+              [disabled]="companyStore.active().length < 2"
+              (click)="companyMenu.set(!companyMenu())"
+            >
+              <ng-container [ngTemplateOutlet]="avatar" [ngTemplateOutletContext]="{ $implicit: current }" />
+              <span class="company-picker__name">{{ current.name }}</span>
+              @if (companyStore.active().length > 1) {
+                <svg class="company-picker__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /></svg>
+              }
+            </button>
+            @if (companyMenu()) {
+              <ul class="company-picker__list" role="listbox" aria-label="Empresa">
+                @for (c of companyStore.active(); track c.id) {
+                  <li role="option" [attr.aria-selected]="c.id === current.id">
+                    <button class="company-picker__option" type="button" [class.is-current]="c.id === current.id" (click)="pickCompany(c.id)">
+                      <ng-container [ngTemplateOutlet]="avatar" [ngTemplateOutletContext]="{ $implicit: c }" />
+                      <span class="company-picker__name">{{ c.name }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
             }
-          </button>
-          @if (openMenu() === 'user') {
-            <ul class="nav-menu__dropdown nav-menu__list">
+          </div>
+        }
+        @for (group of navGroups; track group.label) {
+          @if (group.label) {
+            <p class="sidebar__group">{{ group.label }}</p>
+          }
+          <ul class="sidebar__list">
+            @for (item of group.items; track item.link) {
+              <li>
+                <a class="sidebar__link" [routerLink]="item.link" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: item.link === '/' }">
+                  <svg class="sidebar__icon" viewBox="0 0 24 24" aria-hidden="true">
+                    @for (d of item.icon; track $index) {
+                      <path [attr.d]="d" />
+                    }
+                  </svg>
+                  {{ item.label }}
+                </a>
+              </li>
+            }
+          </ul>
+        }
+
+        <!-- Conta (rodapé da sidebar): as opções abrem para cima -->
+        <div class="user-menu">
+          @if (userMenu()) {
+            <ul class="user-menu__list nav-menu__list">
               <li><a class="center-options__link" routerLink="/conta">Minha conta</a></li>
               <li><a class="center-options__link" routerLink="/api-publica">API pública</a></li>
               <li><a class="center-options__link" routerLink="/erros-navegador">Erros do navegador</a></li>
@@ -214,97 +197,33 @@
               <li><button class="center-options__link" type="button" (click)="session.logout()">Sair</button></li>
             </ul>
           }
+          <button class="user-menu__button" type="button" aria-haspopup="true" [attr.aria-expanded]="userMenu()" (click)="userMenu.set(!userMenu())">
+            <span class="user-menu__avatar" aria-hidden="true">
+              @if (account.account().photo; as photo) {
+                <img [src]="photo" alt="" />
+              } @else {
+                {{ userInitials() }}
+              }
+            </span>
+            <span class="user-menu__text">
+              <span class="user-menu__name">{{ userName() }}</span>
+              <span class="user-menu__email">{{ session.me()?.email }}</span>
+            </span>
+            <svg class="company-picker__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /></svg>
+          </button>
         </div>
       </div>
-    </div>
-    <div class="left-content">
-      <div class="side-card">
-        <h2 class="side-card__title">
-          <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
-          </svg>
-          Acesso rápido
-        </h2>
-        <ul class="side-card__list">
-          @for (item of quickAccess; track item.label) {
-            <li>
-              <a class="side-card__item" [routerLink]="item.link">
-                <span class="side-card__label">
-                  <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
-                    @for (d of item.icon; track $index) {
-                      <path [attr.d]="d" />
-                    }
-                  </svg>
-                  {{ item.label }}
-                </span>
-                <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 12h14" />
-                  <path d="m13 6 6 6-6 6" />
-                </svg>
-              </a>
-            </li>
-          }
-        </ul>
-      </div>
-      <div class="side-card">
-        <h2 class="side-card__title">
-          <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 2" />
-          </svg>
-          Recentes
-        </h2>
-        <ul class="side-card__list">
-          @for (item of recents(); track $index) {
-            <li>
-              <a class="side-card__item" [routerLink]="item.link" [queryParams]="item.query">
-                <span>
-                  <span class="side-card__type">{{ item.type }}</span>
-                  {{ item.title }}
-                </span>
-                <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 12h14" />
-                  <path d="m13 6 6 6-6 6" />
-                </svg>
-              </a>
-            </li>
-          } @empty {
-            <li class="side-card__empty">O que você abrir (projetos, notas, cartões e dashboards) aparece aqui.</li>
-          }
-        </ul>
-      </div>
-      <div class="side-card">
-        <h2 class="side-card__title">
-          <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="9" cy="8" r="4" />
-            <path d="M2 21a7 7 0 0 1 14 0" />
-            <path d="M16 4a4 4 0 0 1 0 8" />
-            <path d="M22 21a7 7 0 0 0-4-6.3" />
-          </svg>
-          Perfis acessados
-        </h2>
-        <ul class="side-card__list">
-          @for (profile of recentProfiles(); track $index) {
-            <li>
-              <a class="side-card__item" [routerLink]="profile.link" [queryParams]="profile.query">
-                <span class="side-card__label">
-                  <span class="side-card__avatar" aria-hidden="true">{{ profile.initials }}</span>
-                  {{ profile.title }}
-                  <span class="side-card__type">{{ profile.type }}</span>
-                </span>
-                <svg class="side-card__icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 12h14" />
-                  <path d="m13 6 6 6-6 6" />
-                </svg>
-              </a>
-            </li>
-          } @empty {
-            <li class="side-card__empty">Membros, equipes e perfis de empresa que você abrir aparecem aqui.</li>
-          }
-        </ul>
-      </div>
-    </div>
+    </nav>
   </div>
+
+  <!-- Imagem da empresa (ou a inicial, sem imagem) -->
+  <ng-template #avatar let-c>
+    @if (c.image) {
+      <img class="company-picker__avatar" [src]="c.image" alt="" />
+    } @else {
+      <span class="company-picker__avatar company-picker__avatar--initial" aria-hidden="true">{{ c.name.charAt(0) }}</span>
+    }
+  </ng-template>
 
   <!-- Falha ao gravar no banco -->
   @if (session.saveError()) {

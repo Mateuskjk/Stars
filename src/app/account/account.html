@@ -25,7 +25,7 @@
         @if (profile.photo) {
           <button class="attachment__link members__danger" type="button" (click)="patch({ photo: null })">Remover foto</button>
         }
-        <span class="modal__hint">Aparece no botão de usuário, no topo.</span>
+        <span class="modal__hint">Aparece na sua conta, no rodapé da sidebar.</span>
       </div>
     </div>
     @if (photoError()) {
@@ -133,14 +133,14 @@
     <!-- Restaurar -->
     <section class="account__card account__card--danger">
       <h3 class="account__title">Restaurar padrões</h3>
-      <p class="modal__hint">Volta perfil e preferências ao estado inicial neste navegador.</p>
+      <p class="modal__hint">Volta perfil e preferências ao estado inicial.</p>
       <button class="modal__ghost modal__ghost--danger account__reset" type="button" (click)="askReset()">Restaurar padrões da conta</button>
     </section>
   </div>
 </div>
 
 <p class="ai__security account__note">
-  ℹ️ Enquanto o LexÁgile não tem login, sua conta fica salva neste navegador. Senha, sessões e verificação em duas etapas chegam junto com o login.
+  ℹ️ Sua conta fica salva no LexÁgile (vale em qualquer computador em que você entrar).
 </p>
 
 <dialog #confirmDialog class="confirm-dialog" aria-labelledby="account-confirm-title" (click)="closeOnBackdrop($event, confirmDialog)">

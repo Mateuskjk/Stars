@@ -1,4 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
+import { api } from '../api/http';
 
 export type NotificationType = 'daily' | 'planning' | 'mentions' | 'system';
 
@@ -52,6 +53,19 @@ export function greetingFor(hour: number) {
 
 // Conta do usuário atual: perfil e preferências pessoais.
 // ponytail: sem login, fica no localStorage deste navegador; com login, buscar/salvar no servidor por usuário
+// Conta salva + padrão: campos novos ganham valor mesmo em contas salvas antes deles existirem
+function withDefaults(saved: Partial<Account>): Account {
+  return {
+    ...DEFAULT_ACCOUNT,
+    ...saved,
+    notifications: {
+      ...DEFAULT_ACCOUNT.notifications,
+      ...saved.notifications,
+      types: { ...DEFAULT_ACCOUNT.notifications.types, ...saved.notifications?.types },
+    },
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class AccountStore {
   readonly account = signal<Account>(DEFAULT_ACCOUNT);
@@ -69,31 +83,44 @@ export class AccountStore {
   });
   readonly timeZone = computed(() => this.account().timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
-  // Chamado no navegador depois da primeira renderização (no SSR não existe localStorage)
+  // Chamado no navegador depois da primeira renderização (no SSR não existe localStorage).
+  // A cópia deste navegador abre na hora; a do servidor (que vale em qualquer computador) chega logo depois.
   load() {
     if (this.loaded || typeof localStorage === 'undefined') return;
     this.loaded = true;
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
       if (saved && typeof saved === 'object') {
-        // mescla com o padrão: campos novos ganham valor mesmo em contas salvas antes deles existirem
-        this.account.set({
-          ...DEFAULT_ACCOUNT,
-          ...saved,
-          notifications: {
-            ...DEFAULT_ACCOUNT.notifications,
-            ...saved.notifications,
-            types: { ...DEFAULT_ACCOUNT.notifications.types, ...saved.notifications?.types },
-          },
-        });
+        this.account.set(withDefaults(saved));
+        this.hasLocal = true;
       }
     } catch {
       // armazenamento bloqueado ou dado corrompido: fica com o padrão
+    }
+    void this.pull();
+  }
+
+  // Busca a conta no servidor (de novo a cada login). Sem nada lá ainda, envia a deste navegador.
+  async pull() {
+    const editedBefore = this.edits;
+    let dados: Partial<Account> | null;
+    try {
+      ({ dados } = await api<{ dados: Partial<Account> | null }>('/data/conta'));
+    } catch {
+      return; // sem login ou servidor fora: fica a cópia deste navegador
+    }
+    if (this.edits !== editedBefore) return this.push(); // a pessoa mexeu enquanto carregava: vale o que ela fez
+    if (dados) {
+      this.account.set(withDefaults(dados));
+      this.writeLocal();
+    } else if (this.hasLocal) {
+      this.push();
     }
   }
 
   update(changes: Partial<Account>) {
     this.account.update((account) => ({ ...account, ...changes }));
+    this.edits++;
     this.persist();
   }
 
@@ -106,7 +133,22 @@ export class AccountStore {
     this.persist();
   }
 
+  private hasLocal = false;
+  private edits = 0;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+
   private persist() {
+    this.writeLocal();
+    // Várias mudanças seguidas (ex.: ligar vários tipos de notificação) viram uma gravação só
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.push(), 500);
+  }
+
+  private push() {
+    void api('/data/conta', { method: 'PUT', body: JSON.stringify({ dados: this.account() }) }).catch(() => undefined);
+  }
+
+  private writeLocal() {
     try {
       localStorage.setItem(KEY, JSON.stringify(this.account()));
     } catch {

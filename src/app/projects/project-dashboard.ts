@@ -2,7 +2,6 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Component, afterNextRender, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AiStore } from '../ai/ai-store';
-import { RecentsStore } from '../home/recents-store';
 import { H, PAD, Tip, TipState, lineChart, plotH, tipAt, watchChartWidth } from '../charts/charts';
 import { BurnUp, GanttItem, HEALTH, ProjectSummary, burnDown, burnUp, gantt, health, insights, shortDate, weekday } from './project-metrics';
 import { ProjectStore } from './project-store';
@@ -153,11 +152,7 @@ export class ProjectDashboard {
 
   constructor() {
     watchChartWidth('.project-dash__charts .dash-card', this.chartWidth);
-    const recents = inject(RecentsStore);
-    afterNextRender(() => {
-      this.ai.load();
-      recents.visit('dashboard', 'projects');
-    });
+    afterNextRender(() => this.ai.load());
     // Vindo da página do projeto: /projetos?projeto=ID já abre filtrado
     const id = Number(inject(ActivatedRoute).snapshot.queryParamMap.get('projeto'));
     if (id) this.projectId.set(id);

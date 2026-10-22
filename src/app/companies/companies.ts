@@ -3,7 +3,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { MembersStore } from '../members/members-store';
 import { Company, CompanyData, CompanyStore, DEFAULT_VIEW, ViewSettings, compressImage } from './company-store';
-import { RecentsStore } from '../home/recents-store';
 import { cssImage } from '../projects/project-store';
 
 type Filter = 'active' | 'inactive' | 'all';
@@ -112,10 +111,8 @@ export class Companies {
     this.openEditor();
   }
 
-  private readonly recents = inject(RecentsStore);
 
   protected openEdit(company: Company) {
-    this.recents.visit('company', company.id);
     this.editingId.set(company.id);
     const { id, cover, ...data } = company;
     this.draft.set({ ...data, view: { ...data.view } });

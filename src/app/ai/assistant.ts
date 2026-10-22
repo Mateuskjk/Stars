@@ -9,7 +9,7 @@ const PAGES: [RegExp, string][] = [
   [/^\/dashboards/, 'Dashboards › Sprints e setores (atividades gerais dos setores: burn-up, burn-down, Gantt, insights e análise da IA)'],
   [/^\/projetos\/novo/, 'Criar novo projeto (tabela de projetos)'],
   [/^\/projetos\/\d+/, 'Página de um projeto (cabeçalho com os dados e kanban das atividades)'],
-  [/^\/projetos\/visaoGeral/, 'Projetos > Geral (carrossel e kanban)'],
+  [/^\/projetos\/visaoGeral/, 'Projetos > Geral (kanban dos projetos)'],
   [/^\/empresas\/\d+\/setores\/\d+/, 'Página de um setor (cabeçalho, projetos ligados e kanban das atividades gerais do Backlog e da Planning)'],
   [/^\/empresas\/\d+/, 'Página de uma empresa (cabeçalho com os dados e perfis dos setores)'],
   [/^\/workspace\/daily/, 'Daily'],

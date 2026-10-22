@@ -1,11 +1,75 @@
+@use '../variables' as *;
+
 .home {
   display: flex;
   flex-direction: column;
   flex: 1;
   gap: 20px;
 
-  // o gap de 20px já separa a data do carrossel
-  .week-date {
-    margin-bottom: 0;
+}
+
+// Empresas na Home: cards de 300 de altura e no mínimo 380 de largura, que esticam para preencher a linha
+// (sem sobra de espaço nas laterais) e quebram linha quando não cabem
+.company-cards {
+  &__title {
+    margin-bottom: 12px;
+    padding: 0 4px;
+    color: $color-title;
+    font-size: 16px;
+  }
+
+  &__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
+    gap: 32px; // espaço entre os cards (na linha e entre linhas)
+    padding: 4px; // espaço para a sombra dos cards
+    list-style: none;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    height: 300px;
+    overflow: hidden;
+    border-radius: 15px;
+    background-color: $color-surface;
+    box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+  }
+
+  &__image {
+    height: 70%;
+  }
+
+  &__footer {
+    display: flex;
+    flex: 1;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  &__name {
+    overflow: hidden;
+    color: $color-text;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__open {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 25px;
+    background-color: $color-nav-hover;
+    color: $color-surface;
+    font-size: 13px;
+    text-decoration: none;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 0.85;
+    }
   }
 }

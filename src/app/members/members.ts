@@ -3,7 +3,6 @@ import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, s
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { initials } from '../format';
-import { RecentsStore } from '../home/recents-store';
 import { ResponsiveTable } from '../responsive-table';
 import { AllowedDomains } from './allowed-domains';
 import {
@@ -144,7 +143,6 @@ export class Members {
   private readonly permDialog = viewChild.required<ElementRef<HTMLDialogElement>>('permDialog');
   protected readonly editing = signal<Member | null>(null);
 
-  private readonly recents = inject(RecentsStore);
 
   constructor() {
     const route = inject(ActivatedRoute);
@@ -159,7 +157,6 @@ export class Members {
   }
 
   protected openPermissions(member: Member) {
-    this.recents.visit('member', member.id);
     this.editing.set(member);
     this.permDraft.set({ ...member.permissions });
     this.permDialog().nativeElement.showModal();

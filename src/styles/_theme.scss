@@ -61,9 +61,9 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fffefd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 7h13l-4-4M17 17H4l4 4'/%3E%3C/svg%3E");
   }
 
-  // Sombra mais forte: cards dos carrosséis, dashboards (geral e de projetos) e cabeçalhos
+  // Sombra mais forte: cards das empresas na Home, dashboards (geral e de projetos) e cabeçalhos
   // das empresas, setores e projetos
-  .carousel__card,
+  .company-cards__card,
   .dash-card,
   .company-page__header,
   .project-page__header {

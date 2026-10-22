@@ -1,9 +1,8 @@
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { PeopleStore } from '../members/people-store';
 import { Router, RouterLink } from '@angular/router';
 import { BacklogEditor } from '../backlog/backlog-editor';
 import { BacklogItem, BacklogStore, emptyItem, tagColor } from '../backlog/backlog-store';
-import { RecentsStore } from '../home/recents-store';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
@@ -125,14 +124,6 @@ export class SectorPage {
 
   protected readonly doneCount = computed(() => this.board().find((c) => c.id === 'done')?.cards.length ?? 0);
   protected readonly doneLabel = computed(() => this.columns().find((c) => c.id === 'done')?.label ?? 'Finalizado');
-
-  constructor() {
-    const recents = inject(RecentsStore);
-    effect(() => {
-      const sector = this.sector();
-      if (sector) untracked(() => recents.visit('sector', sector.id));
-    });
-  }
 
   protected sprintOf(item: BacklogItem) {
     return this.sprints.byId(item.sprintId);

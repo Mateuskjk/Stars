@@ -1,5 +1,6 @@
 import { Injectable, Injector, inject, signal } from '@angular/core';
 import { ApiError, api } from './http';
+import { AccountStore } from '../account/account-store';
 import type { ApiSync, Me } from './api-sync';
 
 // Sessão do app: sem login, nenhuma tela de dados aparece (o servidor também recusa as rotas com 401)
@@ -23,6 +24,7 @@ export class SessionStore {
     try {
       const me = await api<Me>('/auth/me');
       await (await this.sync()).load(me);
+      void this.injector.get(AccountStore).pull(); // Minha conta da pessoa que entrou
       this.me.set(me);
       this.error.set('');
       this.status.set('in');

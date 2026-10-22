@@ -1,17 +1,14 @@
 import { Component, inject } from '@angular/core';
-import { Carousel } from '../carousel/carousel';
+import { RouterLink } from '@angular/router';
 import { CompanyStore } from '../companies/company-store';
-import { ProjectStore } from '../projects/project-store';
 
 @Component({
-  imports: [Carousel],
+  imports: [RouterLink],
   selector: 'app-home',
   templateUrl: './home.html',
   host: { class: 'home' },
 })
 export class Home {
-  protected readonly projects = inject(ProjectStore).carouselItems;
-
   protected readonly companies = inject(CompanyStore).carouselItems;
 }
 
