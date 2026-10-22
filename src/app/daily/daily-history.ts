@@ -1,5 +1,4 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { AuditStore } from '../audit/audit-store';
 import { ApiSync } from '../api/api-sync';
 import { api } from '../api/http';
 import { CompanyStore } from '../companies/company-store';
@@ -23,7 +22,6 @@ const KEY = 'stars.daily-history';
 // sem login (exemplos e testes), só neste navegador
 @Injectable({ providedIn: 'root' })
 export class DailyHistory {
-  private readonly audit = inject(AuditStore);
   private readonly sync = inject(ApiSync);
   private readonly companies = inject(CompanyStore);
   private readonly members = inject(MembersStore);
@@ -47,7 +45,6 @@ export class DailyHistory {
 
   async add(record: DailyRecord) {
     this.records.update((list) => [record, ...list]);
-    this.audit.log({ action: 'close', entity: 'Daily', name: dailyName(record), details: `${record.participants.filter((p) => p.notes).length} pessoas com anotações` });
     const tenantId = this.tenantId();
     if (!tenantId) return write(this.records());
     try {
@@ -61,7 +58,6 @@ export class DailyHistory {
   async remove(id: number | string) {
     const record = this.records().find((r) => r.id === id);
     this.records.update((list) => list.filter((r) => r.id !== id));
-    if (record) this.audit.log({ action: 'delete', entity: 'Daily', name: dailyName(record) });
     if (typeof id === 'number') return write(this.records());
     try {
       await api(`/data/dailies/${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -89,4 +85,3 @@ function write(records: DailyRecord[]) {
   }
 }
 
-const dailyName = (record: DailyRecord) => `Daily de ${new Date(record.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`;

@@ -46,10 +46,3 @@ describe('usuário do banco lexagile_app', () => {
     expect(ativs).toBe(0);
   });
 });
-
-describe('assistente de migração como lexagile_app', () => {
-  it('as ações gravam o log (precisa de permissão na sequência do migracao_log)', async () => {
-    const r = await env.call('donoA', 'POST', '/api/migracao/setores', { tenantId: 'tenant-a', nome: 'Setor criado na migração' });
-    expect(r.status, JSON.stringify(r.data)).toBe(200);
-  });
-});

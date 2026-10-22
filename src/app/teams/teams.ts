@@ -2,7 +2,7 @@ import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, s
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BacklogStatus, BacklogStore } from '../backlog/backlog-store';
-import { initials } from '../chat/chat';
+import { initials } from '../format';
 import { Member, MembersStore } from '../members/members-store';
 import { ProjectStore } from '../projects/project-store';
 import { Team, TeamData, TeamsStore } from './teams-store';

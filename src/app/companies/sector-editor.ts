@@ -64,7 +64,7 @@ export class SectorEditor {
     const memberIds = managerId && !this.memberIds().includes(managerId) ? [...this.memberIds(), managerId] : this.memberIds();
     const sectorData = { name, description: String(data.get('description') ?? ''), manager, memberIds };
     if (sector) this.store.update(sector.id, sectorData);
-    else this.store.create(this.company().id, this.company().name, sectorData);
+    else this.store.create(this.company().id, sectorData);
     this.dialog().nativeElement.close();
   }
 

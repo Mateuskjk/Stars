@@ -105,7 +105,7 @@ export class ApiDocs {
     return op.parameters.some((p) => p.required && !(this.values()[`${op.path}:${p.name}`] ?? '').trim());
   }
 
-  // "Experimentar": chama a API de verdade com o token informado (fica registrado na auditoria)
+  // "Experimentar": chama a API de verdade com o token informado
   protected async run(op: Operation) {
     this.results.update((all) => ({ ...all, [op.path]: 'loading' }));
     const started = performance.now();

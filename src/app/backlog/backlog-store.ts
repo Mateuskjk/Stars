@@ -1,5 +1,4 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { AuditAction, AuditStore, diff } from '../audit/audit-store';
 import { MembersStore } from '../members/members-store';
 import { CompanyStore } from '../companies/company-store';
 import { sprintOf, sprintWindow, today } from '../projects/project-tasks';
@@ -50,7 +49,6 @@ export interface BacklogItem {
   subtasks: Subtask[];
   attachments: Attachment[];
   locked: boolean;
-  favorite: boolean;
   // Planning: só vale para atividades em "Finalizado refinamento"
   planning?: 'ready' | 'waiting'; // padrão: 'ready' (pronta para a sprint)
   sprintId?: number; // definida quando a atividade entra numa sprint
@@ -101,7 +99,6 @@ export function emptyItem(status: BacklogStatus = 'to-refine'): BacklogItem {
     subtasks: [],
     attachments: [],
     locked: false,
-    favorite: false,
   };
 }
 
@@ -115,7 +112,7 @@ function sprintDay(id: number, day: number) {
 }
 
 const SEED: Omit<BacklogItem, 'id'>[] = [
-  { ...emptyItem('to-refine'), name: 'Padronizar e-mails de boas-vindas', sectorId: 1, description: 'Revisar textos e layout dos e-mails automáticos.', due: inDays(5), tags: ['comunicação'], assignee: 'Ana Souza', favorite: true },
+  { ...emptyItem('to-refine'), name: 'Padronizar e-mails de boas-vindas', sectorId: 1, description: 'Revisar textos e layout dos e-mails automáticos.', due: inDays(5), tags: ['comunicação'], assignee: 'Ana Souza' },
   { ...emptyItem('to-refine'), name: 'Levantar ferramentas de BI', sectorId: 6, description: 'Comparar opções para os relatórios internos.', tags: ['pesquisa', 'dados'], assignee: 'Gabriela Nunes' },
   { ...emptyItem('refined'), name: 'Política de férias 2027', sectorId: 3, description: 'Definir janelas e regras de aprovação.', due: inDays(-2), tags: ['RH'], assignee: 'Felipe Costa', comments: [{ id: 1, author: 'Ana Souza', text: 'Falta validar com o jurídico.', time: hoursAgo(20) }] },
   {
@@ -185,9 +182,8 @@ function history(): Omit<BacklogItem, 'id'>[] {
 // Atividades gerais do backlog (não são atividades de projeto)
 @Injectable({ providedIn: 'root' })
 export class BacklogStore {
-  private readonly audit = inject(AuditStore);
   private readonly members = inject(MembersStore);
-  // ids fixos (1, 2, 3…) nos exemplos: equipes e favoritos apontam para eles
+  // ids fixos (1, 2, 3…) nos exemplos: as equipes apontam para eles
   readonly items = signal<BacklogItem[]>(SEED.map((item, i) => ({ ...item, id: i + 1 })));
   // Colunas fixas + criadas pelo usuário (ponytail: só em memória, como as atividades)
   readonly columns = signal(BACKLOG_COLUMNS);
@@ -202,54 +198,39 @@ export class BacklogStore {
 
   renameColumn(id: BacklogStatus, label: string) {
     if (!this.members.isAdmin()) return; // só admin mexe nas colunas
-    const before = this.label(id);
     this.columns.update((list) => list.map((column) => (column.id === id ? { ...column, label } : column)));
-    this.audit.log({ action: 'update', entity: 'Coluna do backlog', name: label, from: before, to: label });
   }
 
   // As atividades da coluna excluída vão para a primeira coluna
   removeColumn(id: BacklogStatus) {
     if (!this.members.isAdmin()) return; // só admin mexe nas colunas
     const fallback = this.columns()[0];
-    const moved = this.items().filter((item) => item.status === id).length;
-    const name = this.label(id);
     this.items.update((list) => list.map((item) => (item.status === id ? { ...item, status: fallback.id } : item)));
     this.columns.update((list) => list.filter((column) => column.id !== id));
-    this.audit.log({ action: 'delete', entity: 'Coluna do backlog', name, details: moved ? `${moved} atividade(s) movida(s) para ${fallback.label}` : undefined });
   }
 
   addColumn(label: string) {
     if (!this.members.isAdmin()) return; // só admin mexe nas colunas
     this.columns.update((list) => [...list, customColumn(label, list.length)]);
-    this.audit.log({ action: 'create', entity: 'Coluna do backlog', name: label });
   }
 
-  save(item: BacklogItem, sprintLabel: (status: BacklogItem) => string = (i) => i.sprintStatus ?? '—') {
+  save(item: BacklogItem) {
     if (item.id) {
-      const before = this.items().find((current) => current.id === item.id);
       this.items.update((list) => list.map((current) => (current.id === item.id ? stamp(current, item) : current)));
-      if (before) this.logChanges(before, item);
-      if (before?.sprintId && sprintLabel(before) !== sprintLabel(item)) {
-        this.audit.log({ action: 'move', entity: 'Atividade da sprint', name: item.name, from: sprintLabel(before), to: sprintLabel(item) });
-      }
     } else {
       const companyId = item.companyId ?? this.companyId() ?? undefined; // nasce na empresa escolhida
       this.items.update((list) => [...list, stamp(undefined, { ...item, companyId, id: Math.max(0, ...list.map((current) => current.id)) + 1 })]);
-      this.audit.log({ action: 'create', entity: 'Atividade', name: item.name, to: this.label(item.status) });
     }
   }
 
   patch(id: number, changes: Partial<BacklogItem>) {
-    const before = this.items().find((item) => item.id === id);
     this.items.update((list) => list.map((item) => (item.id === id ? stamp(item, { ...item, ...changes }) : item)));
-    if (before) this.logChanges(before, { ...before, ...changes });
   }
 
   move(id: number, status: BacklogStatus) {
     const before = this.items().find((item) => item.id === id);
     if (!before || before.locked || before.status === status) return;
     this.items.update((list) => list.map((item) => (item.id === id ? { ...item, status } : item)));
-    this.logChanges(before, { ...before, status });
   }
 
   // Status na sprint (kanban do setor). "blocked" = cadeado; sair de Bloqueado desbloqueia o cartão.
@@ -258,48 +239,11 @@ export class BacklogStore {
     if (!before || labels.from === labels.to) return;
     const changes = status === 'blocked' ? { locked: true } : { locked: false, sprintStatus: status };
     this.items.update((list) => list.map((item) => (item.id === id ? stamp(item, { ...item, ...changes }) : item)));
-    this.audit.log({ action: 'move', entity: 'Atividade da sprint', name: before.name, ...labels });
   }
 
   remove(id: number) {
     const item = this.items().find((current) => current.id === id);
     item?.attachments.forEach((file) => URL.revokeObjectURL(file.url));
     this.items.update((list) => list.filter((current) => current.id !== id));
-    if (item) this.audit.log({ action: 'delete', entity: 'Atividade', name: item.name, from: this.label(item.status) });
-  }
-
-  // Auditoria: mudança de coluna vira movimentação/arquivamento/cancelamento; o resto vira alteração
-  private logChanges(before: BacklogItem, after: BacklogItem) {
-    const name = after.name;
-    if (before.status !== after.status) {
-      const action: AuditAction = after.status === 'archived' ? 'archive' : after.status === 'canceled' ? 'cancel' : 'move';
-      this.audit.log({ action, entity: 'Atividade', name, from: this.label(before.status), to: this.label(after.status) });
-    }
-    if (before.sprintId !== after.sprintId) {
-      const sprint = (id?: number) => (id ? `Sprint ${id}` : 'Planning');
-      this.audit.log({ action: 'move', entity: 'Atividade', name, from: sprint(before.sprintId), to: sprint(after.sprintId) });
-    }
-    const details = diff(
-      { ...before, attachments: before.attachments.map((a) => a.name), subtasks: before.subtasks.length, comments: before.comments.length },
-      { ...after, attachments: after.attachments.map((a) => a.name), subtasks: after.subtasks.length, comments: after.comments.length },
-      FIELD_LABELS,
-    );
-    if (details) this.audit.log({ action: 'update', entity: 'Atividade', name, details });
   }
 }
-
-// Campos acompanhados na auditoria (status e sprint têm registro próprio)
-const FIELD_LABELS: Record<string, string> = {
-  name: 'Nome',
-  description: 'Descrição',
-  due: 'Prazo',
-  tags: 'Tags',
-  assignee: 'Responsável',
-  sharedWith: 'Compartilhada com',
-  locked: 'Bloqueado',
-  favorite: 'Favorito',
-  planning: 'Categoria na planning',
-  subtasks: 'Sub atividades',
-  comments: 'Comentários',
-  attachments: 'Anexos',
-};

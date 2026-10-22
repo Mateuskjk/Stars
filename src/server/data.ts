@@ -4,13 +4,13 @@
 import { Request, Response, Router } from 'express';
 import { db, parseJson } from './db';
 import { Session, isSuperAdmin, requireAuth } from './auth';
-import { ensureSchema, isInstalled } from './migration';
+import { ensureSchema, isInstalled } from './schema';
 
 export const tenantsOf = (s: Session) => s.memberships.map((m) => m.tenantId);
 export const meOf = (s: Session) => s.memberships.map((m) => m.usuarioId);
 
 // Visibilidade das atividades (mesma regra do front, agora garantida no servidor):
-// vê tudo da empresa: DONO e GESTOR, ou empresa com visibilidade 'TUDO' (definida na migração);
+// vê tudo da empresa: DONO e GESTOR, ou empresa com visibilidade 'TUDO';
 // os demais veem as próprias (responsável ou criador), as compartilhadas com eles, as da equipe
 // (equipes ativas com visão compartilhada) e tudo dos setores de que fazem parte
 // (atividades gerais do setor e atividades dos projetos do setor).
@@ -260,7 +260,6 @@ export function dataRouter() {
                             from "Subtarefa" st where st."atividadeId" = a.id), '[]') as subtarefas,
                 coalesce((select json_agg(json_build_object('id', c.id, 'autor', u.nome, 'texto', c.texto, 'em', c."criadoEm") order by c."criadoEm")
                             from "Comentario" c left join "Usuario" u on u.id = c."autorId" where c."atividadeId" = a.id), '[]') as comentarios,
-                exists (select 1 from "Favorito" f where f."atividadeId" = a.id and f."usuarioId" = any($2::text[])) as favorito,
                 ${installed ? `(select g."setorId" from lexagile.atividade_setor g where g."atividadeId" = a.id)` : 'null'} as "setorGeral",
                 ${installed ? `(select x."colunaBacklog" from lexagile.atividade_front x where x."atividadeId" = a.id)` : 'null'} as "colunaBacklog",
                 ${installed ? `(select x."colunaSprint" from lexagile.atividade_front x where x."atividadeId" = a.id)` : 'null'} as "colunaSprint",

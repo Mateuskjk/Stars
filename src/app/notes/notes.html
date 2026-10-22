@@ -38,12 +38,7 @@
           <button class="notes__item" type="button" [class.is-active]="note.id === selectedId()" (click)="open(note)">
             <span class="notes__item-title">{{ note.title }}</span>
             <span class="notes__item-preview">{{ preview(note) || 'Nota vazia' }}</span>
-            <span class="notes__item-meta">
-              {{ formatTime(toDate(note.updated)) }}
-              @if (linkCount(note)) {
-                · 🔗 {{ linkCount(note) }}
-              }
-            </span>
+            <span class="notes__item-meta">{{ formatTime(toDate(note.updated)) }}</span>
           </button>
         </li>
       } @empty {
@@ -79,22 +74,8 @@
           </svg>
         </button>
       </header>
-      @if (duplicateTitle()) {
-        <p class="notes__warning" role="status">Já existe outra nota com esse título: os links [[...]] vão para a primeira delas.</p>
-      }
-
       @if (mode() === 'edit') {
-        <div class="notes__link-bar">
-          <span class="notes__hint">Escreva <code>[[Título]]</code> para linkar, ou escolha:</span>
-          <select class="notes__link-select" aria-label="Inserir link para outra nota" (change)="insertLink($any($event.target))">
-            <option value="">+ Linkar nota…</option>
-            @for (other of others(); track other.id) {
-              <option [value]="other.title">{{ other.title }}</option>
-            }
-          </select>
-        </div>
         <textarea
-          #editor
           class="notes__content"
           aria-label="Conteúdo da nota"
           placeholder="Comece a escrever…"
@@ -103,42 +84,16 @@
         ></textarea>
       } @else {
         <article class="notes__reader" (dblclick)="mode.set('edit')">
-          @for (part of segments(); track $index) {
-            @if (isLink(part)) {
-              <button
-                class="notes__link"
-                type="button"
-                [class.is-missing]="!part.exists"
-                [attr.title]="part.exists ? 'Abrir ' + part.link : 'Criar a nota ' + part.link"
-                (click)="openLink(part.link)"
-              >
-                {{ part.link }}
-              </button>
-            } @else {
-              <span>{{ part.text }}</span>
-            }
-          } @empty {
+          @if (note.content) {
+            <span>{{ note.content }}</span>
+          } @else {
             <p class="notes__empty">Nota vazia. Clique em Editar (ou dê dois cliques aqui) para escrever.</p>
           }
         </article>
       }
 
       <footer class="notes__footer">
-        <section>
-          <h3 class="notes__footer-title">Mencionada em ({{ backlinks().length }})</h3>
-          @if (backlinks().length) {
-            <ul class="notes__backlinks">
-              @for (other of backlinks(); track other.id) {
-                <li>
-                  <button class="notes__link" type="button" (click)="open(other)">{{ other.title }}</button>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="notes__hint">Nenhuma nota aponta para esta ainda.</p>
-          }
-        </section>
-        <p class="notes__hint">🔗 {{ outgoing() }} {{ outgoing() === 1 ? 'link' : 'links' }} saindo · editada {{ formatTime(toDate(note.updated)) }}</p>
+        <p class="notes__hint">Editada {{ formatTime(toDate(note.updated)) }}</p>
       </footer>
     } @else {
       <button class="chat__placeholder" type="button" (click)="newNote()">
@@ -164,7 +119,7 @@
     </span>
     <h2 id="notes-confirm-title" class="confirm-dialog__title">Excluir esta nota?</h2>
     <p class="confirm-dialog__text">
-      <strong>{{ selected()?.title }}</strong> será apagada. Os links para ela nas outras notas continuam no texto, mas passam a apontar para uma nota que não existe.
+      <strong>{{ selected()?.title }}</strong> será apagada.
     </p>
     <div class="confirm-dialog__actions">
       <button class="confirm-dialog__button" type="button" autofocus (click)="cancelDelete()">Cancelar</button>

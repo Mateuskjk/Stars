@@ -31,7 +31,7 @@ interface DbAtividade {
   estimativa: number | null; arquivadoTipo: string | null; criadoEm: string; atualizadoEm: string; tenantId: string;
   subtarefas?: { id: string; titulo: string; feito: boolean }[];
   comentarios?: { id: string; autor: string | null; texto: string; em: string }[];
-  favorito?: boolean; colunaBacklog?: string | null; colunaSprint?: string | null; planning?: string | null;
+  colunaBacklog?: string | null; colunaSprint?: string | null; planning?: string | null;
 }
 export interface Me { nome: string; email: string; memberships: { usuarioId: string; tenantId: string; papel: string; role: Role; readOnly: boolean }[] }
 
@@ -295,7 +295,7 @@ export class ApiSync {
     const nameOf = (usuarioId: string | null) => (usuarioId && personOf.has(usuarioId) ? personName.get(personOf.get(usuarioId)!)! : '');
     const peopleIds = (usuarioIds: string[]) => [...new Set(usuarioIds.filter((u) => personOf.has(u)).map((u) => personOf.get(u)!))];
 
-    // ---------- Setores (e o setor de cada usuário, pelos membros definidos na migração) ----------
+    // ---------- Setores (e o setor de cada usuário, pelos membros do setor) ----------
     const setorNome = new Map(setores.map((s) => [s.id, s.nome]));
     const setorDoUsuario = new Map<string, string>();
     for (const s of setores) for (const m of s.membros) if (!setorDoUsuario.has(m.usuarioId)) setorDoUsuario.set(m.usuarioId, s.id);
@@ -377,7 +377,7 @@ export class ApiSync {
 
     // ---------- Atividades ----------
     // Com projeto → kanban do projeto. Sem projeto → Backlog / Planning / kanban do setor.
-    // Setor da atividade: o marcado como "geral" na migração; sem marcação, o setor do responsável.
+    // Setor da atividade: o marcado como "geral" do setor; sem marcação, o setor do responsável.
     // Marcada como geral e com projeto: aparece nos dois (no setor e no projeto).
     const items: BacklogItem[] = [];
     const tasks: ProjectTask[] = [];
@@ -431,7 +431,6 @@ export class ApiSync {
         assignee: nameOf(a.responsavelId),
         sharedWith: a.compartilhadoCom.map(nameOf).filter(Boolean),
         locked: !!a.bloqueioMotivo,
-        favorite: !!a.favorito,
         planning: a.planning === 'waiting' || a.planning === 'ready' ? a.planning : undefined,
         subtasks: (a.subtarefas ?? []).map((st, i) => ({ id: i + 1, title: st.titulo, done: st.feito })),
         comments: (a.comentarios ?? []).map((c) => ({ id: commentId++, author: c.autor ?? '—', text: c.texto, time: new Date(c.em) })),
@@ -497,7 +496,6 @@ export class ApiSync {
       colunaBacklog: item.status,
       colunaSprint: item.sprintStatus ?? null,
       subtarefas: item.subtasks.map((s) => ({ titulo: s.title, feito: s.done })),
-      favorito: item.favorite,
       planning: item.planning ?? null,
     };
   }

@@ -5,7 +5,7 @@ export type NotificationType = 'daily' | 'planning' | 'mentions' | 'system';
 export const NOTIFICATION_TYPES: { id: NotificationType; label: string; description: string }[] = [
   { id: 'daily', label: 'Daily', description: 'Lembretes e resumos da daily' },
   { id: 'planning', label: 'Planning e sprints', description: 'Sprint criada, fechada ou atividades enviadas para você' },
-  { id: 'mentions', label: 'Menções e conversas', description: 'Quando alguém fala com você ou te menciona' },
+  { id: 'mentions', label: 'Menções', description: 'Quando alguém te menciona' },
   { id: 'system', label: 'Avisos do sistema', description: 'Novidades e avisos importantes do LexÁgile' },
 ];
 
@@ -57,7 +57,7 @@ export class AccountStore {
   readonly account = signal<Account>(DEFAULT_ACCOUNT);
   private loaded = false;
 
-  // Nome mostrado na saudação e usado como "quem fez" na auditoria
+  // Nome mostrado no app
   readonly name = computed(() => {
     const { displayName, fullName } = this.account();
     return displayName.trim() || fullName.trim().split(' ')[0] || 'Usuário';

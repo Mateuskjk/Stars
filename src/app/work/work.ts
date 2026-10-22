@@ -2,7 +2,7 @@ import { Component, ElementRef, computed, inject, signal, viewChild } from '@ang
 import { BacklogItem, BacklogStore } from '../backlog/backlog-store';
 import { BacklogEditor } from '../backlog/backlog-editor';
 import { ProjectTaskEditor } from '../projects/project-task-editor';
-import { initials } from '../chat/chat';
+import { initials } from '../format';
 import { MembersStore } from '../members/members-store';
 import { SPRINT_COLUMNS, SectorStore, sprintColumnOf } from '../companies/sector-store';
 import { SprintStore } from '../planning/sprint-store';

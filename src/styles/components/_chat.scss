@@ -1,39 +1,8 @@
 @use '../variables' as *;
 
-$chat-border: var(--color-line);
-$chat-muted: var(--color-muted);
-$chat-bubble: var(--color-soft);
-
+// Peças que vieram da antiga tela de Conversas e outras telas reaproveitam: campo de busca, botões de ícone,
+// botão redondo de enviar e o espaço vazio clicável (Notas, Membros, Arquivo, assistente de IA).
 .chat {
-  display: grid;
-  flex: 1 1 0; // ocupa a altura do main-content sem esticá-lo
-  grid-template-columns: 320px minmax(0, 1fr); // minmax(0): texto longo não alarga a coluna
-  min-height: min(600px, 75dvh);
-  overflow: hidden;
-  border: 1px solid $chat-border;
-  border-radius: 15px;
-
-  &__sidebar {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
-    border-right: 1px solid $chat-border;
-  }
-
-  &__toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px;
-    border-bottom: 1px solid $chat-border;
-  }
-
-  &__toolbar-title {
-    color: $color-title;
-    font-size: 16px;
-  }
-
   &__search {
     display: flex;
     flex: 1;
@@ -43,8 +12,8 @@ $chat-bubble: var(--color-soft);
     padding: 0 12px;
     height: 40px;
     border-radius: 40px;
-    background-color: $chat-bubble;
-    color: $chat-muted;
+    background-color: var(--color-soft);
+    color: var(--color-muted);
 
     input {
       flex: 1;
@@ -87,7 +56,7 @@ $chat-bubble: var(--color-soft);
     transition: background-color 0.2s;
 
     &:hover {
-      background-color: $chat-bubble;
+      background-color: var(--color-soft);
     }
 
     &--primary {
@@ -98,173 +67,6 @@ $chat-bubble: var(--color-soft);
         background-color: $color-nav-hover;
         opacity: 0.85;
       }
-    }
-  }
-
-  &__list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 6px;
-    list-style: none;
-  }
-
-  &__contact {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    padding: 10px;
-    border: none;
-    border-radius: 10px;
-    background: none;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: background-color 0.2s;
-
-    &:hover {
-      background-color: $chat-bubble;
-    }
-
-    &.is-active {
-      background-color: $color-nav-hover;
-
-      .chat__contact-name {
-        color: $color-surface;
-      }
-
-      .chat__contact-preview,
-      .chat__contact-time {
-        color: var(--color-muted);
-      }
-    }
-  }
-
-  &__contact-text,
-  &__header-text {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  &__contact-name {
-    color: $color-title;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  &__contact-preview {
-    overflow: hidden;
-    color: $chat-muted;
-    font-size: 13px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  &__contact-time {
-    align-self: flex-start;
-    color: $chat-muted;
-    font-size: 12px;
-  }
-
-  &__empty-list {
-    padding: 24px 12px;
-    color: $chat-muted;
-    font-size: 14px;
-    text-align: center;
-  }
-
-  &__conversation {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
-  }
-
-  &__header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-bottom: 1px solid $chat-border;
-  }
-
-  &__back {
-    display: none; // só no celular
-  }
-
-  // column-reverse: a rolagem começa embaixo, na mensagem mais recente
-  &__messages {
-    display: flex;
-    flex: 1;
-    flex-direction: column-reverse;
-    gap: 10px;
-    overflow-y: auto;
-    padding: 16px;
-    list-style: none;
-  }
-
-  &__message {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    max-width: 75%;
-
-    &.is-mine {
-      align-self: flex-end;
-      align-items: flex-end;
-
-      .chat__bubble {
-        border-radius: 15px 15px 4px 15px;
-        background-color: $color-nav-hover;
-        color: $color-surface;
-      }
-    }
-  }
-
-  &__bubble {
-    padding: 10px 14px;
-    border-radius: 15px 15px 15px 4px;
-    background-color: $chat-bubble;
-    color: $color-text;
-    font-size: 14px;
-    overflow-wrap: anywhere;
-  }
-
-  &__message-time {
-    margin-top: 4px;
-    color: $chat-muted;
-    font-size: 11px;
-  }
-
-  &__empty-messages {
-    margin: auto;
-    color: $chat-muted;
-    font-size: 14px;
-  }
-
-  &__composer {
-    display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    border-top: 1px solid $chat-border;
-  }
-
-  &__composer-input {
-    flex: 1;
-    min-width: 0;
-    height: 44px;
-    padding: 0 16px;
-    border: none;
-    border-radius: 44px;
-    outline: none;
-    background-color: $chat-bubble;
-    color: $color-text;
-    font: inherit;
-
-    &:focus {
-      outline: 2px solid $color-nav-hover;
     }
   }
 
@@ -296,7 +98,7 @@ $chat-bubble: var(--color-soft);
     gap: 12px;
     border: none;
     background: none;
-    color: $chat-muted;
+    color: var(--color-muted);
     font: inherit;
     font-size: 16px;
     cursor: pointer;
@@ -315,78 +117,4 @@ $chat-bubble: var(--color-soft);
     stroke-width: 1.5;
     stroke-linejoin: round;
   }
-}
-
-.chat-avatar {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: $color-nav-hover;
-  color: $color-surface;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-// ---------- Responsivo ----------
-
-@media (max-width: $bp-tablet) {
-  .chat {
-    grid-template-columns: 260px minmax(0, 1fr);
-  }
-}
-
-// Celular: um painel por vez (lista ou conversa)
-@media (max-width: $bp-mobile) {
-  .chat {
-    grid-template-columns: minmax(0, 1fr);
-
-    &__sidebar {
-      border-right: none;
-    }
-
-    &__conversation {
-      display: none;
-    }
-
-    &.has-active {
-      .chat__sidebar {
-        display: none;
-      }
-
-      .chat__conversation {
-        display: flex;
-      }
-    }
-
-    &__back {
-      display: grid;
-    }
-  }
-}
-
-// Canais da empresa (vêm do banco): avatar com "#"
-.chat-avatar--channel {
-  background-color: var(--color-soft-strong);
-  color: $color-title;
-  font-weight: 700;
-}
-
-// Nos canais, o nome de quem escreveu aparece acima da mensagem
-.chat__author {
-  margin: 0 0 2px 4px;
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.chat__error {
-  margin: 8px 16px 0;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
-  color: var(--ink-red);
-  font-size: 13px;
 }

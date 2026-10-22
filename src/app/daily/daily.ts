@@ -1,5 +1,5 @@
 import { Component, ElementRef, afterNextRender, computed, inject, linkedSignal, signal, viewChild } from '@angular/core';
-import { formatTime, initials } from '../chat/chat';
+import { formatTime, initials } from '../format';
 import { api } from '../api/http';
 import { MembersStore } from '../members/members-store';
 import { PeopleStore } from '../members/people-store';

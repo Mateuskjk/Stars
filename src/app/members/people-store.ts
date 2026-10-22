@@ -8,7 +8,7 @@ export interface Person {
   role: string; // cargo para exibir (Admin, Supervisor, Membro)
 }
 
-// Pessoas do sistema para Daily, Conversas e os seletores de responsável: os membros reais (do banco),
+// Pessoas do sistema para Daily e os seletores de responsável: os membros reais (do banco),
 // ativos, da empresa escolhida. Sem login (exemplos e testes), todos os membros de exemplo.
 @Injectable({ providedIn: 'root' })
 export class PeopleStore {
@@ -25,10 +25,4 @@ export class PeopleStore {
   });
 
   readonly names = computed(() => this.team().map((p) => p.name));
-
-  // Todos os outros (para Conversas: ninguém conversa consigo mesmo)
-  readonly others = computed(() => {
-    const me = this.members.current()?.id;
-    return this.team().filter((p) => p.id !== me);
-  });
 }

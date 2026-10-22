@@ -1,15 +1,13 @@
-import { Component, DestroyRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { Assistant } from './ai/assistant';
-import { MigrationWizard } from './migration/migration-wizard';
 import { Login } from './login/login';
 import { Loader } from './loader/loader';
 import { SessionStore } from './api/session';
 import { CompanyStore } from './companies/company-store';
-import { AccountStore, NotificationType, greetingFor, hourIn } from './account/account-store';
-import { formatWeekDate } from './home/home';
+import { AccountStore, NotificationType } from './account/account-store';
 import { RecentsStore } from './home/recents-store';
 
 type Menu = 'nav' | 'notifications' | 'user';
@@ -17,7 +15,7 @@ type Menu = 'nav' | 'notifications' | 'user';
 const THEME_KEY = 'stars.theme';
 
 @Component({
-  imports: [Assistant, Login, MigrationWizard, RouterLink, RouterLinkActive, RouterOutlet, Loader],
+  imports: [Assistant, Login, RouterLink, RouterLinkActive, RouterOutlet, Loader],
   selector: 'app-root',
   templateUrl: './app.html',
   host: {
@@ -34,27 +32,7 @@ export class App {
   protected readonly companyStore = inject(CompanyStore);
   protected readonly notificationsEnabled = computed(() => this.account.account().notifications.enabled);
   protected readonly soundEnabled = computed(() => this.account.account().notifications.sound);
-  // Nome preenchido em Minha conta; se não houver, o primeiro nome de quem fez login
-  protected readonly userName = computed(() => {
-    const name = this.account.name();
-    return name !== 'Usuário' ? name : (this.session.me()?.nome.split(' ')[0] ?? name);
-  });
-
-  // A saudação usa a hora no fuso escolhido na conta; "now" avança a cada minuto
-  private readonly now = signal(new Date());
-  protected readonly greeting = computed(() => greetingFor(hourIn(this.account.timeZone(), this.now())));
-
-  // Data da semana (só na Home): fica fora do main-content, acima dele
-  protected readonly weekDate = computed(() => formatWeekDate(this.now(), this.account.timeZone()));
   private readonly router = inject(Router);
-  private readonly url = toSignal(
-    this.router.events.pipe(
-      filter((event) => event instanceof NavigationEnd),
-      map((event) => event.urlAfterRedirects),
-    ),
-    { initialValue: this.router.url },
-  );
-  protected readonly isHome = computed(() => this.url().split(/[?#]/)[0] === '/');
   // Trocando de tela (carregando a página): mostra a animação sobre a área da página
   protected readonly navigating = toSignal(
     this.router.events.pipe(
@@ -71,8 +49,6 @@ export class App {
       this.account.load();
       this.recentsStore.load();
       this.loadTheme();
-      const id = setInterval(() => this.now.set(new Date()), 60_000);
-      destroyRef.onDestroy(() => clearInterval(id));
       destroyRef.onDestroy(kanbanPan());
     });
   }
@@ -82,14 +58,14 @@ export class App {
     { id: 1, text: 'Bem-vindo ao LexÁgile!', read: false, type: 'system' },
     { id: 2, text: 'Seu Daily de hoje está pronto.', read: false, type: 'daily' },
     { id: 3, text: 'Planning da semana atualizado.', read: true, type: 'planning' },
-    { id: 4, text: 'Ana Souza mencionou você em Conversas.', read: false, type: 'mentions' },
+    { id: 4, text: 'Ana Souza mencionou você num comentário.', read: false, type: 'mentions' },
   ]);
   // Só os tipos que a pessoa escolheu receber (e nada, se ela desligou as notificações)
   protected readonly notifications = computed(() => {
     const prefs = this.account.account().notifications;
     return prefs.enabled ? this.allNotifications().filter((n) => prefs.types[n.type]) : [];
   });
-  // O que a pessoa realmente abriu (projetos, notas, cartões, conversas e dashboards)
+  // O que a pessoa realmente abriu (projetos, notas, cartões e dashboards)
   private readonly recentsStore = inject(RecentsStore);
   protected readonly recents = this.recentsStore.items;
 
@@ -116,11 +92,6 @@ export class App {
       label: 'Notas',
       link: '/workspace/notes',
       icon: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6', 'M16 13H8', 'M16 17H8'],
-    },
-    {
-      label: 'Favoritos',
-      link: '/workspace/favorites',
-      icon: ['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z'],
     },
   ];
 
@@ -170,18 +141,6 @@ export class App {
   // no computador continuam abrindo ao passar o mouse
 
   protected readonly openSubmenu = signal<string | null>(null);
-  // Pop-up de migração do banco: carregado sob demanda (@defer) na primeira vez que é aberto
-  protected readonly migrationRequested = signal(false);
-  private readonly migration = viewChild<MigrationWizard>('migration');
-
-  protected openMigration() {
-    this.openMenu.set(null);
-    this.openSubmenu.set(null);
-    const wizard = this.migration();
-    if (wizard) void wizard.open();
-    else this.migrationRequested.set(true); // abre sozinho ao terminar de carregar
-  }
-
   protected toggleSubmenu(name: string) {
     this.openSubmenu.update((open) => (open === name ? null : name));
   }

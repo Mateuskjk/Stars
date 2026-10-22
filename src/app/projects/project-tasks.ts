@@ -1,5 +1,4 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { AuditStore, diff } from '../audit/audit-store';
 import { CustomColumnId, KanbanColumn, customColumn } from '../kanban/add-column';
 import { MembersStore } from '../members/members-store';
 
@@ -221,18 +220,16 @@ export class ProjectTaskStore {
   readonly tasks = signal<ProjectTask[]>(seedTasks());
   // Colunas do kanban de atividades (as mesmas em todos os projetos). ponytail: só em memória
   readonly columns = signal<KanbanColumn<TaskStatus>[]>(Object.entries(TASK_STATUSES).map(([id, s]) => ({ id: id as TaskStatus, ...s })));
-  private readonly audit = inject(AuditStore);
   private readonly members = inject(MembersStore);
 
   column(status: TaskStatus) {
     return this.columns().find((column) => column.id === status) ?? { id: status, label: status, color: '#898781' };
   }
 
-  add(task: Omit<ProjectTask, 'id' | 'createdAt' | 'doneAt'>, projectName: string) {
+  add(task: Omit<ProjectTask, 'id' | 'createdAt' | 'doneAt'>) {
     const now = today();
     const id = Math.max(0, ...this.tasks().map((t) => t.id)) + 1;
     this.tasks.update((list) => [...list, { ...task, id, createdAt: now, doneAt: task.status === 'done' ? now : null }]);
-    this.audit.log({ action: 'create', entity: 'Atividade de projeto', name: task.title, to: this.column(task.status).label, details: `Projeto: ${projectName} · ${task.points} pts · Sprint ${task.sprint}` });
   }
 
   // Editar pelo modal do cartão. Mudar a sprint move o período planejado junto; chegar em Concluída marca a entrega.
@@ -247,18 +244,12 @@ export class ProjectTaskStore {
     }
     if (after.status !== before.status) after.doneAt = after.status === 'done' ? today() : null;
     this.tasks.update((list) => list.map((task) => (task.id === id ? after : task)));
-    if (after.status !== before.status) {
-      this.audit.log({ action: 'move', entity: 'Atividade de projeto', name: after.title, from: this.column(before.status).label, to: this.column(after.status).label });
-    }
-    const details = diff(before, after, { title: 'Nome', description: 'Descrição', assignee: 'Responsável', points: 'Pontos', sprint: 'Sprint', end: 'Prazo' });
-    if (details) this.audit.log({ action: 'update', entity: 'Atividade de projeto', name: after.title, details });
   }
 
   remove(id: number) {
     const task = this.tasks().find((t) => t.id === id);
     if (!task) return;
     this.tasks.update((list) => list.filter((t) => t.id !== id));
-    this.audit.log({ action: 'delete', entity: 'Atividade de projeto', name: task.title, from: this.column(task.status).label });
   }
 
   // Sai das telas; no banco fica arquivada (a gravação está em api-sync), e aparece em /arquivo
@@ -266,7 +257,6 @@ export class ProjectTaskStore {
     const task = this.tasks().find((t) => t.id === id);
     if (!task) return;
     this.tasks.update((list) => list.filter((t) => t.id !== id));
-    this.audit.log({ action: 'archive', entity: 'Atividade de projeto', name: task.title, from: this.column(task.status).label, to: 'Arquivado' });
   }
 
   setStatus(id: number, status: TaskStatus) {
@@ -274,29 +264,22 @@ export class ProjectTaskStore {
     if (!before || before.status === status) return;
     const doneAt = status === 'done' ? today() : null;
     this.tasks.update((list) => list.map((task) => (task.id === id ? { ...task, status, doneAt } : task)));
-    this.audit.log({ action: 'move', entity: 'Atividade de projeto', name: before.title, from: this.column(before.status).label, to: this.column(status).label });
   }
 
   addColumn(label: string) {
     if (!this.members.isAdmin()) return; // só admin mexe nas colunas
     this.columns.update((list) => [...list, customColumn(label, list.length)]);
-    this.audit.log({ action: 'create', entity: 'Coluna de atividades de projeto', name: label });
   }
 
   renameColumn(id: TaskStatus, label: string) {
     if (!this.members.isAdmin()) return;
-    const before = this.column(id).label;
     this.columns.update((list) => list.map((column) => (column.id === id ? { ...column, label } : column)));
-    this.audit.log({ action: 'update', entity: 'Coluna de atividades de projeto', name: label, from: before, to: label });
   }
 
   // As atividades da coluna excluída voltam para "A fazer"
   removeColumn(id: TaskStatus) {
     if (!this.members.isAdmin()) return;
-    const name = this.column(id).label;
-    const moved = this.tasks().filter((task) => task.status === id).length;
     this.tasks.update((list) => list.map((task) => (task.status === id ? { ...task, status: 'todo' } : task)));
     this.columns.update((list) => list.filter((column) => column.id !== id));
-    this.audit.log({ action: 'delete', entity: 'Coluna de atividades de projeto', name, details: moved ? `${moved} atividade(s) movida(s) para ${TASK_STATUSES.todo.label}` : undefined });
   }
 }

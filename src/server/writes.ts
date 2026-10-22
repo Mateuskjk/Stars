@@ -5,7 +5,7 @@ import { Request, Response, Router, json } from 'express';
 import type { PoolClient } from 'pg';
 import { db } from './db';
 import { Session, isSuperAdmin, liveMemberships, requireAuth, saveSession } from './auth';
-import { HttpError, createTenant, ensureSchema, newId } from './migration';
+import { HttpError, createTenant, ensureSchema, newId } from './schema';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
 import { isAllowedEmail } from './domains';
 import { queueEvent, takeEvents } from './events';
@@ -219,7 +219,7 @@ export async function applyActivity(client: PoolClient, s: Session, id: string, 
     );
   }
 
-  // ---------- Subtarefas (substitui a lista), favorito (de quem está logado) e comentário novo ----------
+  // ---------- Subtarefas (substitui a lista) e comentário novo ----------
   if (has(body, 'subtarefas')) {
     const list = body['subtarefas'];
     if (!Array.isArray(list) || list.length > 100) throw new HttpError(400, 'Subtarefas inválidas.');
@@ -232,17 +232,6 @@ export async function applyActivity(client: PoolClient, s: Session, id: string, 
         i,
         id,
       ]);
-    }
-  }
-  if (has(body, 'favorito')) {
-    if (body['favorito'] === true) {
-      await client.query(
-        `insert into "Favorito" (id, "usuarioId", "atividadeId")
-         select $1, $2, $3 where not exists (select 1 from "Favorito" where "usuarioId" = $2 and "atividadeId" = $3)`,
-        [newId(), me, id],
-      );
-    } else {
-      await client.query(`delete from "Favorito" where "usuarioId" = $1 and "atividadeId" = $2`, [me, id]);
     }
   }
   if (has(body, 'comentario')) {
@@ -421,7 +410,7 @@ function dailyRoutes(router: Router) {
       const body = (req.body ?? {}) as Record<string, unknown>;
       const tenantId = nonEmpty(body['tenantId'], 60, 'empresa');
       writer(s, tenantId);
-      if (!(await ensureSchema())) throw new HttpError(409, 'Rode a migração do banco antes de salvar dailies.');
+      if (!(await ensureSchema())) throw new HttpError(409, 'Rode o npm run db:migrate antes de salvar dailies.');
       if ((await hit(`daily:${s.email}`, 60)) > 10) throw new HttpError(429, 'Muitas dailies seguidas. Espere um minuto.');
       const id = newId();
       const record = dailyRecord(body['record']);

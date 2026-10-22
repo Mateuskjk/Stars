@@ -1,5 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { AuditStore, diff } from '../audit/audit-store';
+import { Injectable, computed, signal } from '@angular/core';
 
 export type Provider = 'openai' | 'anthropic' | 'gemini' | 'deepseek';
 
@@ -16,10 +15,10 @@ export const fixedTemperature = (config: { provider: Provider; model: string }) 
 
 export const DEFAULT_PROMPT = `Você é o assistente do LexÁgile, um sistema de gestão de trabalho em equipe. Responda em português, de forma curta e prática.
 Seu papel: dar dicas de uso, explicar como cada tela funciona e apontar quando o usuário parece estar fazendo algo errado, sugerindo o jeito certo.
-Telas do LexÁgile: Home (carrosséis de projetos e empresas), Dashboards (indicadores, burn-up/down, carga de trabalho), Conversas (chat do time),
-Projetos (Dash de Projetos com burn-up, burn-down, Gantt e insights em sprints de 7 dias úteis; Geral com carrossel e kanban por status; tabela de criação), Workspace > Daily (reunião diária com anotações e resumo), Backlog (kanban de atividades gerais
-com bloqueio, anexos, sub atividades e favoritos), Planning (sprints: criar, fechar, cancelar e enviar atividades refinadas), Notas (pessoais, com [[links]]),
-Brain (grafo das notas), Favoritos, e Configurações (Perfis de empresas, Membros com convite por código de 6 dígitos, Equipes e Integração com IA).
+Telas do LexÁgile: Home (carrosséis de projetos e empresas), Dashboards (duas abas: Sprints e setores — indicadores, burn-up/down, carga de trabalho das atividades gerais; Projetos — burn-up, burn-down, Gantt e insights dos projetos),
+Projetos (Geral com carrossel e kanban por status; tabela de criação), Workspace > Daily (reunião diária com anotações e resumo), Backlog (kanban de atividades gerais
+com bloqueio, anexos e sub atividades), Planning (sprints: criar, fechar, cancelar e enviar atividades refinadas), Notas (pessoais),
+e Configurações (Perfis de empresas, Membros com convite por código de 6 dígitos, Equipes e Integração com IA).
 Se não souber algo sobre o sistema, diga que não sabe em vez de inventar.`;
 
 export interface AiModelConfig {
@@ -53,7 +52,6 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
 // Configurar é só para Admin; usar o assistente, para qualquer pessoa logada.
 @Injectable({ providedIn: 'root' })
 export class AiStore {
-  private readonly audit = inject(AuditStore);
   readonly configs = signal<AiModelConfig[]>([]);
   readonly assistantId = signal<string | null>(null);
   readonly assistant = computed(() => this.configs().find((c) => c.id === this.assistantId()) ?? null);
@@ -78,32 +76,16 @@ export class AiStore {
   // Cria ou atualiza. apiKey vazia numa atualização = manter a chave atual do servidor.
   async save(draft: AiModelDraft, apiKey: string, id: string | null) {
     const configId = id ?? crypto.randomUUID();
-    const existing = this.configs().find((c) => c.id === configId);
     await request<{ keyHint: string }>(`/api/ai/configs/${configId}`, {
       method: 'PUT',
       body: JSON.stringify({ ...draft, apiKey }),
     });
     await this.refresh();
-    const config = this.configs().find((c) => c.id === configId);
-    if (!existing) {
-      this.audit.log({ action: 'create', entity: 'Modelo de IA', name: draft.name, details: `${draft.provider} · ${draft.model}` });
-    } else if (config) {
-      const details = [
-        diff(existing, config, { name: 'Nome', provider: 'Fornecedor', model: 'Modelo', temperature: 'Criatividade', maxTokens: 'Limite de tokens' }),
-        existing.systemPrompt !== config.systemPrompt ? 'Instruções do assistente alteradas' : '',
-        apiKey ? 'Chave de API trocada' : '',
-      ]
-        .filter(Boolean)
-        .join(' · ');
-      if (details) this.audit.log({ action: 'update', entity: 'Modelo de IA', name: draft.name, details });
-    }
     return configId;
   }
 
   async remove(id: string) {
-    const config = this.configs().find((c) => c.id === id);
     await request(`/api/ai/configs/${id}`, { method: 'DELETE' });
-    if (config) this.audit.log({ action: 'delete', entity: 'Modelo de IA', name: config.name });
     await this.refresh();
   }
 

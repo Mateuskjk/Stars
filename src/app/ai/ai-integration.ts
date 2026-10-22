@@ -1,5 +1,5 @@
 import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
-import { formatTime } from '../chat/chat';
+import { formatTime } from '../format';
 import { AiModelConfig, AiModelDraft, AiStore, DEFAULT_PROMPT, PROVIDERS, Provider, fixedTemperature } from './ai-store';
 
 const empty = (provider: Provider = 'anthropic'): AiModelDraft => ({

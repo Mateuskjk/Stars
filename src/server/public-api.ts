@@ -1,14 +1,14 @@
-// API pública v1 (somente leitura) + registro de tokens e trilha de acesso — roda SOMENTE no servidor.
-import { createHash, randomUUID } from 'node:crypto';
+// API pública v1 (somente leitura) + registro de tokens — roda SOMENTE no servidor.
+import { createHash } from 'node:crypto';
 import { NextFunction, Request, RequestHandler, Response, Router, json } from 'express';
 import { db, parseJson, ddl, onDbReset } from './db';
 import { hit } from './limits';
 import { Session, liveMemberships } from './auth';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
-import { ensureSchema } from './migration';
+import { ensureSchema } from './schema';
 
 type Access = 'none' | 'view' | 'edit';
-type Feature = 'dashboards' | 'chat' | 'projects' | 'daily' | 'backlog' | 'planning' | 'notes' | 'settings';
+type Feature = 'dashboards' | 'projects' | 'daily' | 'backlog' | 'planning' | 'notes' | 'settings';
 
 interface TokenOwner {
   issuer: string; // e-mail do Admin que gerou
@@ -22,7 +22,6 @@ interface TokenOwner {
 
 // Tudo no banco (schema lexagile): vale em todas as cópias do servidor na Vercel e sobrevive a reinícios.
 // - api_token: o token em si nunca fica guardado, só o hash SHA-256
-// - api_acesso: trilha de acesso (tela de Auditorias), guardada por 30 dias
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 let tables: Promise<unknown> | null = null;
@@ -37,9 +36,7 @@ export const ensureTables = () =>
        -- Token amarrado ao membro e às empresas, com validade (os antigos, sem isso, deixam de valer)
        alter table lexagile.api_token add column if not exists email text;
        alter table lexagile.api_token add column if not exists tenants text[];
-       alter table lexagile.api_token add column if not exists expira timestamptz;
-       create table if not exists lexagile.api_acesso (id text primary key, issuer text not null, em timestamptz not null default now(),
-         ator text not null, metodo text not null, caminho text not null, status int not null, ip text not null);`,
+       alter table lexagile.api_token add column if not exists expira timestamptz;`,
     )
     .catch((error) => {
       tables = null;
@@ -56,7 +53,7 @@ async function ownerOfToken(token: string): Promise<TokenOwner | undefined> {
   return rows[0];
 }
 
-const FEATURES: Feature[] = ['dashboards', 'chat', 'projects', 'daily', 'backlog', 'planning', 'notes', 'settings'];
+const FEATURES: Feature[] = ['dashboards', 'projects', 'daily', 'backlog', 'planning', 'notes', 'settings'];
 const ROLES = ['admin', 'supervisor', 'member'];
 // Só as funcionalidades conhecidas, só "view"/"edit"; qualquer outra coisa vira "none"
 function cleanPermissions(raw: unknown) {
@@ -300,16 +297,6 @@ export function publicApiRouter() {
     } catch {
       return void res.status(503).json({ error: 'API indisponível agora. Tente de novo.' });
     }
-    res.on('finish', () => {
-      if (!owner) return; // trilha só de tokens válidos (a de quem chuta tokens não interessa a ninguém e enche o banco)
-      void db()
-        .query(
-          `insert into lexagile.api_acesso (id, issuer, ator, metodo, caminho, status, ip) values ($1, $2, $3, $4, $5, $6, $7)`,
-          [randomUUID(), owner.issuer, owner.name, req.method, req.originalUrl.split('?')[0].slice(0, 300), res.statusCode, req.ip ?? ''],
-        )
-        .then(() => (Math.random() < 0.01 ? db().query(`delete from lexagile.api_acesso where em < now() - interval '30 days'`) : undefined))
-        .catch(() => undefined);
-    });
     if (!owner) return void res.status(401).json({ error: 'Envie um token válido: Authorization: Bearer stars_…' });
     if (await rateLimited(hashToken(token))) return void res.status(429).json({ error: 'Limite de 60 requisições por minuto atingido.' });
     res.locals['owner'] = owner;
@@ -401,16 +388,6 @@ export function publicApiInternalRouter() {
     if (req.body?.permissions !== undefined) sets.push(`permissoes = $${values.push(JSON.stringify(cleanPermissions(req.body.permissions)))}`);
     if (sets.length) await db().query(`update lexagile.api_token set ${sets.join(', ')} where issuer = $1 and "memberId" = $2`, values);
     res.json({ ok: true });
-  }));
-
-  // Trilha de acesso: só dos tokens que este Admin gerou (últimos 1000)
-  router.get('/api-access', onlyOwner, safe(async (req, res) => {
-    const { rows } = await db().query(
-      `select id, to_char(em at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at, ator as actor, metodo as method, caminho as path, status, ip
-         from lexagile.api_acesso where issuer = $1 order by em desc limit 1000`,
-      [issuerOf(req)],
-    );
-    res.json(rows);
   }));
 
   return router;

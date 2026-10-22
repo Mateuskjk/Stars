@@ -10,20 +10,6 @@
   gap: 10px 20px; // linhas, colunas
   min-height: calc(100vh - 30px);
   margin: 12px;
-
-  // Home: linha extra para a data, acima do main-content (a lateral ocupa as duas linhas)
-  &.has-date {
-    grid-template-areas:
-      'nav  nav'
-      'left date'
-      'left main';
-    grid-template-rows: 74px auto 1fr;
-  }
-}
-
-.week-date--page {
-  grid-area: date;
-  margin-bottom: 0;
 }
 
 .main-content {
@@ -36,6 +22,33 @@
   border-radius: 15px;
   background-color: $color-surface;
   box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+}
+
+// Abas em forma de pílula (Dashboards, Arquivo)
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    background: none;
+    color: $color-text;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+
+    &.is-active {
+      border-color: $color-nav-hover;
+      background-color: $color-nav-hover;
+      color: $color-nav-text-hover;
+    }
+  }
 }
 
 .navigation-top {
@@ -52,8 +65,7 @@
   gap: 10px;
 }
 
-// .week-date (Home) tem o mesmo tamanho do hello-world
-.hello-world,
+// Data no topo de algumas telas (Daily, Notas, Planning)
 .week-date {
   margin-bottom: 10px; // + gap de 10px da coluna = 20px
 
@@ -471,31 +483,18 @@
 // ---------- Responsivo ----------
 
 @media (max-width: $bp-tablet) {
-  // Tablet e celular: coluna única — barra, saudação e conteúdo da página
-  .container-main,
-  .container-main.has-date {
+  // Tablet e celular: coluna única — barra e conteúdo da página
+  .container-main {
     grid-template-areas:
       'nav'
-      'hello'
       'main';
     grid-template-columns: 1fr;
-    grid-template-rows: 74px auto 1fr;
+    grid-template-rows: 74px 1fr;
   }
 
-  // Os filhos da lateral viram itens do grid: a saudação vai para 'hello'
-  .left-content {
-    display: contents;
-  }
-
-  .hello-world {
-    grid-area: hello;
-    margin-bottom: 0;
-  }
-
-  // Os cards da lateral (Acesso rápido, Recentes, Perfis acessados) e a data da Home somem:
+  // Os cards da lateral (Acesso rápido, Recentes, Perfis acessados) somem:
   // o menu ☰ já leva às telas e eles só empurravam o conteúdo
-  .side-card,
-  .week-date--page {
+  .left-content {
     display: none;
   }
 
@@ -568,19 +567,14 @@
 }
 
 @media (max-width: $bp-mobile) {
-  .container-main,
-  .container-main.has-date {
-    grid-template-rows: 64px auto auto;
+  .container-main {
+    grid-template-rows: 64px auto;
     min-height: auto;
     margin: 10px;
   }
 
   .main-content {
     padding: 12px;
-  }
-
-  .hello-world__title {
-    font-size: 26px;
   }
 
   .week-date__title {

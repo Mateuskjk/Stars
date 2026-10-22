@@ -10,13 +10,12 @@ import express from 'express';
 import type { Pool } from 'pg';
 import { setDbForTests } from '../db';
 import { authRouter, ensureSessionTable, requireAuth } from '../auth';
-import { INSTALL_SQL, migrationRouter } from '../migration';
+import { INSTALL_SQL } from '../schema';
 import { dataRouter } from '../data';
 import { writesRouter } from '../writes';
 import { notesRouter } from '../notes';
 import { attachmentsRouter } from '../attachments';
 import { domainsRouter } from '../domains';
-import { chatRouter } from '../chat';
 import { publicApiInternalRouter, publicApiRouter } from '../public-api';
 import { integrationsRouter } from '../integrations';
 import { csrfGuard } from '../security-headers';
@@ -46,8 +45,6 @@ export const IDS = {
   atividadeB: 'ativ-b',
   sprintAtivaA: 'sprint-a-ativa',
   sprintFechadaA: 'sprint-a-fechada',
-  canalA: 'canal-a',
-  canalB: 'canal-b',
 };
 
 const SEED = `
@@ -70,7 +67,6 @@ insert into "Atividade" (id, numero, titulo, "tenantId", "projetoId", "responsav
   ('ativ-a-atendente', 1, 'Do atendente', '${A}', null, 'u-atendente-a', 'u-atendente-a', now()),
   ('ativ-a-escondida', 2, 'Escondida', '${A}', 'proj-a-escondido', 'u-dono-a', 'u-dono-a', now()),
   ('ativ-b', 1, 'Da empresa B', '${B}', null, 'u-dono-b', 'u-dono-b', now());
-insert into "Canal" (id, nome, tipo, "tenantId") values ('canal-a', 'geral-a', 'PUBLICO', '${A}'), ('canal-b', 'geral-b', 'PUBLICO', '${B}');
 `;
 
 export interface TestEnv {
@@ -127,8 +123,6 @@ export async function startTestEnv(): Promise<TestEnv> {
   app.use('/api/data', domainsRouter());
   app.use('/api/data', notesRouter());
   app.use('/api/data', attachmentsRouter());
-  app.use('/api/chat', chatRouter());
-  app.use('/api/migracao', migrationRouter());
   app.use('/api/v1', publicApiRouter());
   app.use('/api/internal', requireAuth, publicApiInternalRouter());
   app.use('/api/integrations', requireAuth, integrationsRouter());

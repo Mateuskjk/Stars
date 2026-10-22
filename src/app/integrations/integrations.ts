@@ -1,5 +1,5 @@
 import { Component, ElementRef, afterNextRender, computed, signal, viewChild } from '@angular/core';
-import { formatTime } from '../chat/chat';
+import { formatTime } from '../format';
 import { eventGroups, samplePayload } from './webhook-events';
 
 interface Webhook {

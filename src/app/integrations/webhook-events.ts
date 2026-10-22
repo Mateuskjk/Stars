@@ -1,8 +1,19 @@
-import { AUDIT_ACTIONS, AuditAction } from '../audit/audit-store';
+// Ações que geram evento (o nome vai no "<item>.<ação>", ex.: activity.move)
+export type EventAction = 'create' | 'update' | 'move' | 'archive' | 'cancel' | 'close' | 'delete';
+
+const ACTION_LABELS: Record<EventAction, string> = {
+  create: 'Criação',
+  update: 'Alteração',
+  move: 'Movimentação',
+  archive: 'Arquivamento',
+  cancel: 'Cancelamento',
+  close: 'Encerramento',
+  delete: 'Exclusão',
+};
 
 // Eventos de webhook: "<item>.<ação>", ex.: activity.move. Quem emite é o SERVIDOR, depois de gravar no banco
 // (src/server/events.ts); esta lista é o catálogo mostrado na tela e precisa bater com o que o servidor envia.
-const ENTITIES: { entity: string; slug: string; actions: AuditAction[] }[] = [
+const ENTITIES: { entity: string; slug: string; actions: EventAction[] }[] = [
   { entity: 'Atividade', slug: 'activity', actions: ['create', 'update', 'move', 'archive', 'cancel'] },
   { entity: 'Atividade de projeto', slug: 'project_activity', actions: ['create', 'move', 'archive', 'cancel'] },
   { entity: 'Projeto', slug: 'project', actions: ['create'] },
@@ -13,11 +24,10 @@ const ENTITIES: { entity: string; slug: string; actions: AuditAction[] }[] = [
   { entity: 'Daily', slug: 'daily', actions: ['close', 'delete'] },
 ];
 
-// Função (e não constante) porque a auditoria importa este arquivo: na carga, AUDIT_ACTIONS ainda não existe
 export function eventGroups() {
   return ENTITIES.map(({ entity, slug, actions }) => ({
     entity,
-    events: actions.map((action) => ({ id: `${slug}.${action}`, label: AUDIT_ACTIONS[action].label })),
+    events: actions.map((action) => ({ id: `${slug}.${action}`, label: ACTION_LABELS[action] })),
   }));
 }
 

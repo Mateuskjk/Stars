@@ -9,7 +9,7 @@
   </label>
 </header>
 
-<div class="archive__tabs" role="tablist" aria-label="Tipo">
+<div class="tabs" role="tablist" aria-label="Tipo">
   <button type="button" role="tab" [attr.aria-selected]="tab() === 'atividades'" [class.is-active]="tab() === 'atividades'" (click)="tab.set('atividades')">
     Atividades <span class="kanban__count">{{ counts().atividades }}</span>
   </button>

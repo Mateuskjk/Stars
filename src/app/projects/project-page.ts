@@ -231,7 +231,6 @@ export class ProjectPage {
         start: window.start,
         end: points >= 8 ? sprintWindow(sprint + 1).end : window.end, // atividades grandes ocupam 2 sprints
       },
-      project.name,
     );
     form.reset();
     this.creating.set(false);

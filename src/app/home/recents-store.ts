@@ -7,7 +7,7 @@ import { TeamsStore } from '../teams/teams-store';
 import { NotesStore } from '../notes/notes-store';
 import { ProjectStore } from '../projects/project-store';
 
-export type RecentKind = 'project' | 'note' | 'card' | 'chat' | 'dashboard' | ProfileKind;
+export type RecentKind = 'project' | 'note' | 'card' | 'dashboard' | ProfileKind;
 export type ProfileKind = 'member' | 'team' | 'company' | 'sector'; // "Perfis acessados"
 
 const PROFILE_KINDS: RecentKind[] = ['member', 'team', 'company', 'sector'];
@@ -21,7 +21,7 @@ export interface RecentItem {
   type: string;
   title: string;
   link: string;
-  query?: Record<string, number>; // ?nota=, ?cartao=, ?com=, ?membro=…
+  query?: Record<string, number | string>; // ?nota=, ?cartao=, ?membro=, ?aba=…
   initials?: string;
 }
 
@@ -37,9 +37,9 @@ const initialsOf = (name: string) =>
     .join('')
     .toUpperCase();
 
-const DASHBOARDS: Record<string, { title: string; link: string }> = {
-  dashboards: { title: 'Dashboards', link: '/dashboards' },
-  projects: { title: 'Dash de Projetos', link: '/projetos' },
+const DASHBOARDS: Record<string, { title: string; link: string; query?: Record<string, string> }> = {
+  dashboards: { title: 'Dashboards · Sprints e setores', link: '/dashboards' },
+  projects: { title: 'Dashboards · Projetos', link: '/dashboards', query: { aba: 'projetos' } },
 };
 
 // "Recentes" da lateral: o que a pessoa realmente abriu, guardado neste navegador.
@@ -105,10 +105,6 @@ export class RecentsStore {
       case 'card': {
         const card = this.backlog.items().find((item) => item.id === id);
         return card && { type: 'Cartão', title: card.name, link: '/workspace/backlog', query: { cartao: card.id } };
-      }
-      case 'chat': {
-        const user = this.members.members().find((m) => m.id === id);
-        return user && { type: 'Conversa', title: user.name, link: '/conversas', query: { com: user.id } };
       }
       case 'member': {
         const member = this.members.members().find((m) => m.id === id);

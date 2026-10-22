@@ -241,7 +241,7 @@ export class ProjectDashboard {
       ),
       insightsDoDashboard: this.insights().map((i) => i.text),
     };
-    const prompt = `Você é um gestor de projetos ágeis experiente. Analise os dados do Dash de Projetos abaixo (${scope}).
+    const prompt = `Você é um gestor de projetos ágeis experiente. Analise os dados dos projetos abaixo (${scope}).
 Responda em português, em texto simples (sem tabelas), com:
 1. Diagnóstico em 2 ou 3 frases (andamento e previsibilidade).
 2. Principais riscos.
@@ -250,7 +250,7 @@ Responda em português, em texto simples (sem tabelas), com:
 Dados:
 ${JSON.stringify(data, null, 2)}`;
     try {
-      const reply = await this.ai.chat([{ role: 'user', content: prompt }], 'Dash de Projetos (/projetos)');
+      const reply = await this.ai.chat([{ role: 'user', content: prompt }], 'Dashboards › Projetos (/dashboards?aba=projetos)');
       this.analysis.set({ loading: false, text: reply || '(a IA não respondeu nada)', error: false, scope });
     } catch (error) {
       this.analysis.set({ loading: false, text: error instanceof Error ? error.message : 'Não foi possível falar com a IA.', error: true, scope });

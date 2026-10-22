@@ -5,10 +5,9 @@ import { AiStore, ChatTurn, PROVIDERS } from './ai-store';
 // Nome amigável da tela atual, enviado junto com a pergunta para a IA dar dicas no contexto certo
 const PAGES: [RegExp, string][] = [
   [/^\/$/, 'Home'],
-  [/^\/dashboards/, 'Dashboards (atividades gerais dos setores: burn-up, burn-down, Gantt, insights e análise da IA)'],
-  [/^\/conversas/, 'Conversas'],
+  [/^\/dashboards.*aba=projetos/, 'Dashboards › Projetos (burn-up, burn-down, Gantt e insights dos projetos; sprints de 7 dias úteis)'],
+  [/^\/dashboards/, 'Dashboards › Sprints e setores (atividades gerais dos setores: burn-up, burn-down, Gantt, insights e análise da IA)'],
   [/^\/projetos\/novo/, 'Criar novo projeto (tabela de projetos)'],
-  [/^\/projetos\/?$/, 'Dash de Projetos (burn-up, burn-down, Gantt, insights; sprints de 7 dias úteis)'],
   [/^\/projetos\/\d+/, 'Página de um projeto (cabeçalho com os dados e kanban das atividades)'],
   [/^\/projetos\/visaoGeral/, 'Projetos > Geral (carrossel e kanban)'],
   [/^\/empresas\/\d+\/setores\/\d+/, 'Página de um setor (cabeçalho, projetos ligados e kanban das atividades gerais do Backlog e da Planning)'],
@@ -17,8 +16,6 @@ const PAGES: [RegExp, string][] = [
   [/^\/workspace\/backlog/, 'Backlog'],
   [/^\/workspace\/planning/, 'Planning'],
   [/^\/workspace\/notes/, 'Notas'],
-  [/^\/workspace\/brain/, 'Brain (grafo das notas)'],
-  [/^\/workspace\/favorites/, 'Favoritos'],
   [/^\/configuracoes\/([\w-]+)/, 'Configurações'],
 ];
 
