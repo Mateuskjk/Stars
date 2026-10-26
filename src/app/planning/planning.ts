@@ -6,6 +6,7 @@ import { formatWeekDate } from '../home/home';
 import { SPRINT_DAYS, businessDay, businessIndex } from '../projects/project-tasks';
 import { SPRINT_STATUS, Sprint, SprintStore } from './sprint-store';
 import { ResponsiveTable } from '../responsive-table';
+import { BacklogEditor } from '../backlog/backlog-editor';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -18,7 +19,7 @@ interface PendingConfirm {
 }
 
 @Component({
-  imports: [ResponsiveTable, NgTemplateOutlet],
+  imports: [ResponsiveTable, NgTemplateOutlet, BacklogEditor],
   selector: 'app-planning',
   templateUrl: './planning.html',
   host: { class: 'planning' },
@@ -71,6 +72,13 @@ export class Planning {
   // ---------- Decisões sobre as atividades ----------
   protected setCategory(item: BacklogItem, planning: 'ready' | 'waiting') {
     this.backlog.patch(item.id, { planning });
+  }
+
+  // Editar a atividade (o mesmo modal do Backlog) antes de mandar para a sprint
+  private readonly editor = viewChild.required(BacklogEditor);
+
+  protected edit(item: BacklogItem) {
+    this.editor().openEdit(item);
   }
 
   // Só com responsável: na sprint, toda atividade tem dono

@@ -93,6 +93,21 @@ $planning-muted: var(--color-muted);
     gap: 6px;
   }
 
+  // Nome da atividade: abre o modal de edição
+  &__open {
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
   &__person {
     display: inline-flex;
     align-items: center;

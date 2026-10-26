@@ -61,7 +61,8 @@
           <tr>
             <th class="project-table__sticky" scope="row">
               <span class="planning__activity">
-                {{ item.name }}
+                <!-- Abre o mesmo modal do Backlog: dá para ajustar tudo antes de mandar para a sprint -->
+                <button class="planning__open" type="button" [attr.aria-label]="'Editar ' + item.name" (click)="edit(item)">{{ item.name }}</button>
                 @if (item.locked) {
                   <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
                 }
@@ -102,6 +103,7 @@
             }
             <td>
               <span class="planning__actions">
+                <button class="modal__ghost planning__small" type="button" (click)="edit(item)">Editar</button>
                 @if (mode === 'sprint') {
                   <button class="modal__ghost planning__small" type="button" (click)="removeFromSprint(item)">← Tirar da sprint</button>
                 } @else {
@@ -238,3 +240,6 @@
     </div>
   }
 </dialog>
+
+<!-- Modal de edição (o mesmo do Backlog) -->
+<app-backlog-editor />

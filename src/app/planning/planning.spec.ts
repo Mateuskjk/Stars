@@ -66,4 +66,24 @@ describe('Planning', () => {
     rowButton(0, 'Template de relatório mensal', 'Arquivar');
     expect(backlog.items().find((i) => i.name === 'Template de relatório mensal')?.status).toBe('archived');
   });
+
+  it('abre a atividade no modal de edição (o do Backlog) antes de mandar para a sprint', async () => {
+    await TestBed.configureTestingModule({ imports: [Planning] }).compileComponents();
+    const fixture = TestBed.createComponent(Planning);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const modal = el.querySelector<HTMLDialogElement>('dialog[aria-labelledby="editor-title"]')!;
+    const first = el.querySelector<HTMLButtonElement>('.planning__open')!;
+    const name = first.textContent!.trim();
+    first.click();
+    fixture.detectChanges();
+    expect(modal.open).toBe(true);
+    expect(modal.querySelector<HTMLInputElement>('input')!.value).toBe(name);
+    modal.close();
+
+    const row = first.closest('tr')!;
+    [...row.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.trim() === 'Editar')!.click();
+    fixture.detectChanges();
+    expect(modal.open).toBe(true);
+  });
 });
