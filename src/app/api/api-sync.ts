@@ -144,7 +144,8 @@ export class ApiSync {
   };
 
   // Erro da última gravação (a faixa de aviso fica na sessão, que o app já carrega)
-  private readonly saveError = inject(SessionStore).saveError;
+  private readonly session = inject(SessionStore);
+  private readonly saveError = this.session.saveError;
 
   // Pessoa (nome) → usuário dela em cada empresa
   private readonly userByPersonTenant = new Map<string, string>(); // `${pessoa}|${tenant}` → usuarioId
@@ -518,10 +519,10 @@ export class ApiSync {
   }
 
   // Grava em ordem, uma de cada vez (não embaralha mudanças seguidas no mesmo cartão)
-  private send(path: string | (() => string), method: string, body: unknown, after?: (result: { id?: string } | null) => void) {
+  private send(path: string | (() => string), method: string, body: unknown, after?: (result: { id?: string; levadas?: number } | null) => void) {
     this.queue = this.queue.then(async () => {
       try {
-        const result = await api<{ id?: string } | null>(typeof path === 'string' ? path : path(), { method, body: JSON.stringify(body) });
+        const result = await api<{ id?: string; levadas?: number } | null>(typeof path === 'string' ? path : path(), { method, body: JSON.stringify(body) });
         after?.(result);
       } catch (e) {
         this.saveError.set(`Não foi possível salvar no banco: ${(e as Error).message}`);
@@ -771,7 +772,10 @@ export class ApiSync {
         const tenantId = this.ids.empresa.db(sprint.companyId ?? this.companies.currentId());
         if (!tenantId) continue;
         const body = { tenantId, nome: sprint.name, inicio: sprint.start, fim: sprint.end };
-        this.send('/data/sprints', 'POST', body, (r) => r?.id && this.ids.sprint.link(r.id, sprint.id));
+        this.send('/data/sprints', 'POST', body, (r) => {
+          if (r?.id) this.ids.sprint.link(r.id, sprint.id);
+          if (r?.levadas) void this.session.check(); // pendências vieram para a sprint nova: recarrega os dados
+        });
       } else if (before && before.status !== sprint.status) {
         this.send(() => `/data/sprints/${this.ids.sprint.db(sprint.id)}`, 'PATCH', { situacao: sprintSituacao(sprint.status) });
       }

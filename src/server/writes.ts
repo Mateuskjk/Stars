@@ -315,7 +315,15 @@ export function writesRouter() {
       if (await ensureSchema()) {
         await client.query(`insert into lexagile.sprint_periodo ("sprintId", inicio, fim) values ($1, $2, $3)`, [id, inicio, fim]);
       }
-      return { id };
+      // Pendências: o que ficou aberto em sprints já fechadas desta empresa passa para a sprint nova
+      // (concluídas e arquivadas ficam onde estavam). Sem isso, a atividade some do Work e do kanban da sprint.
+      const carried = await client.query(
+        `update "Atividade" set "sprintId" = $1, "atualizadoEm" = now()
+          where "tenantId" = $2 and "arquivadoEm" is null and status <> 'CONCLUIDO'
+            and "sprintId" in (select id from "Sprint" where "tenantId" = $2 and situacao = 'FECHADA')`,
+        [id, tenantId],
+      );
+      return { id, levadas: carried.rowCount ?? 0 };
     }),
   );
 
