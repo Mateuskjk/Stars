@@ -54,10 +54,11 @@ $backlog-column: var(--color-soft);
     }
   }
 
-  // Colunas dividem a largura; quando não cabem, o quadro rola para o lado (barra invisível)
+  // Colunas dividem a largura (quando não cabem, o quadro rola para o lado); a altura de cada uma acompanha
+  // os seus cartões e o quadro cresce até a coluna mais cheia
   &__board {
     display: flex;
-    flex: 1;
+    align-items: flex-start;
     gap: 12px;
     overflow-x: auto;
     scroll-snap-type: x proximity;
@@ -120,7 +121,6 @@ $backlog-column: var(--color-soft);
 
   &__cards {
     display: flex;
-    flex: 1;
     flex-direction: column;
     gap: 8px;
     list-style: none;

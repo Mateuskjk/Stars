@@ -12,3 +12,12 @@ body {
   font-family: $font-family;
   background-color: $color-background;
 }
+
+// Barras de rolagem invisíveis em todo o site: a rolagem continua (roda do mouse, toque, teclado, arrastar)
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}

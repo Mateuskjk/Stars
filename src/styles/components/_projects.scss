@@ -14,12 +14,12 @@ $status-active: #0ca30c;
   gap: 20px;
 }
 
+// Kanbans: as colunas dividem a largura; a altura de cada uma acompanha os seus cartões, e o quadro cresce
+// até a coluna mais cheia (a página rola). Antes ele ficava preso à altura que sobrava na tela e cortava cartões.
 .kanban {
   display: flex;
-  flex: 1 1 0; // ocupa o espaço que sobra embaixo do carrossel
   flex-direction: column;
   gap: 12px;
-  min-height: 420px;
 
   &__title {
     padding: 0 4px;
@@ -30,9 +30,8 @@ $status-active: #0ca30c;
   // Colunas dividem a largura; quando não cabem, o quadro rola para o lado (barra invisível)
   &__board {
     display: flex;
-    flex: 1;
+    align-items: flex-start;
     gap: 12px;
-    min-height: 0;
     overflow-x: auto;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
@@ -93,11 +92,8 @@ $status-active: #0ca30c;
 
   &__cards {
     display: flex;
-    flex: 1;
     flex-direction: column;
     gap: 8px;
-    overflow-y: auto;
-    scrollbar-width: thin;
     list-style: none;
   }
 
@@ -268,10 +264,6 @@ $status-active: #0ca30c;
 
   .kanban__column {
     flex-basis: 85%; // aparece um pedaço da próxima coluna
-  }
-
-  .kanban__cards {
-    max-height: 60dvh;
   }
 }
 
