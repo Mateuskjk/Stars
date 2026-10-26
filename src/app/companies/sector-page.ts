@@ -202,6 +202,7 @@ export class SectorPage {
     const name = String(data.get('name') ?? '').trim();
     if (!sector || !sprint || !name) return;
     const assignee = String(data.get('assignee') ?? '');
+    if (!assignee) return; // entra direto na sprint: precisa de responsável
     this.backlog.save({
       ...emptyItem('refinement-done'),
       name,

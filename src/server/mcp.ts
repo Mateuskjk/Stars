@@ -13,8 +13,6 @@ import { Session } from './auth';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
 import { HttpError, ensureSchema } from './schema';
 import { applyActivity, createActivity, visibleActivity } from './writes';
-import { takeEvents } from './events';
-import { deliverEvents } from './integrations';
 import { SCOPE, appUrl, consentRouter, oauthProvider, sessionFromAuth } from './mcp-oauth';
 
 const STATUS = ['RASCUNHO', 'PRONTO', 'EM_EXECUCAO', 'EM_REVISAO', 'CONCLUIDO'] as const;
@@ -42,14 +40,10 @@ async function tx<T>(fn: (client: PoolClient) => Promise<T>) {
     await client.query('begin');
     const result = await fn(client);
     await client.query('commit');
-    // Webhooks só depois do commit e com a conexão já devolvida ao pool
-    const events = takeEvents(client);
     client.release();
     released = true;
-    await deliverEvents(events);
     return result;
   } catch (error) {
-    takeEvents(client);
     if (!released) await client.query('rollback').catch(() => undefined);
     throw error;
   } finally {

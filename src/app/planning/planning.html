@@ -108,8 +108,8 @@
                   <button
                     class="modal__primary planning__small"
                     type="button"
-                    [disabled]="!active()"
-                    [attr.title]="active() ? 'Enviar para a ' + active()!.name : 'Crie uma sprint primeiro'"
+                    [disabled]="!active() || !item.assignee"
+                    [attr.title]="!item.assignee ? 'Defina um responsável antes de enviar para a sprint' : active() ? 'Enviar para a ' + active()!.name : 'Crie uma sprint primeiro'"
                     (click)="sendToSprint(item)"
                   >
                     Enviar para sprint →

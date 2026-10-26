@@ -21,6 +21,29 @@
     cursor: pointer;
   }
 
+  // Filtros (Admin e Supervisor)
+  &__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  &__count {
+    margin-left: auto;
+    color: var(--color-muted);
+    font-size: 13px;
+  }
+
+  &__assignee {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: $color-text;
+    font-size: 12px;
+  }
+
   &__origin {
     color: var(--color-muted);
     font-size: 12px;

@@ -1,11 +1,42 @@
 <header class="backlog__header">
   <div>
     <h2 class="backlog__title">Work</h2>
-    <p class="backlog__subtitle">Suas atividades gerais e de projetos da sprint atual. Mover aqui move também no kanban da sprint do setor e no kanban do projeto.</p>
+    <p class="backlog__subtitle">
+      {{ seesAll() ? 'Atividades gerais e de projetos de todos da empresa na sprint atual.' : 'Suas atividades gerais e de projetos da sprint atual.' }}
+      Mover aqui move também no kanban da sprint do setor e no kanban do projeto.
+    </p>
   </div>
 </header>
 
-<section class="kanban" aria-label="Minhas atividades">
+<!-- Admin e Supervisor: filtros por pessoa e por origem -->
+@if (seesAll()) {
+  <div class="work__filters">
+    <label class="project-dash__filter">
+      <span>Pessoa</span>
+      <select class="modal__input" (change)="personFilter.set($any($event.target).value)">
+        <option value="" [selected]="!personFilter()">Todas as pessoas</option>
+        @for (person of people(); track person) {
+          <option [value]="person" [selected]="person === personFilter()">{{ person }}{{ person === me() ? ' (você)' : '' }}</option>
+        }
+      </select>
+    </label>
+    <label class="project-dash__filter">
+      <span>Origem</span>
+      <select class="modal__input" (change)="originFilter.set($any($event.target).value)">
+        <option value="" [selected]="!originFilter()">Tudo (gerais e projetos)</option>
+        @for (o of origins(); track o.key) {
+          <option [value]="o.key" [selected]="o.key === originFilter()">{{ o.label }}</option>
+        }
+      </select>
+    </label>
+    @if (personFilter() || originFilter()) {
+      <button class="modal__ghost planning__small" type="button" (click)="clearFilters()">Limpar filtros</button>
+    }
+    <span class="work__count">{{ cards().length }} {{ cards().length === 1 ? 'atividade' : 'atividades' }}</span>
+  </div>
+}
+
+<section class="kanban" [attr.aria-label]="seesAll() ? 'Atividades da empresa' : 'Minhas atividades'">
   <div class="kanban__board">
     @for (column of board(); track column.id) {
       <div
@@ -47,6 +78,12 @@
               <button class="kanban__card-title work__open" type="button">{{ card.title }}</button>
               <div class="kanban__card-footer">
                 <span class="work__origin" [title]="'Coluna no kanban de origem'">{{ card.kind === 'task' ? 'No projeto' : 'Na sprint' }}: {{ originLabel(card) }}</span>
+                @if (seesAll() && card.assignee) {
+                  <span class="work__assignee" [title]="card.assignee">
+                    <span class="kanban__avatar" aria-hidden="true">{{ initials(card.assignee) }}</span>
+                    {{ card.assignee }}
+                  </span>
+                }
                 @if (card.due) {
                   <span class="project-page__due" [class.is-late]="isLate(card)">{{ isLate(card) ? 'Atrasada · ' : '' }}até {{ shortDate(card.due) }}</span>
                 }

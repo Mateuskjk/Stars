@@ -18,7 +18,6 @@ import { accountRouter } from '../account';
 import { attachmentsRouter } from '../attachments';
 import { domainsRouter } from '../domains';
 import { publicApiInternalRouter, publicApiRouter } from '../public-api';
-import { integrationsRouter } from '../integrations';
 import { csrfGuard } from '../security-headers';
 import { aiRouter } from '../ai';
 import { migrateAll } from '../migrate-all';
@@ -127,7 +126,6 @@ export async function startTestEnv(): Promise<TestEnv> {
   app.use('/api/data', attachmentsRouter());
   app.use('/api/v1', publicApiRouter());
   app.use('/api/internal', requireAuth, publicApiInternalRouter());
-  app.use('/api/integrations', requireAuth, integrationsRouter());
   app.use('/api/ai', requireAuth, aiRouter());
   const server = app.listen(0);
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;

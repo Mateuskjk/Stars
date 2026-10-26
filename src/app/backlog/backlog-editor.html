@@ -123,11 +123,14 @@
         <label class="modal__field">
           <span class="modal__label">Responsável</span>
           <select class="modal__input" (change)="patch({ assignee: $any($event.target).value })">
-            <option value="">Sem responsável</option>
+            <option value="" [disabled]="!!item.sprintId">Sem responsável</option>
             @for (person of people(); track person) {
               <option [value]="person" [selected]="person === item.assignee">{{ person }}</option>
             }
           </select>
+          @if (item.sprintId) {
+            <span class="modal__hint">Na sprint, a atividade precisa de um responsável.</span>
+          }
         </label>
 
         <div class="modal__field">

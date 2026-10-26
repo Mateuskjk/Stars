@@ -32,13 +32,13 @@ export class ProjectTaskEditor {
     return task ? this.ids.tarefa.db(task.id) : null;
   });
 
-  // Sprints possíveis: da sprint da atividade até 4 sprints depois da atual
+  // Sprints possíveis: só a atual (para não confundir). Se a atividade está em outra, ela aparece também.
   protected readonly sprints = computed(() => {
-    const task = this.draft();
-    const from = Math.min(task?.sprint ?? this.currentSprint, this.currentSprint);
-    return Array.from({ length: this.currentSprint + 4 - from + 1 }, (_, i) => from + i).map((n) => ({
+    const own = this.draft() ? this.original?.sprint : undefined; // lê o rascunho: recalcula ao abrir outra atividade
+    const list = own !== undefined && own !== this.currentSprint ? [own, this.currentSprint] : [this.currentSprint];
+    return list.map((n) => ({
       number: n,
-      label: `Sprint ${n} · ${shortDate(sprintWindow(n).start)} – ${shortDate(sprintWindow(n).end)}${n === this.currentSprint ? ' (atual)' : ''}`,
+      label: `Sprint ${n} · ${shortDate(sprintWindow(n).start)} – ${shortDate(sprintWindow(n).end)}${n === this.currentSprint ? ' (atual)' : ' (onde está hoje)'}`,
     }));
   });
 

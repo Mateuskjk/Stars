@@ -8,13 +8,10 @@ import { Session, isSuperAdmin, liveMemberships, requireAuth, saveSession } from
 import { HttpError, createTenant, ensureSchema, newId } from './schema';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
 import { isAllowedEmail } from './domains';
-import { queueEvent, takeEvents } from './events';
 import { hit } from './limits';
-import { deliverEvents } from './integrations';
 
 const STATUSES = ['RASCUNHO', 'PRONTO', 'EM_EXECUCAO', 'EM_REVISAO', 'CONCLUIDO'];
 const SPRINT_SITUACOES = ['ATIVA', 'FECHADA', 'PREPARACAO'];
-const STATUS_LABEL: Record<string, string> = { RASCUNHO: 'Rascunho', PRONTO: 'Pronto', EM_EXECUCAO: 'Em execução', EM_REVISAO: 'Em revisão', CONCLUIDO: 'Concluído' };
 
 const membership = (s: Session, tenantId: string) => s.memberships.find((m) => m.tenantId === tenantId);
 
@@ -109,13 +106,9 @@ export async function visibleActivity(client: PoolClient, s: Session, id: string
 }
 
 // Aplica as mudanças enviadas (só os campos presentes no corpo)
-const ACTIVITY_SNAPSHOT = `select titulo, status, "projetoId", "arquivadoTipo", descricao, prazo, "responsavelId" from "Atividade" where id = $1`;
-
-// creating: chamada logo depois de criar (o evento é activity.create, não "mudou de status")
-export async function applyActivity(client: PoolClient, s: Session, id: string, tenantId: string, body: Record<string, unknown>, opts: { creating?: boolean } = {}) {
+export async function applyActivity(client: PoolClient, s: Session, id: string, tenantId: string, body: Record<string, unknown>) {
   const me = writer(s, tenantId).usuarioId;
   const installed = await ensureSchema();
-  const before = opts.creating ? null : (await client.query(ACTIVITY_SNAPSHOT, [id])).rows[0];
   const sets: string[] = [];
   const values: unknown[] = [];
   const set = (column: string, value: unknown) => sets.push(`"${column}" = $${values.push(value)}`);
@@ -178,19 +171,12 @@ export async function applyActivity(client: PoolClient, s: Session, id: string, 
   sets.push(`"atualizadoEm" = now()`);
   await client.query(`update "Atividade" set ${sets.join(', ')} where id = $${values.push(id)}`, values);
 
-  // Webhooks: só o que mudou de fato (entregues depois do commit)
-  if (before) {
-    const after = (await client.query(ACTIVITY_SNAPSHOT, [id])).rows[0];
-    const kind = after.projetoId ? 'project_activity' : 'activity';
-    const entity = after.projetoId ? 'Atividade de projeto' : 'Atividade';
-    const emit = (action: string, info: { from?: string; to?: string; details?: string } = {}) =>
-      queueEvent(client, tenantId, `${kind}.${action}`, s.nome, { entity, name: after.titulo, ...info });
-    if (before.status !== after.status) emit('move', { from: STATUS_LABEL[before.status] ?? before.status, to: STATUS_LABEL[after.status] ?? after.status });
-    if (!before.arquivadoTipo && after.arquivadoTipo) emit(after.arquivadoTipo === 'CANCELADO' ? 'cancel' : 'archive');
-    const changed = (
-      [['titulo', 'Nome'], ['descricao', 'Descrição'], ['prazo', 'Prazo'], ['responsavelId', 'Responsável']] as const
-    ).filter(([k]) => String(before[k] ?? '') !== String(after[k] ?? '')).map(([, label]) => label);
-    if (changed.length && kind === 'activity') emit('update', { details: `Alterado: ${changed.join(', ')}` });
+  // Atividade de projeto ou na sprint precisa de responsável (só confere quando a gravação mexe nisso)
+  if (has(body, 'sprintId') || has(body, 'responsavelId') || has(body, 'projetoId')) {
+    const { rows } = await client.query(`select "responsavelId", "sprintId", "projetoId" from "Atividade" where id = $1`, [id]);
+    if (rows[0] && !rows[0].responsavelId && (rows[0].sprintId || rows[0].projetoId)) {
+      throw new HttpError(400, 'Defina um responsável: atividade de projeto ou na sprint precisa ter um.');
+    }
   }
 
   // ---------- Extras do LexÁgile (schema "lexagile") ----------
@@ -265,8 +251,7 @@ export async function createActivity(client: PoolClient, s: Session, body: Recor
     [id, nonEmpty(body['titulo'], 300, 'título'), tenantId, projetoId, me],
   );
   const { tenantId: _t, projetoId: _p, titulo: _ti, ...rest } = body;
-  await applyActivity(client, s, id, tenantId, rest, { creating: true });
-  queueEvent(client, tenantId, projetoId ? 'project_activity.create' : 'activity.create', s.nome, { entity: projetoId ? 'Atividade de projeto' : 'Atividade', name: String(body['titulo']).trim() });
+  await applyActivity(client, s, id, tenantId, rest);
   return id;
 }
 
@@ -279,15 +264,10 @@ function write(handler: (client: PoolClient, req: Request, s: Session) => Promis
       await client.query('begin');
       const result = await handler(client, req, req.session!);
       await client.query('commit');
-      // Webhooks só depois do commit (o que foi avisado aconteceu mesmo) e com a conexão já devolvida ao pool:
-      // um webhook lento não pode segurar conexões do banco e travar o app
-      const events = takeEvents(client);
       client.release();
       released = true;
-      await deliverEvents(events);
       res.json(result ?? { ok: true });
     } catch (error) {
-      takeEvents(client); // gravação desfeita: nenhum evento sai
       if (!released) await client.query('rollback').catch(() => undefined);
       if (error instanceof HttpError) res.status(error.status).json({ error: error.message });
       else {
@@ -335,7 +315,6 @@ export function writesRouter() {
       if (await ensureSchema()) {
         await client.query(`insert into lexagile.sprint_periodo ("sprintId", inicio, fim) values ($1, $2, $3)`, [id, inicio, fim]);
       }
-      queueEvent(client, tenantId, 'sprint.create', s.nome, { entity: 'Sprint', name: String(body['nome']).trim(), details: `${inicio} a ${fim}` });
       return { id };
     }),
   );
@@ -355,11 +334,10 @@ export function writesRouter() {
         const { rows: ativa } = await client.query(`select 1 from "Sprint" where "tenantId" = $1 and situacao = 'ATIVA' and id <> $2`, [rows[0].tenantId, id]);
         if (ativa.length) throw new HttpError(409, 'Já existe uma sprint ativa nesta empresa. Feche-a antes.');
       }
-      const { rows: changed } = await client.query<{ nome: string }>(
-        `update "Sprint" set situacao = $1 where id = $2 and situacao <> $1 returning nome`,
+      await client.query(
+        `update "Sprint" set situacao = $1 where id = $2 and situacao <> $1`,
         [situacao, id],
       );
-      if (changed[0] && situacao === 'FECHADA') queueEvent(client, rows[0].tenantId, 'sprint.close', s.nome, { entity: 'Sprint', name: changed[0].nome });
     }),
   );
 
@@ -416,11 +394,6 @@ function dailyRoutes(router: Router) {
       const record = dailyRecord(body['record']);
       if (JSON.stringify(record).length > 200_000) throw new HttpError(400, 'Daily grande demais (anotações muito longas).');
       await saveExtra(client, 'daily', id, tenantId, record);
-      queueEvent(client, tenantId, 'daily.close', s.nome, {
-        entity: 'Daily',
-        name: `Daily de ${record.date.slice(0, 10)}`,
-        details: `${record.participants.filter((p) => p.notes).length} pessoas com anotações`,
-      });
       return { id };
     }),
   );
@@ -432,7 +405,6 @@ function dailyRoutes(router: Router) {
       if (!rows[0] || !membership(s, rows[0].tenantId)) throw new HttpError(404, 'Daily não encontrada.');
       manager(s, rows[0].tenantId); // apagar o histórico do time: só Supervisor e Admin
       await client.query(`delete from lexagile.extra where tipo = 'daily' and "registroId" = $1`, [id]);
-      queueEvent(client, rows[0].tenantId, 'daily.delete', s.nome, { entity: 'Daily', name: 'Daily excluída' });
     }),
   );
 }
@@ -575,7 +547,6 @@ function configRoutes(router: Router) {
       const id = await createTenant(client, s, { nome: nonEmpty(body['nome'], 80, 'nome'), sigla: nonEmpty(body['sigla'], 4, 'sigla').toUpperCase() });
       const { nome: _n, sigla: _s, ...rest } = body;
       await patchEmpresa(client, id, rest);
-      queueEvent(client, id, 'company.create', s.nome, { entity: 'Perfil de empresa', name: String(body['nome']).trim() });
       return { id };
     }),
   );
@@ -585,9 +556,6 @@ function configRoutes(router: Router) {
       const id = String(req.params['id']);
       owner(s, id);
       await patchEmpresa(client, id, req.body ?? {});
-      const { rows } = await client.query<{ nome: string }>(`select nome from "Tenant" where id = $1`, [id]);
-      const archived = req.body?.ativo === false;
-      queueEvent(client, id, archived ? 'company.archive' : 'company.update', s.nome, { entity: 'Perfil de empresa', name: rows[0]?.nome ?? id });
     }),
   );
 
@@ -671,7 +639,6 @@ function configRoutes(router: Router) {
           [id, nonEmpty(body['nome'], 120, 'nome'), email, papel, tenantId],
         );
       }
-      queueEvent(client, tenantId, 'member.create', s.nome, { entity: 'Membro', name: email, to: String(papel) });
       return { id };
     }),
   );
@@ -693,14 +660,12 @@ function configRoutes(router: Router) {
           [body['papel'], email, tenants],
         );
         await ensureOwnersLeft(client, rows.map((r) => r.tenantId));
-        for (const r of rows) queueEvent(client, r.tenantId, 'member.update', s.nome, { entity: 'Membro', name: email, to: String(body['papel']), details: 'Cargo alterado' });
       }
       if (has(body, 'nome')) {
-        const { rows } = await client.query<{ tenantId: string }>(
-          `update "Usuario" set nome = $1 where lower(email) = $2 and "tenantId" = any($3::text[]) and nome <> $1 returning "tenantId"`,
+        await client.query(
+          `update "Usuario" set nome = $1 where lower(email) = $2 and "tenantId" = any($3::text[]) and nome <> $1`,
           [nonEmpty(body['nome'], 120, 'nome'), email, tenants],
         );
-        for (const r of rows) queueEvent(client, r.tenantId, 'member.update', s.nome, { entity: 'Membro', name: email, details: 'Nome alterado' });
       }
     }),
   );
@@ -718,7 +683,6 @@ function configRoutes(router: Router) {
         [email, tenants],
       );
       await ensureOwnersLeft(client, rows.map((r) => r.tenantId));
-      for (const r of rows) queueEvent(client, r.tenantId, 'member.delete', s.nome, { entity: 'Membro', name: email });
     }),
   );
 
@@ -731,7 +695,6 @@ function configRoutes(router: Router) {
       manager(s, tenantId);
       const id = newId();
       await client.query(`insert into "Equipe" (id, nome, "tenantId") values ($1, $2, $3)`, [id, nonEmpty(body['nome'], 80, 'nome'), tenantId]);
-      queueEvent(client, tenantId, 'team.create', s.nome, { entity: 'Equipe', name: String(body['nome']).trim() });
       const { nome: _n, tenantId: _t, ...rest } = body;
       await patchEquipe(client, id, tenantId, rest);
       return { id };
@@ -744,8 +707,6 @@ function configRoutes(router: Router) {
       const tenantId = await tenantOfRow(client, 'Equipe', id, s);
       manager(s, tenantId);
       await patchEquipe(client, id, tenantId, req.body ?? {});
-      const { rows } = await client.query<{ nome: string }>(`select nome from "Equipe" where id = $1`, [id]);
-      queueEvent(client, tenantId, 'team.update', s.nome, { entity: 'Equipe', name: rows[0]?.nome ?? id });
     }),
   );
   router.delete(
@@ -754,8 +715,7 @@ function configRoutes(router: Router) {
       const id = String(req.params['id']);
       const tenantId = await tenantOfRow(client, 'Equipe', id, s);
       manager(s, tenantId);
-      const { rows } = await client.query<{ nome: string }>(`update "Equipe" set ativa = false where id = $1 returning nome`, [id]); // desativa, não apaga
-      queueEvent(client, tenantId, 'team.delete', s.nome, { entity: 'Equipe', name: rows[0]?.nome ?? id });
+      await client.query(`update "Equipe" set ativa = false where id = $1`, [id]); // desativa, não apaga
     }),
   );
 
@@ -775,7 +735,6 @@ function configRoutes(router: Router) {
       );
       const { nome: _n, tenantId: _t, ...rest } = body;
       await patchProjeto(client, id, tenantId, rest);
-      queueEvent(client, tenantId, 'project.create', s.nome, { entity: 'Projeto', name: String(body['nome']).trim() });
       return { id };
     }),
   );

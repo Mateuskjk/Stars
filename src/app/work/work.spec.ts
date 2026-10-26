@@ -17,7 +17,10 @@ HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
 describe('Work', () => {
   it('shows only my current-sprint general and project activities and moves them in the origin kanban through the pop-up', async () => {
     await TestBed.configureTestingModule({ imports: [Work], providers: [provideRouter([])] }).compileComponents();
-    const me = TestBed.inject(MembersStore).current()!.name;
+    // Entra como Membro comum (Admin e Supervisor veem os de todos: teste abaixo)
+    const members = TestBed.inject(MembersStore);
+    members.sessionEmail.set(members.members().find((m) => m.role === 'member')!.email);
+    const me = members.current()!.name;
     const backlog = TestBed.inject(BacklogStore);
     const tasks = TestBed.inject(ProjectTaskStore);
     // Uma atividade geral minha em "Para refinar", uma de outra pessoa e uma de projeto minha em "A fazer"
@@ -91,5 +94,41 @@ describe('Work', () => {
     // O seletor "Mover" do cartão não abre o modal
     el.querySelector<HTMLSelectElement>('.kanban__move')!.click();
     expect(backlogModal.open || taskModal.open).toBe(false);
+  });
+
+  it('Admin vê as atividades de todos da empresa e filtra por pessoa e por origem', async () => {
+    await TestBed.configureTestingModule({ imports: [Work], providers: [provideRouter([])] }).compileComponents();
+    const members = TestBed.inject(MembersStore);
+    const admin = members.current()!; // sem login, o Admin de exemplo
+    expect(admin.role).toBe('admin');
+    const backlog = TestBed.inject(BacklogStore);
+    const tasks = TestBed.inject(ProjectTaskStore);
+    const active = TestBed.inject(SprintStore).active()!;
+    const base = { ...backlog.items()[0], sprintId: active.id, status: 'refinement-done' as const, locked: false, companyId: undefined, sharedWith: [] };
+    backlog.items.set([
+      { ...base, id: 1, name: 'Geral do Admin', assignee: admin.name },
+      { ...base, id: 2, name: 'Geral da Outra', assignee: 'Outra Pessoa' },
+    ]);
+    const task = tasks.tasks()[0];
+    tasks.tasks.set([{ ...task, id: 7, title: 'Projeto da Outra', assignee: 'Outra Pessoa', status: 'todo', sprint: sprintOf(active.start) }]);
+
+    const fixture = TestBed.createComponent(Work);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const titles = () => [...el.querySelectorAll('.kanban__card-title')].map((a) => a.textContent?.trim()).sort();
+    expect(titles()).toEqual(['Geral da Outra', 'Geral do Admin', 'Projeto da Outra']);
+    expect(el.querySelector('.work__assignee')).not.toBeNull(); // mostra de quem é cada cartão
+
+    const [person, origin] = [...el.querySelectorAll<HTMLSelectElement>('.work__filters select')];
+    person.innerHTML += '<option value="Outra Pessoa">Outra Pessoa</option>'; // a pessoa de exemplo não está na lista da empresa
+    person.value = 'Outra Pessoa';
+    person.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(titles()).toEqual(['Geral da Outra', 'Projeto da Outra']);
+
+    origin.value = 'geral';
+    origin.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(titles()).toEqual(['Geral da Outra']);
   });
 });

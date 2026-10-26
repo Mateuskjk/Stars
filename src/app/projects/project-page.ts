@@ -206,15 +206,16 @@ export class ProjectPage {
     const form = event.target as HTMLFormElement;
     const data = new FormData(form);
     const title = String(data.get('title') ?? '').trim();
-    if (!project || !title) return;
-    const sprint = Number(data.get('sprint')) || this.currentSprint;
+    const assignee = String(data.get('assignee') ?? '');
+    if (!project || !title || !assignee) return; // atividade de projeto sempre tem responsável
+    const sprint = this.currentSprint; // nasce na sprint atual
     const points = Number(data.get('points')) || 1;
     const window = sprintWindow(sprint);
     this.taskStore.add(
       {
         projectId: project.id,
         title,
-        assignee: String(data.get('assignee') ?? ''),
+        assignee,
         points,
         status: String(data.get('status') ?? 'todo') as TaskStatus,
         sprint,

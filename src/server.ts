@@ -16,7 +16,6 @@ import { writesRouter } from './server/writes';
 import { notesRouter } from './server/notes';
 import { accountRouter } from './server/account';
 import { attachmentsRouter } from './server/attachments';
-import { integrationsRouter } from './server/integrations';
 import { publicApiInternalRouter, publicApiRouter } from './server/public-api';
 import { SECURITY_HEADERS, csrfGuard } from './server/security-headers';
 
@@ -76,11 +75,6 @@ app.use(mcpRouters());
  * API da integração com IA (as chaves ficam só no servidor).
  */
 app.use('/api/ai', requireAuth, aiRouter());
-
-/**
- * Integrações: webhooks e bancos PostgreSQL externos (segredos e senhas ficam só no servidor).
- */
-app.use('/api/integrations', requireAuth, integrationsRouter());
 
 /**
  * API pública v1 (com token) e as rotas internas que o app usa para registrar tokens e enviar o retrato dos dados.

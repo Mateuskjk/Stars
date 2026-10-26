@@ -110,8 +110,8 @@
     @if (creating() && sprint()) {
       <form class="project-page__new sector-page__new" (submit)="create($event)">
         <input class="modal__input" name="name" placeholder="Nome da atividade *" aria-label="Nome da atividade" required maxlength="120" />
-        <select class="modal__input" name="assignee" aria-label="Responsável">
-          <option value="">Sem responsável</option>
+        <select class="modal__input" name="assignee" aria-label="Responsável" required>
+          <option value="" disabled>Responsável *</option>
           @for (person of people(); track person) {
             <option [value]="person" [selected]="person === viewer()?.name">{{ person }}</option>
           }

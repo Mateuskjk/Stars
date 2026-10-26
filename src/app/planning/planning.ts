@@ -73,9 +73,10 @@ export class Planning {
     this.backlog.patch(item.id, { planning });
   }
 
+  // Só com responsável: na sprint, toda atividade tem dono
   protected sendToSprint(item: BacklogItem) {
     const sprint = this.active();
-    if (sprint) this.backlog.patch(item.id, { sprintId: sprint.id });
+    if (sprint && item.assignee) this.backlog.patch(item.id, { sprintId: sprint.id });
   }
 
   protected removeFromSprint(item: BacklogItem) {

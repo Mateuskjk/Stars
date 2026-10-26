@@ -106,7 +106,6 @@ export class App {
         { label: 'Membros', link: '/configuracoes/membros', icon: ['M16 21a6 6 0 0 0-12 0', 'M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M22 21a6 6 0 0 0-4-5.7', 'M16 3.1a4 4 0 0 1 0 7.8'] },
         { label: 'Equipes', link: '/configuracoes/equipes', icon: ['M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M5 20a7 7 0 0 1 14 0', 'M5 10a2 2 0 1 0 0-4', 'M19 10a2 2 0 1 0 0-4'] },
         { label: 'Integração com IA', link: '/configuracoes/integracao-ia', icon: ['M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z', 'M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z'] },
-        { label: 'Integrações', link: '/configuracoes/integracoes', icon: ['M9 2v6', 'M15 2v6', 'M6 8h12v3a6 6 0 0 1-12 0z', 'M12 17v5'] },
       ],
     },
   ];

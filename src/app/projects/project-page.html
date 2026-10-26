@@ -152,7 +152,8 @@
     @if (creating()) {
       <form class="project-page__new" (submit)="create($event)">
         <input class="modal__input" name="title" placeholder="Nome da atividade *" aria-label="Nome da atividade" required maxlength="120" />
-        <select class="modal__input" name="assignee" aria-label="Responsável">
+        <select class="modal__input" name="assignee" aria-label="Responsável" required>
+          <option value="" disabled [selected]="!people().includes(p.owner)">Responsável *</option>
           @for (person of people(); track person) {
             <option [value]="person" [selected]="person === p.owner">{{ person }}</option>
           }
@@ -160,11 +161,6 @@
         <select class="modal__input" name="points" aria-label="Pontos">
           @for (n of points; track n) {
             <option [value]="n" [selected]="n === 3">{{ n }} pts</option>
-          }
-        </select>
-        <select class="modal__input" name="sprint" aria-label="Sprint">
-          @for (n of [currentSprint, currentSprint + 1, currentSprint + 2, currentSprint + 3]; track n) {
-            <option [value]="n">Sprint {{ n }}{{ n === currentSprint ? ' (atual)' : '' }}</option>
           }
         </select>
         <select class="modal__input" name="status" aria-label="Coluna">
