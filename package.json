@@ -21,7 +21,7 @@
     "@angular/platform-server": "^22.2.0",
     "@angular/router": "^22.2.0",
     "@angular/ssr": "^22.2.2",
-    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "express": "^5.1.0",
     "nodemailer": "^10.3.1",
     "pg": "^8.23.1",
