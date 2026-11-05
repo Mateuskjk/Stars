@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { sprintOf, sprintWindow, today } from '../projects/project-tasks';
+import { businessIndex, sprintOf, sprintWindow, today } from '../projects/project-tasks';
 import { CompanyStore } from '../companies/company-store';
+import { FilterField, FilterRule } from '../kanban/board-toolbar';
 
 export type SprintStatus = 'active' | 'closed' | 'archived' | 'canceled';
 
@@ -34,6 +35,30 @@ const SEED: Sprint[] = [
   { id: 12, name: 'Sprint 12', start: businessSprint(0).start, end: businessSprint(0).end, goal: 'Organizar processos internos do time', status: 'active' },
 ];
 
+// Campo "Sprint" dos painéis de filtro: as sprints da empresa, a mais nova primeiro (a ativa marcada).
+// Sprints com o mesmo nome (repetidas no banco) viram uma opção só: o valor leva os ids de todas ("12,40").
+// `none` acrescenta "Sem sprint" (Backlog, onde nem toda atividade está numa sprint).
+export function sprintFilterField(sprints: Sprint[], none = false): FilterField {
+  const groups = new Map<string, Sprint[]>();
+  for (const s of [...sprints].sort((a, b) => b.start.localeCompare(a.start))) {
+    const key = s.name.trim().toLowerCase();
+    groups.set(key, [...(groups.get(key) ?? []), s]);
+  }
+  const options = [...groups.values()].map((list) => ({
+    value: list.map((s) => s.id).join(','),
+    label: list.some((s) => s.status === 'active') ? list[0].name.trim() + ' (ativa)' : list[0].name.trim(),
+  }));
+  return { key: 'sprint', label: 'Sprint', options: none ? [...options, { value: 'none', label: 'Sem sprint' }] : options };
+}
+
+// Valor da opção do filtro em que está a sprint `id` (para comparar com o que foi escolhido)
+export const sprintOptionOf = (field: FilterField, id: number) => field.options.find((o) => o.value.split(',').includes(String(id)))?.value ?? '';
+
+// Sprints escolhidas no filtro (ids); vazio = nenhuma escolhida
+export function chosenSprints(rules: FilterRule[]) {
+  return new Set(rules.filter((r) => r.key === 'sprint' && r.value).flatMap((r) => r.value.split(',').map(Number)));
+}
+
 // Uma sprint ativa por vez: para criar outra, a atual precisa ser fechada ou cancelada
 @Injectable({ providedIn: 'root' })
 export class SprintStore {
@@ -48,6 +73,16 @@ export class SprintStore {
   // Sprint ativa de uma empresa (página do setor)
   activeOf(companyId: number | undefined) {
     return this.sprints().find((s) => s.status === 'active' && (s.companyId === undefined || s.companyId === companyId)) ?? null;
+  }
+
+  // Nome da sprint da Planning que cobre a sprint do calendário n (a de maior sobreposição); sem nenhuma, só o período
+  nameOf(n: number) {
+    const w = sprintWindow(n);
+    const overlap = (s: Sprint) => Math.min(businessIndex(s.end), businessIndex(w.end)) - Math.max(businessIndex(s.start), businessIndex(w.start));
+    const best = this.ofCompany()
+      .filter((s) => s.status !== 'canceled' && overlap(s) >= 0)
+      .sort((a, b) => overlap(b) - overlap(a))[0];
+    return best?.name ?? `${w.start.slice(8, 10)}/${w.start.slice(5, 7)} – ${w.end.slice(8, 10)}/${w.end.slice(5, 7)}`;
   }
 
   byId(id: number | undefined) {

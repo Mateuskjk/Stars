@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, afterNextRender, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Component, afterNextRender, computed, effect, inject, linkedSignal, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AiStore } from '../ai/ai-store';
 import { BacklogItem, BacklogStore } from '../backlog/backlog-store';
@@ -8,7 +8,11 @@ import { ActivityAccess } from '../companies/activity-access';
 import { CompanyStore } from '../companies/company-store';
 import { SPRINT_COLUMNS, SectorStore, sprintColumnOf } from '../companies/sector-store';
 import { SprintStore } from '../planning/sprint-store';
-import { GanttItem, HEALTH, ProjectSummary, burnDown, burnUp, gantt, health, insights, shortDate, weekday } from '../projects/project-metrics';
+import { BoardToolbar, FilterField, FilterRule } from '../kanban/board-toolbar';
+import { HEALTH, ProjectSummary, burnDown, burnUp, cascade, gantt, health, insights, shortDate, weekday } from '../projects/project-metrics';
+import { ApiSync } from '../api/api-sync';
+import { DailyRefresh, REFRESH_HOUR, serverAnalysis, updatedAt } from './daily-refresh';
+import { GanttChart } from './gantt-chart';
 import { ProjectTask, SPRINT_DAYS, sprintOf, sprintWindow, today } from '../projects/project-tasks';
 
 const TONES = { good: 'Bom sinal', warn: 'Atenção', bad: 'Risco', info: 'Info' } as const;
@@ -17,7 +21,7 @@ const TONES = { good: 'Bom sinal', warn: 'Atenção', bad: 'Risco', info: 'Info'
 // Mesmas regras do Dash de Projetos (sprints de 7 dias úteis, burn-up, burn-down, Gantt),
 // contando atividades em vez de pontos, e a mesma regra de visibilidade do kanban do setor.
 @Component({
-  imports: [NgTemplateOutlet, RouterLink],
+  imports: [NgTemplateOutlet, RouterLink, BoardToolbar, GanttChart],
   selector: 'app-dashboard',
   templateUrl: './dashboard.html',
   host: { class: 'dashboard project-dash' },
@@ -36,11 +40,17 @@ export class Dashboard {
   protected readonly statusColumns = SPRINT_COLUMNS;
   protected readonly restricted = computed(() => !this.access.seesAll());
 
-  // ---------- Filtros ----------
-  protected readonly companyId = linkedSignal(() => this.companyStore.currentId() ?? 0); // começa na empresa do seletor; 0 = todas
-  protected readonly sectorId = signal(0); // 0 = todos
-  protected readonly sprintId = signal<number | null>(null); // null = sprint ativa
-  protected readonly person = signal(''); // '' = todas
+  // ---------- Filtros (painel "Filtro", igual ao do Work) ----------
+  // Sem filtro de empresa vale a do seletor do topo; sem sprint, a ativa. Um valor por campo (o primeiro escolhido).
+  protected readonly filters = signal<FilterRule[]>([]);
+  private readonly chosen = (key: string) => this.filters().find((r) => r.key === key && r.value)?.value;
+  protected readonly companyId = computed(() => Number(this.chosen('empresa') ?? this.companyStore.currentId() ?? 0));
+  protected readonly sectorId = computed(() => {
+    const id = Number(this.chosen('setor') ?? 0);
+    return this.sectorOptions().some((s) => s.id === id) ? id : 0;
+  });
+  protected readonly sprintId = computed(() => (this.chosen('sprint') ? Number(this.chosen('sprint')) : null));
+  protected readonly person = computed(() => this.chosen('pessoa') ?? '');
 
   protected readonly companies = computed(() =>
     this.companyStore.companies().filter((c) => this.sectorStore.sectors().some((s) => s.companyId === c.id)),
@@ -61,19 +71,26 @@ export class Dashboard {
     return company ? `todos os setores da ${company.name}` : 'todos os setores';
   });
 
-  protected selectCompany(value: string) {
-    this.companyId.set(Number(value));
-    if (this.sector() && this.sector()!.companyId !== Number(value)) this.sectorId.set(0);
-  }
+  protected readonly filterFields = computed<FilterField[]>(() => [
+    { key: 'empresa', label: 'Empresa', options: this.companies().map((c) => ({ value: String(c.id), label: c.name })) },
+    {
+      key: 'setor',
+      label: 'Setor',
+      options: this.sectorOptions().map((s) => ({ value: String(s.id), label: this.companyId() ? s.name : `${s.name} · ${this.companyName(s.companyId)}` })),
+    },
+    {
+      key: 'sprint',
+      label: 'Sprint',
+      options: this.sprintOptions().map((sp) => ({
+        value: String(sp.id),
+        label: `${sp.name} · ${shortDate(sp.start)} – ${shortDate(sp.end)}${sp.status === 'active' ? ' (ativa)' : ''}`,
+      })),
+    },
+    { key: 'pessoa', label: 'Pessoa', options: this.people().map((p) => ({ value: p, label: p })) },
+  ]);
 
-  protected clearFilters() {
-    this.companyId.set(0);
-    this.sectorId.set(0);
-    this.sprintId.set(null);
-    this.person.set('');
-  }
-
-  protected readonly hasFilters = computed(() => !!(this.companyId() || this.sectorId() || this.sprintId() || this.person()));
+  // Recorte padrão (sem filtros): é o que a IA analisa sozinha todo dia às 10h
+  protected readonly hasFilters = computed(() => !!(this.chosen('empresa') || this.sectorId() || this.sprintId() || this.person()));
 
   // ---------- Sprints: nome da Planning ↔ janela de 7 dias úteis ----------
   private readonly activeNumber = computed(() => this.sprintStore.active()?.id ?? Math.max(0, ...this.sprintStore.sprints().map((s) => s.id)));
@@ -86,17 +103,18 @@ export class Dashboard {
   protected shortSprint = (business: number) => this.sprintName(business).replace('Sprint ', 'S');
 
   // ---------- Dados: atividades gerais em sprints, já filtradas ----------
-  protected readonly activities = computed(() => {
+  // Empresa e setor (sem o filtro de pessoa: o Gantt escolhe a pessoa dele)
+  private readonly scoped = computed(() => {
     const sectors = new Set(this.sectorOptions().map((s) => s.id));
     const one = this.sectorId();
-    const person = this.person();
     return this.backlog
       .items()
       .filter((item) => item.sectorId && item.sprintId && item.status !== 'canceled' && this.sprintStore.byId(item.sprintId))
       .filter((item) => (one ? item.sectorId === one : sectors.has(item.sectorId!)))
-      .filter((item) => !person || item.assignee === person || item.sharedWith.includes(person))
       .filter((item) => this.access.canSee(item));
   });
+  private readonly involves = (item: BacklogItem, person: string) => item.assignee === person || item.sharedWith.includes(person);
+  protected readonly activities = computed(() => this.scoped().filter((item) => !this.person() || this.involves(item, this.person())));
 
   // Pessoas que aparecem nas atividades visíveis (para o filtro)
   protected readonly people = computed(() => {
@@ -158,7 +176,7 @@ export class Dashboard {
     };
   });
 
-  protected readonly insights = computed(() =>
+  private readonly liveInsights = computed(() =>
     insights(this.tasks(), this.bd(), this.bu(), this.now, this.sectorId() ? [] : this.sectorSummaries(), {
       unit: 'atividades',
       sprintName: this.sprintName,
@@ -197,52 +215,80 @@ export class Dashboard {
     return bu ? lineChart(bu.labels, bu.series, bu.scale.max, bu.scale.step, this.chartWidth()) : null;
   });
 
+  // ---------- Gantt por pessoa: a atividade atrasada empurra as seguintes da mesma pessoa ----------
+  private readonly me = computed(() => this.access.viewer()?.name ?? '');
+  // Pessoas com atividade na sprint escolhida (para o seletor do Gantt)
+  protected readonly ganttPeople = computed(() => {
+    const names = new Set<string>();
+    for (const item of this.scoped().filter((i) => i.sprintId === this.sprint()?.id)) [item.assignee, ...item.sharedWith].filter(Boolean).forEach((n) => names.add(n));
+    return [...names].sort((a, b) => a.localeCompare(b));
+  });
+  protected readonly ganttPerson = linkedSignal(() => {
+    const people = this.ganttPeople();
+    const wanted = [this.person(), this.me()].find((p) => p && people.includes(p));
+    return wanted ?? people[0] ?? '';
+  });
+
+  protected readonly ganttLegend = SPRINT_COLUMNS.map((c) => ({ label: c.label, color: c.color }));
+
   protected readonly ganttChart = computed(() => {
-    let items: GanttItem[];
-    const sector = this.sector();
-    if (sector) {
-      // Um setor: uma barra por atividade da sprint escolhida, na cor do status no kanban
-      items = this.inSprint()
-        .map((item) => ({ item, task: this.toTask(item), column: sprintColumnOf(sector.columns, item) }))
-        .sort((a, b) => a.task.createdAt.localeCompare(b.task.createdAt) || a.item.id - b.item.id)
-        .map(({ item, task, column }) => ({
-          id: item.id,
-          label: item.name,
-          detail: [item.assignee, ...item.sharedWith].filter(Boolean).join(' ⇄ ') || 'Sem responsável',
-          start: task.createdAt,
-          end: task.end,
-          progress: item.doneAt ? 1 : 0,
-          color: column.color,
-          late: !item.doneAt && task.end < this.now,
-          chip: column,
-        }));
-    } else {
-      // Geral: uma barra por setor, com o progresso e a previsão de término (◆)
-      const tasks = this.tasks();
-      items = this.sectorSummaries().map((s) => {
-        const mine = tasks.filter((t) => t.projectId === s.id);
-        const done = mine.filter((t) => t.status === 'done').length;
-        return {
-          id: s.id,
-          label: `${s.name} · ${this.companyName(s.companyId)}`,
-          detail: `${done} de ${mine.length} finalizadas`,
-          start: mine.map((t) => t.createdAt).sort()[0],
-          end: mine.map((t) => t.end).sort().at(-1)!,
-          progress: mine.length ? done / mine.length : 0,
-          color: HEALTH[s.health].color,
-          late: s.health === 'late' || s.health === 'stalled',
-          chip: HEALTH[s.health],
-          forecast: s.bu && !s.bu.finished ? s.bu.forecastDate : null,
-        };
-      });
-    }
-    return gantt(items, this.now);
+    const person = this.ganttPerson();
+    const items = this.scoped().filter((item) => item.sprintId === this.sprint()?.id && this.involves(item, person));
+    const planned = items.map((item) => {
+      const task = this.toTask(item);
+      return { id: item.id, item, start: task.createdAt, end: task.end, doneAt: task.doneAt };
+    });
+    const rows = cascade(planned, this.now).map(({ item: p, start, end, pushed, delay }) => {
+      const item = p.item;
+      const sector = this.sectorStore.byId(item.sectorId!);
+      const column = sprintColumnOf(sector?.columns ?? SPRINT_COLUMNS, item);
+      const moved = pushed > 0 || end > p.end; // atrasou ou foi empurrada (terminar antes não conta)
+      return {
+        id: item.id,
+        label: item.name,
+        detail: [column.label, sector?.name, pushed ? `empurrada +${pushed}d` : ''].filter(Boolean).join(' · '),
+        start,
+        end,
+        progress: item.doneAt ? 1 : 0,
+        color: column.color,
+        late: !item.doneAt && p.end < this.now,
+        chip: column,
+        planned: moved ? { start: p.start, end: p.end } : null,
+        delay,
+      };
+    });
+    return gantt(rows, this.now);
   });
 
   constructor() {
     watchChartWidth('.project-dash__charts .dash-card', this.chartWidth);
     afterNextRender(() => this.ai.load());
+    // Fotografia do dia: os insights ficam como estavam às 10h (ou na primeira abertura depois disso)
+    effect(() => {
+      const scope = this.analysisScope();
+      if (!this.daily.get(scope)) untracked(() => this.daily.save(scope, { at: new Date().toISOString(), insights: this.liveInsights() }));
+    });
   }
+
+  // ---------- Fotografia diária (insights e IA às 10h) ----------
+  private readonly daily = new DailyRefresh('setores');
+  // A análise das 10h vem do servidor (Cron da Vercel), da empresa escolhida; vale para o recorte sem filtros
+  private readonly ids = inject(ApiSync).ids;
+  private readonly auto = serverAnalysis('setores', () => this.ids.empresa.db(this.companyId()));
+  protected readonly refreshHour = REFRESH_HOUR;
+  protected readonly snapshot = computed(() => this.daily.get(this.analysisScope()));
+  protected readonly insights = computed(() => this.snapshot()?.insights ?? this.liveInsights());
+  protected readonly insightsAt = computed(() => (this.snapshot() ? updatedAt(this.snapshot()!.at) : ''));
+  // Na tela: a análise pedida agora ou a guardada do dia para este recorte
+  protected readonly shownAnalysis = computed(() => {
+    const a = this.analysis();
+    if (a && (a.loading || a.scope === this.analysisScope())) return a;
+    const auto = this.hasFilters() ? null : this.auto();
+    if (auto) return { loading: false, text: auto.texto, error: false, scope: this.analysisScope(), at: auto.criadoEm, auto: true };
+    const saved = this.snapshot()?.analysis;
+    if (saved) return { loading: false, text: saved.text, error: saved.error, scope: this.analysisScope(), at: saved.at };
+    return a;
+  });
 
   // Quantas atividades da sprint estão em cada status (colunas de outros setores contam como "Não iniciado")
   protected inSprintBy(id: string) {
@@ -263,7 +309,8 @@ export class Dashboard {
   // ---------- Análise pela IA ----------
   private readonly ai = inject(AiStore);
   protected readonly aiReady = computed(() => !!this.ai.assistant());
-  protected readonly analysis = signal<{ loading: boolean; text: string; error: boolean; scope: string } | null>(null);
+  protected readonly analysis = signal<{ loading: boolean; text: string; error: boolean; scope: string; at?: string; auto?: boolean } | null>(null);
+  protected readonly updatedAt = updatedAt;
   // Identifica os filtros da análise (para avisar quando a análise na tela é de outros filtros)
   protected readonly analysisScope = computed(() => `${this.scopeLabel()} · ${this.sprint()?.name ?? ''}${this.person() ? ' · ' + this.person() : ''}`);
 
@@ -307,7 +354,7 @@ export class Dashboard {
         .filter((i) => !i.doneAt && i.due && i.due < this.now)
         .map((i) => ({ atividade: i.name, responsavel: i.assignee, prazo: i.due })),
       cargaEmAbertoPorPessoa: Object.fromEntries(this.workload().map((slice) => [slice.name, slice.value])),
-      insightsDoDashboard: this.insights().map((i) => i.text),
+      insightsDoDashboard: this.liveInsights().map((i) => i.text),
     };
     const prompt = `Você é um gestor experiente de times que trabalham com Scrum. Analise os dados do painel de atividades gerais dos setores abaixo (${scope}).
 Responda em português, em texto simples (sem tabelas), com:
@@ -319,7 +366,11 @@ Dados:
 ${JSON.stringify(data, null, 2)}`;
     try {
       const reply = await this.ai.chat([{ role: 'user', content: prompt }], 'Dashboards (/dashboards)');
-      this.analysis.set({ loading: false, text: reply || '(a IA não respondeu nada)', error: false, scope });
+      const at = new Date().toISOString();
+      const text = reply || '(a IA não respondeu nada)';
+      this.analysis.set({ loading: false, text, error: false, scope, at });
+      // Vira a análise do dia deste recorte (e os insights são atualizados junto)
+      this.daily.save(scope, { at, insights: this.liveInsights(), analysis: { text, error: false, at } });
     } catch (error) {
       this.analysis.set({ loading: false, text: error instanceof Error ? error.message : 'Não foi possível falar com a IA.', error: true, scope });
     }

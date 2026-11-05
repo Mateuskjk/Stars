@@ -1,89 +1,61 @@
 @if (sector(); as s) {
   @let c = company()!;
-  <!-- Cabeçalho com as informações do setor e a sprint ativa -->
-  <header class="company-page__header sector-page__header" [style.--sector-color]="s.color">
+  <!-- Cabeçalho enxuto numa faixa: setor (gestor, membros, projetos) · sprint ativa · ações -->
+  <header class="sector-page__bar" [style.--sector-color]="s.color">
     <span class="sector-page__badge" aria-hidden="true">{{ initials(s.name) }}</span>
-    <div class="company-page__main">
-      <p class="sector-page__crumb">
-        <a [routerLink]="['/empresas', c.id]">{{ c.name }}</a> › Setor
-      </p>
-      <div class="project-page__title-row">
-        <h2 class="project-page__title">{{ s.name }}</h2>
-        @if (isAdmin()) {
-          <div class="sector-card__actions sector-page__admin">
-            <button class="modal__ghost planning__small" type="button" (click)="editor.open(s)">Editar setor</button>
-            <button class="modal__ghost modal__ghost--danger planning__small" type="button" (click)="editor.askDelete(s)">Excluir</button>
-          </div>
-          <app-sector-editor #editor [company]="c" (deleted)="onDeleted()" />
-        }
-      </div>
-      <p class="project-page__description">{{ s.description || 'Sem descrição' }}</p>
-      <dl class="project-page__facts">
-        <div><dt>Gestor</dt><dd>{{ s.manager || '—' }}</dd></div>
-        <div><dt>Empresa</dt><dd><a class="company-page__site" [routerLink]="['/empresas', c.id]">{{ c.name }}</a></dd></div>
-        <div>
-          <dt>Membros do setor</dt>
-          <dd class="company-page__people">
-            @for (m of sectorMembers(); track m.id) {
-              <span class="kanban__avatar" [title]="m.name">{{ initials(m.name) }}</span>
-            } @empty {
-              —
-            }
-          </dd>
-        </div>
-        <div class="project-page__docs">
-          <dt>Projetos associados</dt>
-          <dd class="sector-page__projects">
-            @for (p of projects(); track p.id) {
-              <a class="sector-page__project" [routerLink]="['/projetos', p.id]">
-                {{ p.name }}
-                @if (p.statusInfo; as st) {
-                  <span class="status-chip" [style.--status-color]="st.color">{{ st.label }}</span>
-                }
-              </a>
-            } @empty {
-              <span class="sector-card__empty">Nenhum projeto da {{ c.name }} neste setor.</span>
-            }
-          </dd>
-        </div>
-      </dl>
+    <div class="sector-page__info">
+      <h2 class="sector-page__name" [title]="s.description">{{ s.name }}</h2>
+      <span class="planning__muted">
+        {{ s.manager ? 'Gestor: ' + s.manager : 'Sem gestor' }} · {{ sectorMembers().length }} {{ sectorMembers().length === 1 ? 'membro' : 'membros' }} ·
+        {{ projects().length }} {{ projects().length === 1 ? 'projeto' : 'projetos' }}
+      </span>
     </div>
 
     <!-- Sprint ativa da Planning (7 dias úteis) -->
-    <aside class="project-page__progress sector-page__sprint-box" aria-label="Sprint ativa">
+    <div class="sector-page__sprint" aria-label="Sprint ativa">
       @if (sprint(); as sp) {
-        <div class="project-page__progress-head">
-          <span>Sprint ativa</span>
-          <strong class="sector-page__sprint-name">{{ sp.name }}</strong>
-        </div>
-        <p class="sector-page__period">{{ formatDay(sp.start) }} – {{ formatDay(sp.end) }} · dia {{ sprintDay() }} de {{ sprintDays }} úteis</p>
-        <div class="sector-page__days" role="img" [attr.aria-label]="'Dia ' + sprintDay() + ' de ' + sprintDays">
+        <span class="sector-page__sprint-name" [title]="sp.goal ? '🎯 ' + sp.goal : ''">{{ sp.name }}</span>
+        <span class="sector-page__days" role="img" [attr.aria-label]="'Dia ' + sprintDay() + ' de ' + sprintDays">
           @for (d of [1, 2, 3, 4, 5, 6, 7]; track d) {
             <span [class.is-past]="d < sprintDay()" [class.is-today]="d === sprintDay()"></span>
           }
-        </div>
-        @if (sp.goal) {
-          <p class="sector-page__goal">🎯 {{ sp.goal }}</p>
-        }
-        <dl class="project-page__numbers">
-          <div><dt>Na sprint</dt><dd>{{ items().length }}</dd></div>
-          <div><dt>{{ doneLabel() }}</dt><dd>{{ doneCount() }}</dd></div>
-          <div><dt>Faltam</dt><dd>{{ daysLeft() }} {{ daysLeft() === 1 ? 'dia útil' : 'dias úteis' }}</dd></div>
-        </dl>
+        </span>
+        <span class="planning__muted">
+          dia {{ sprintDay() }} de {{ sprintDays }} úteis · {{ items().length }} na sprint · {{ doneCount() }} {{ doneLabel().toLowerCase() }}
+        </span>
       } @else {
-        <p class="sector-page__goal">Nenhuma sprint ativa. <a routerLink="/workspace/planning">Abrir a Planning</a></p>
+        <span class="planning__muted">Nenhuma sprint ativa · <a routerLink="/workspace/planning">Abrir a Planning</a></span>
       }
-    </aside>
+    </div>
+
+    @if (isAdmin()) {
+      <!-- Menu "…" com as ações do setor (o mesmo do cabeçalho do projeto) -->
+      <div class="sector-page__admin row-menu">
+        <button class="row-menu__trigger" type="button" title="Mais ações" aria-label="Mais ações do setor" aria-haspopup="menu" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+        </button>
+        @if (menuOpen()) {
+          <div class="row-menu__list" role="menu">
+            <button class="row-menu__item" type="button" role="menuitem" (click)="editor.open(s); menuOpen.set(false)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="m13.5 6.5 4 4" /></svg>
+              Editar setor
+            </button>
+            <hr class="row-menu__sep" />
+            <button class="row-menu__item row-menu__item--danger" type="button" role="menuitem" (click)="editor.askDelete(s); menuOpen.set(false)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
+              Excluir setor
+            </button>
+          </div>
+        }
+      </div>
+      <app-sector-editor #editor [company]="c" (deleted)="onDeleted()" />
+    }
   </header>
 
   <!-- Kanban da sprint ativa do setor -->
   <section class="sector-page__kanban" [attr.aria-label]="'Atividades gerais de ' + s.name + ' na sprint ativa'">
     <div class="project-page__kanban-head">
       <h2 class="kanban__title">Atividades gerais da sprint</h2>
-      <a class="modal__ghost planning__small project-page__dash" routerLink="/workspace/planning">Abrir Planning</a>
-      @if (sprint()) {
-        <button class="backlog__new" type="button" (click)="creating.set(!creating())">{{ creating() ? 'Cancelar' : '+ Nova atividade' }}</button>
-      }
     </div>
 
     @if (!seesAll()) {
@@ -92,144 +64,156 @@
       </p>
     }
 
-    <!-- Atividade conjunta conta para cada pessoa envolvida -->
-    @if (perPerson().length) {
-      <ul class="sector-page__people" aria-label="Atividades por pessoa">
-        @for (p of perPerson(); track p.name) {
-          <li [title]="p.shared ? p.shared + ' conjunta(s)' : ''">
-            <span class="kanban__avatar">{{ initials(p.name) }}</span>
-            {{ p.name }} · <strong>{{ p.total }}</strong>
-            @if (p.shared) {
-              <small>({{ p.shared }} ⇄)</small>
-            }
-          </li>
-        }
-      </ul>
-    }
-
-    @if (creating() && sprint()) {
-      <form class="project-page__new sector-page__new" (submit)="create($event)">
-        <input class="modal__input" name="name" placeholder="Nome da atividade *" aria-label="Nome da atividade" required maxlength="120" />
-        <select class="modal__input" name="assignee" aria-label="Responsável">
-          <option value="">Sem responsável</option>
-          @for (person of people(); track person) {
-            <option [value]="person" [selected]="person === viewer()?.name">{{ person }}</option>
-          }
-        </select>
-        <app-people-picker placeholder="⇄ Compartilhar com" [selected]="newShared()" (selectedChange)="newShared.set($event)" />
-        <input class="modal__input" name="due" type="date" aria-label="Prazo" />
-        <select class="modal__input" name="column" aria-label="Coluna">
-          @for (column of columns(); track column.id) {
-            <option [value]="column.id">{{ column.label }}</option>
-          }
-        </select>
-        <button class="backlog__new" type="submit">Criar</button>
-      </form>
-    }
-
     @if (sprint()) {
-      <div class="backlog__board">
-        @for (column of board(); track column.id) {
-          <section
-            class="backlog__column"
-            [class.is-drop-target]="dropTarget() === column.id"
-            [attr.aria-label]="column.label"
-            (dragover)="onDragOver($event, column.id)"
-            (drop)="onDrop($event, column.id)"
-          >
-            <header class="backlog__column-header">
-              <span class="backlog__dot" [style.background]="column.color"></span>
-              <app-column-title
-                class="backlog__column-title"
-                [label]="column.label"
-                [custom]="isCustom(column.id)"
-                [count]="column.cards.length"
-                [fallback]="columns()[0].label"
-                (rename)="renameColumn(column.id, $event)"
-                (remove)="removeColumn(column.id)"
-              />
-              <span class="backlog__count">{{ column.cards.length }}</span>
-            </header>
-
-            <ul class="backlog__cards">
-              @for (card of column.cards; track card.id) {
-                <li
-                  class="backlog-card"
-                  [class.is-locked]="card.locked"
-                  [class.is-late]="isOverdue(card)"
-                  [class.is-dragging]="dragging() === card.id"
-                  draggable="true"
-                  (dragstart)="dragging.set(card.id)"
-                  (dragend)="endDrag()"
-                >
-                  <!-- Abre o cartão aqui mesmo, por cima do kanban do setor -->
-                  <button class="backlog-card__open" type="button" (click)="cardEditor.openEdit(card)">
-                    @if (card.tags.length || teamOf(card)) {
-                      <span class="backlog-card__tags">
-                        @if (teamOf(card); as team) {
-                          <span class="sector-page__team" title="Atividade da equipe: aparece para todos os membros dela">👥 {{ team }}</span>
+      <!-- "+ Nova atividade" fica na barra, ao lado da troca kanban/lista -->
+      <app-board-toolbar storageKey="setor" [filterKey]="sectorId()" [count]="items().length" [fields]="filterFields()" [(filters)]="filters" [(query)]="query" [(view)]="view">
+        <button class="backlog__new" type="button" (click)="newActivity(cardEditor)">+ Nova atividade</button>
+      </app-board-toolbar>
+      @if (view() === 'list') {
+        <!-- Lista (mesmo estilo da lista do Work): uma linha por atividade, com as ações à direita -->
+        <div class="work-list" role="region" aria-label="Atividades da sprint em lista">
+          <table class="work-list__table">
+            <thead>
+              <tr>
+                <th scope="col">Código</th>
+                <th scope="col">Atividade</th>
+                <th scope="col">Status</th>
+                <th scope="col">Responsável</th>
+                <th scope="col">Prazo</th>
+                <th scope="col" class="work-list__actions-head">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (column of board(); track column.id) {
+                @for (card of column.cards; track card.id) {
+                  <tr>
+                    <td class="work-list__code">{{ card.number ? '#' + card.number : '—' }}</td>
+                    <td>
+                      <button class="work-list__name" type="button" (click)="cardEditor.openEdit(card)">
+                        {{ card.name }}
+                        @if (card.locked) {
+                          <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
                         }
-                        @for (tag of card.tags; track tag) {
-                          <span class="tag" [style.--tag-color]="tagColor(tag)">{{ tag }}</span>
-                        }
-                      </span>
-                    }
-                    <span class="backlog-card__name">{{ card.name }}</span>
-                    @if (card.sharedWith.length && card.sharedWith.includes(viewer()?.name ?? '')) {
-                      <span class="sector-page__shared-by">
-                        Compartilhada por
-                        <span class="kanban__avatar" [title]="card.assignee">{{ initials(card.assignee) }}</span>
-                        {{ card.assignee }}
-                      </span>
-                    }
-                    <span class="backlog-card__meta">
-                      @if (sprintOf(card); as sprint) {
-                        <span class="backlog-card__sprint" [class.is-active]="sprint.status === 'active'" [title]="sprint.status === 'active' ? 'Na sprint ativa' : 'Sprint ' + sprint.status">{{ sprint.name }}</span>
+                      </button>
+                      @if (meta(card); as text) {
+                        <span class="kanban__meta" [title]="text">{{ text }}</span>
                       }
+                    </td>
+                    <td>
+                      <span class="work-list__status" [style.--col]="column.color">{{ column.label }}</span>
+                    </td>
+                    <td>{{ card.assignee || '—' }}</td>
+                    <td>
                       @if (card.due) {
-                        <span class="backlog-card__due" [class.is-overdue]="isOverdue(card)">
-                          {{ isOverdue(card) ? 'Atrasado · ' : '' }}{{ formatDay(card.due) }}
-                        </span>
+                        <span class="kanban__badge" [class.is-late]="isOverdue(card)" [title]="isOverdue(card) ? 'Atrasado' : ''">{{ formatDay(card.due) }}</span>
+                      } @else {
+                        —
                       }
-                      @if (card.locked) {
-                        <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
-                      }
-                      <!-- Responsável (quem compartilhou) ⇄ pessoas com quem compartilhou -->
-                      <span class="sector-page__avatars" [title]="card.sharedWith.length ? card.assignee + ' compartilhou com ' + card.sharedWith.join(', ') : card.assignee">
-                        @if (card.assignee) {
-                          <span class="kanban__avatar">{{ initials(card.assignee) }}</span>
-                        }
-                        @if (card.sharedWith.length) {
-                          <span class="sector-page__share-icon" aria-hidden="true">⇄</span>
-                          @for (person of card.sharedWith; track person) {
-                            <span class="kanban__avatar sector-page__avatar-shared">{{ initials(person) }}</span>
-                          }
+                    </td>
+                    <td>
+                      <app-card-actions
+                        [name]="card.name"
+                        (open)="cardEditor.openEdit(card)"
+                        (edit)="cardEditor.openEdit(card)"
+                        (archive)="archive(card)"
+                        (remove)="confirmDelete.ask(card.name, removeItem(card))"
+                      />
+                    </td>
+                  </tr>
+                }
+              }
+              @if (!boardItems().length) {
+                <tr>
+                  <td class="planning__empty" colspan="6">Nenhuma atividade.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="backlog__board">
+          @for (column of board(); track column.id) {
+            <section
+              class="backlog__column"
+              [style.--col]="column.color"
+              [class.is-drop-target]="dropTarget() === column.id"
+              [attr.aria-label]="column.label"
+              (dragover)="onDragOver($event, column.id)"
+              (drop)="onDrop($event, column.id)"
+            >
+              <header class="backlog__column-header">
+                <span class="backlog__dot" [style.background]="column.color"></span>
+                <app-column-title
+                  class="backlog__column-title"
+                  [label]="column.label"
+                  [custom]="isCustom(column.id)"
+                  [count]="column.cards.length"
+                  [fallback]="columns()[0].label"
+                  (rename)="renameColumn(column.id, $event)"
+                  (remove)="removeColumn(column.id)"
+                />
+                <span class="backlog__count">{{ column.cards.length }}</span>
+              </header>
+
+              <ul class="backlog__cards">
+                @for (card of column.cards; track card.id) {
+                  <li
+                    class="backlog-card"
+                    [class.is-locked]="card.locked"
+                    [class.is-late]="isOverdue(card)"
+                    [class.is-dragging]="dragging() === card.id"
+                    draggable="true"
+                    (dragstart)="dragging.set(card.id)"
+                    (dragend)="endDrag()"
+                  >
+                    <!-- Abre o cartão aqui mesmo, por cima do kanban do setor -->
+                    <button class="backlog-card__open" type="button" (click)="cardEditor.openEdit(card)">
+                      <span class="kanban__card-top">
+                        <span class="kanban__card-title">{{ card.name }}</span>
+                        @if (card.due) {
+                          <span class="kanban__badge" [class.is-late]="isOverdue(card)" [title]="(isOverdue(card) ? 'Atrasado · ' : '') + formatDay(card.due)">{{ formatDay(card.due) }}</span>
                         }
                       </span>
-                    </span>
-                  </button>
-                  <select class="kanban__move sector-page__move" [attr.aria-label]="'Mover ' + card.name + ' para'" (change)="move(card.id, $any($event.target).value)">
-                    @for (option of columns(); track option.id) {
-                      <option [value]="option.id" [selected]="option.id === column.id">{{ option.label }}</option>
-                    }
-                  </select>
-                </li>
-              } @empty {
-                <li class="backlog__empty">Nenhuma atividade</li>
-              }
-            </ul>
-          </section>
-        }
-        @if (isAdmin()) {
-          <app-add-column (add)="addColumn($event)" />
-        }
-      </div>
+                      @if (meta(card); as text) {
+                        <span class="kanban__meta" [title]="text">{{ text }}</span>
+                      }
+                    </button>
+                    <div class="kanban__card-actions">
+                      <select class="kanban__move" [attr.aria-label]="'Mover ' + card.name + ' para'" (change)="move(card.id, $any($event.target).value)">
+                        @for (option of columns(); track option.id) {
+                          <option [value]="option.id" [selected]="option.id === column.id">{{ option.label }}</option>
+                        }
+                      </select>
+                      <app-card-actions
+                        [name]="card.name"
+                        (open)="cardEditor.openEdit(card)"
+                        (edit)="cardEditor.openEdit(card)"
+                        (archive)="archive(card)"
+                        (remove)="confirmDelete.ask(card.name, removeItem(card))"
+                      />
+                      @if (card.locked) {
+                        <span class="backlog-card__stat" title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
+                      }
+                    </div>
+                  </li>
+                } @empty {
+                  <li class="backlog__empty">Nenhuma atividade</li>
+                }
+              </ul>
+            </section>
+          }
+          @if (isAdmin()) {
+            <app-add-column (add)="addColumn($event)" />
+          }
+        </div>
+      }
     }
   </section>
 }
 
 <!-- Modal do cartão (o mesmo do Backlog): fechar volta para o kanban do setor -->
 <app-backlog-editor #cardEditor />
+<app-confirm-delete #confirmDelete />
 
 @if (!sector()) {
   <div class="dash-card favorites__empty">

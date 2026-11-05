@@ -363,3 +363,310 @@ $info: #2a78d6;
     --label-w: 150px;
   }
 }
+
+// ---------- Visual dos Dashboards: cores, degradês, profundidade e hover ----------
+
+// Abas dentro da barra (mesmo cabeçalho do Work): controle segmentado à esquerda, "Filtro" à direita
+.dashboards__tabs {
+  order: -1;
+  gap: 2px;
+  margin-right: auto;
+  padding: 3px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background-color: var(--color-board);
+
+  button {
+    height: 30px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 7px;
+    font-size: 13px;
+    transition: background-color 0.15s, color 0.15s;
+
+    &:hover {
+      color: $color-title;
+    }
+
+    &.is-active {
+      background-color: var(--color-card);
+      color: $color-title;
+      box-shadow: var(--shadow-ring), 0 2px 6px rgb(var(--shadow-color) / 0.18);
+    }
+  }
+}
+
+.project-dash .dash-card {
+  position: relative;
+  border: 1px solid var(--color-line);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-card) 94%, #fff 6%), var(--color-card));
+  box-shadow:
+    0 1px 2px rgb(var(--shadow-color) / 0.08),
+    0 12px 28px -16px rgb(var(--shadow-color) / 0.45);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--accent, #{$info}) 40%, var(--color-line));
+    box-shadow:
+      0 1px 2px rgb(var(--shadow-color) / 0.08),
+      0 18px 36px -16px rgb(var(--shadow-color) / 0.55),
+      0 0 0 1px color-mix(in srgb, var(--accent, #{$info}) 12%, transparent);
+  }
+}
+
+.dash-card__stamp {
+  color: $ink-muted;
+  font-size: 12px;
+
+  p#{&} {
+    margin-bottom: 8px;
+  }
+}
+
+// KPIs: cada um com a sua cor (faixa no topo, brilho no canto, ícone e barrinha de proporção)
+.stat {
+  --accent: #{$info};
+  overflow: hidden;
+  padding: 18px;
+
+  &--blue {
+    --accent: #{$info};
+  }
+
+  &--green {
+    --accent: #1baf7a;
+  }
+
+  &--red {
+    --accent: #{$bad};
+  }
+
+  &--amber {
+    --accent: #{$warn};
+  }
+
+  .project-dash &.dash-card {
+    background:
+      radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 55%),
+      linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, var(--color-card)), var(--color-card));
+  }
+
+  &::before {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 10%, transparent));
+    content: '';
+  }
+
+  .project-dash &:hover {
+    transform: translateY(-3px);
+  }
+
+  &__label {
+    display: flex;
+    align-items: center;
+  }
+
+  &__icon {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--accent) 8%, transparent));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  &__value {
+    font-size: 34px;
+    letter-spacing: -0.02em;
+
+    &.project-dash__bad {
+      color: $bad;
+      text-shadow: 0 0 18px rgb(208 59 59 / 0.45);
+    }
+  }
+
+  &__bar {
+    height: 6px;
+    margin-top: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+
+    span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 45%, transparent), var(--accent));
+      box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 70%, transparent);
+      transition: width 0.4s ease;
+    }
+  }
+}
+
+// Insights com degradê no tom e um empurrãozinho no hover
+.insights__item {
+  border-left-width: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 18%, transparent), color-mix(in srgb, var(--tone) 3%, transparent));
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 6px 16px -10px var(--tone);
+    transform: translateX(3px);
+  }
+}
+
+// Análise da IA: brilho violeta
+.project-dash__ai {
+  --accent: #8b5cf6;
+
+  .project-dash &.dash-card {
+    background:
+      radial-gradient(110% 120% at 0% 0%, color-mix(in srgb, #8b5cf6 16%, transparent), transparent 60%),
+      var(--color-card);
+  }
+}
+
+// Gráficos de linha: área em degradê, linha mais grossa com sombra
+.chart__area {
+  pointer-events: none;
+}
+
+.chart__line {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 3px 6px rgb(var(--shadow-color) / 0.3));
+}
+
+.chart__dot {
+  filter: drop-shadow(0 0 6px rgb(var(--shadow-color) / 0.4));
+}
+
+.pie__slice {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+    filter: drop-shadow(0 4px 8px rgb(var(--shadow-color) / 0.4));
+    transform: scale(1.04);
+  }
+}
+
+// Gantt: cabeçalho com o seletor, barras em pílula com degradê, planejado tracejado e o atraso
+.project-dash__gantt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  > div {
+    flex: 1 1 360px;
+    min-width: 0;
+  }
+}
+
+.project-dash__gantt-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  color: $ink-muted;
+  font-size: 12px;
+}
+
+.gantt {
+  &__inner {
+    padding-right: 52px; // espaço para o "+Nd" no fim da linha do tempo
+  }
+
+  &__row {
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: color-mix(in srgb, var(--color-line) 35%, transparent);
+    }
+  }
+
+  &__bar {
+    z-index: 1;
+    height: 18px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bar-color) 48%, var(--color-card)), color-mix(in srgb, var(--bar-color) 26%, var(--color-card)));
+    box-shadow:
+      0 3px 10px -3px color-mix(in srgb, var(--bar-color) 70%, transparent),
+      inset 0 1px 0 rgb(255 255 255 / 0.18);
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+
+    &:hover,
+    &:focus-visible {
+      box-shadow:
+        0 0 0 2px var(--color-card),
+        0 0 0 4px var(--bar-color),
+        0 6px 16px -4px var(--bar-color);
+      transform: translateY(-50%) scaleY(1.12);
+    }
+
+    &.is-late {
+      box-shadow:
+        inset 0 0 0 2px $bad,
+        0 3px 12px -3px rgb(208 59 59 / 0.7);
+    }
+  }
+
+  &__fill {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--bar-color) 65%, var(--color-card)), var(--bar-color));
+  }
+
+  &__planned {
+    position: absolute;
+    top: 50%;
+    height: 26px;
+    border: 1.5px dashed $ink-muted;
+    border-radius: 999px;
+    opacity: 0.65;
+    transform: translateY(-50%);
+  }
+
+  &__planned-key {
+    width: 16px;
+    height: 10px;
+    border: 1.5px dashed $ink-muted;
+    border-radius: 999px;
+  }
+
+  &__delay {
+    position: absolute;
+    top: 50%;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, $bad 20%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, $bad 45%, transparent);
+    color: $bad;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    transform: translate(6px, -50%);
+  }
+
+  &__today {
+    box-shadow: 0 0 10px rgb(208 59 59 / 0.7);
+  }
+}

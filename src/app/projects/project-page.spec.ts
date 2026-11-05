@@ -32,7 +32,7 @@ describe('ProjectPage', () => {
     expect(store.tasks().find((t) => t.id === task.id)!.doneAt).not.toBeNull();
 
     // nova atividade entra só neste projeto
-    el.querySelector<HTMLButtonElement>('.project-page__kanban-head .backlog__new')!.click();
+    el.querySelector<HTMLButtonElement>('.board-toolbar .backlog__new')!.click();
     fixture.detectChanges();
     const form = el.querySelector<HTMLFormElement>('.project-page__new')!;
     form.querySelector<HTMLInputElement>('[name="title"]')!.value = 'Tela de pedidos';

@@ -1,10 +1,11 @@
-import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { NgTemplateOutlet } from '@angular/common';
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { Assistant } from './ai/assistant';
 import { Login } from './login/login';
+import { Invite } from './members/invite';
 import { Loader } from './loader/loader';
 import { initials } from './format';
 import { SessionStore } from './api/session';
@@ -16,12 +17,13 @@ type Menu = 'nav' | 'notifications';
 const THEME_KEY = 'stars.theme';
 
 @Component({
-  imports: [Assistant, Login, NgTemplateOutlet, RouterLink, RouterLinkActive, RouterOutlet, Loader],
+  imports: [Assistant, Invite, Login, NgTemplateOutlet, RouterLink, RouterLinkActive, RouterOutlet, Loader],
   selector: 'app-root',
   templateUrl: './app.html',
   host: {
     '(document:click)': 'closeMenuOnOutsideClick($event)',
-    '(document:keydown.escape)': 'openMenu.set(null); companyMenu.set(false); userMenu.set(false)',
+    '(document:keydown.escape)': "openMenu.set(null); companyMenu.set(false); userMenu.set(false); navQuery.set('')",
+    '(document:keydown.f)': 'focusSearch($event)',
   },
 })
 export class App {
@@ -33,7 +35,9 @@ export class App {
   protected readonly userInitials = computed(() => initials(this.userName()).toUpperCase());
   // Menu da conta, no rodapé da sidebar (também à parte do openMenu)
   protected readonly userMenu = signal(false);
-  protected readonly searchOpen = signal(false);
+  // Busca do menu (topo da sidebar, atalho F): filtra as telas pelo nome
+  protected readonly navQuery = signal('');
+  private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
   // Conta do usuário (Minha conta): nome, foto, fuso e preferências valem para todo o app
   protected readonly account = inject(AccountStore);
   protected readonly session = inject(SessionStore);
@@ -50,8 +54,38 @@ export class App {
     { initialValue: false },
   );
 
+  // Título da tela no centro da barra do topo: o item do menu que corresponde ao endereço
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      map((e) => e.urlAfterRedirects),
+    ),
+    { initialValue: '' },
+  );
+  // Link do e-mail de convite (/convite?email=…): sem sessão, mostra a tela de ativar a conta no lugar do login
+  protected readonly invitePage = typeof location !== 'undefined' && location.pathname.startsWith('/convite');
+
+  // Voltar (barra do topo): a página anterior dentro do sistema; abriu direto aqui (link, recarga), vai para a Home
+  private readonly location = inject(Location);
+  private visited = 0;
+  protected back() {
+    if (this.visited > 1) this.location.back();
+    else void this.router.navigateByUrl('/');
+  }
+
+  protected readonly pageTitle = computed(() => {
+    const path = this.url().split(/[?#]/)[0];
+    // Página da empresa (e dos setores dela): o nome da empresa
+    const company = /^\/empresas\/(\d+)/.exec(path);
+    if (company) return this.companyStore.companies().find((c) => c.id === Number(company[1]))?.name ?? '';
+    const items = this.navGroups.flatMap((g) => g.items).filter((i) => (i.link === '/' ? path === '/' : path.startsWith(i.link)));
+    return items.sort((a, b) => b.link.length - a.link.length)[0]?.label ?? '';
+  });
+
   constructor() {
     const destroyRef = inject(DestroyRef);
+    const counting = this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => this.visited++);
+    destroyRef.onDestroy(() => counting.unsubscribe());
     afterNextRender(() => {
       void this.session.check();
       this.account.load();
@@ -61,16 +95,19 @@ export class App {
   }
 
   // ponytail: notificações fixas de exemplo; trocar por um service/API quando o backend existir
-  private readonly allNotifications = signal<{ id: number; text: string; read: boolean; type: NotificationType }[]>([
+  // (quais já foram lidas fica em Minha conta: account.notifications.readIds)
+  private readonly allNotifications: { id: number; text: string; read: boolean; type: NotificationType }[] = [
     { id: 1, text: 'Bem-vindo ao LexÁgile!', read: false, type: 'system' },
     { id: 2, text: 'Seu Daily de hoje está pronto.', read: false, type: 'daily' },
     { id: 3, text: 'Planning da semana atualizado.', read: true, type: 'planning' },
     { id: 4, text: 'Ana Souza mencionou você num comentário.', read: false, type: 'mentions' },
-  ]);
+  ];
   // Só os tipos que a pessoa escolheu receber (e nada, se ela desligou as notificações)
   protected readonly notifications = computed(() => {
     const prefs = this.account.account().notifications;
-    return prefs.enabled ? this.allNotifications().filter((n) => prefs.types[n.type]) : [];
+    // Lida = já vinha lida ou a pessoa marcou (guardado em Minha conta, vale depois de recarregar e em outro navegador)
+    const readIds = new Set(prefs.readIds);
+    return prefs.enabled ? this.allNotifications.filter((n) => prefs.types[n.type]).map((n) => ({ ...n, read: n.read || readIds.has(n.id) })) : [];
   });
   // Menu principal (sidebar): todas as telas, agrupadas
   protected readonly navGroups: { label: string; items: { label: string; link: string; icon: string[] }[] }[] = [
@@ -84,8 +121,8 @@ export class App {
     {
       label: 'Projetos',
       items: [
-        { label: 'Geral', link: '/projetos/visaoGeral', icon: ['M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z'] },
-        { label: 'Criar novo projeto', link: '/projetos/novo', icon: ['M12 5v14', 'M5 12h14'] },
+        { label: 'Projetos', link: '/projetos', icon: ['M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z'] },
+        { label: 'Setores', link: '/setores', icon: ['M3 3h8v8H3z', 'M13 3h8v8h-8z', 'M3 13h8v8H3z', 'M13 13h8v8h-8z'] },
       ],
     },
     {
@@ -106,10 +143,22 @@ export class App {
         { label: 'Membros', link: '/configuracoes/membros', icon: ['M16 21a6 6 0 0 0-12 0', 'M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M22 21a6 6 0 0 0-4-5.7', 'M16 3.1a4 4 0 0 1 0 7.8'] },
         { label: 'Equipes', link: '/configuracoes/equipes', icon: ['M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M5 20a7 7 0 0 1 14 0', 'M5 10a2 2 0 1 0 0-4', 'M19 10a2 2 0 1 0 0-4'] },
         { label: 'Integração com IA', link: '/configuracoes/integracao-ia', icon: ['M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z', 'M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z'] },
-        { label: 'Integrações', link: '/configuracoes/integracoes', icon: ['M9 2v6', 'M15 2v6', 'M6 8h12v3a6 6 0 0 1-12 0z', 'M12 17v5'] },
       ],
     },
   ];
+
+  protected readonly filteredNav = computed(() => {
+    const q = normalize(this.navQuery());
+    if (!q) return this.navGroups;
+    return this.navGroups.map((g) => ({ ...g, items: g.items.filter((i) => normalize(i.label).includes(q)) })).filter((g) => g.items.length);
+  });
+
+  protected focusSearch(event: Event) {
+    const target = event.target as HTMLElement;
+    if (target.closest('input, textarea, select, [contenteditable]')) return;
+    event.preventDefault();
+    this.searchInput()?.nativeElement.focus();
+  }
 
   protected readonly hasUnread = computed(() => this.notifications().some((n) => !n.read));
 
@@ -148,8 +197,22 @@ export class App {
     this.openMenu.update((open) => (open === menu ? null : menu));
   }
 
+  // Entrada (não lidas) e Arquivadas (lidas)
+  protected readonly notifTab = signal<'inbox' | 'archived'>('inbox');
+  protected readonly unread = computed(() => this.notifications().filter((n) => !n.read));
+  protected readonly read = computed(() => this.notifications().filter((n) => n.read));
+
+  protected markRead(id: number) {
+    this.markAsRead([id]);
+  }
+
   protected markAllAsRead() {
-    this.allNotifications.update((list) => list.map((n) => ({ ...n, read: true })));
+    this.markAsRead(this.unread().map((n) => n.id));
+  }
+
+  private markAsRead(ids: number[]) {
+    const readIds = this.account.account().notifications.readIds;
+    this.account.updateNotifications({ readIds: [...new Set([...readIds, ...ids])] });
   }
 
   // No celular o menu do meio é um painel: fecha ao escolher uma página
@@ -170,6 +233,8 @@ export class App {
   }
 
   protected closeMenuOnOutsideClick(event: Event) {
+    // Clique que tirou o próprio botão da tela (ex.: notificação que foi para Arquivadas) não conta como "fora"
+    if (!(event.target as Element).isConnected) return;
     if (!(event.target as Element).closest('.company-picker')) this.companyMenu.set(false);
     if (!(event.target as Element).closest('.user-menu')) this.userMenu.set(false);
     if (!(event.target as Element).closest('.nav-menu, .nav-toggle, .sidebar')) {
@@ -177,6 +242,8 @@ export class App {
     }
   }
 }
+
+const normalize = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
 
 // Kanbans: segurar o mouse no fundo do quadro e arrastar rola as colunas para o lado.
 // Cartões (arrastáveis), botões e campos continuam com o comportamento normal.

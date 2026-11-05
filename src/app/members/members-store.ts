@@ -38,11 +38,17 @@ export function defaultPermissions(role: Role): Permissions {
   return { ...all('view'), daily: 'edit', backlog: 'edit', notes: 'edit', settings: 'none' };
 }
 
+// Convite pendente: o código vai por e-mail e é conferido no servidor (src/server/invites.ts)
 export interface Invite {
-  code: string;
-  expiresAt: number;
-  attempts: number;
   sentAt: number;
+  message?: string; // mensagem de quem convidou (vai no e-mail)
+}
+
+// Situação do último e-mail de convite (a tela de Membros mostra se saiu ou falhou)
+export interface InviteMail {
+  email: string;
+  state: 'sending' | 'sent' | 'failed';
+  error?: string;
 }
 
 export interface Member {
@@ -58,24 +64,11 @@ export interface Member {
   invite: Invite | null;
 }
 
-export const CODE_TTL = 24 * 60 * 60 * 1000; // o código vale 24h
-export const MAX_ATTEMPTS = 5;
-
-// Número aleatório seguro (crypto), não Math.random
-function randomInt(max: number) {
-  return crypto.getRandomValues(new Uint32Array(1))[0] % max;
-}
-
-export function generateCode() {
-  return String(randomInt(1_000_000)).padStart(6, '0');
-}
-
 export function generateToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   return 'stars_' + [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export type ValidationResult = 'ok' | 'not-found' | 'expired' | 'blocked' | 'wrong-code';
 
 const emailOf = (name: string) =>
   name
@@ -145,37 +138,18 @@ export class MembersStore {
     return this.members().find((member) => member.email.toLowerCase() === target) ?? null;
   }
 
-  // Cria o membro como "convite pendente" e devolve o código para o e-mail
-  invite(data: { name: string; email: string; role: Role; permissions: Permissions; company: string }, now = Date.now()) {
-    const invite: Invite = { code: generateCode(), expiresAt: now + CODE_TTL, attempts: 0, sentAt: now };
+  // Último e-mail de convite: o servidor responde se enviou (ApiSync) e a tela mostra
+  readonly inviteMail = signal<InviteMail | null>(null);
+
+  // Cria o membro como "convite pendente"; ao gravar no banco, o servidor envia o e-mail com o código
+  invite(data: { name: string; email: string; role: Role; permissions: Permissions; company: string }, message = '', now = Date.now()) {
+    const invite: Invite = { sentAt: now, message: message.trim() || undefined };
     const member: Member = { ...data, email: data.email.trim().toLowerCase(), id: this.nextId(), status: 'pending', tokenHint: null, invite };
     this.members.update((list) => [...list, member]);
+    this.inviteMail.set({ email: member.email, state: 'sending' });
     return member;
   }
 
-  // Reenviar: código novo, prazo novo e tentativas zeradas (o código antigo deixa de valer)
-  resend(id: number, now = Date.now()) {
-    const invite: Invite = { code: generateCode(), expiresAt: now + CODE_TTL, attempts: 0, sentAt: now };
-    this.patch(id, { invite });
-    return invite;
-  }
-
-  validate(email: string, code: string, now = Date.now()): ValidationResult {
-    const member = this.findByEmail(email);
-    if (!member || member.status !== 'pending' || !member.invite) return 'not-found';
-    const invite = member.invite;
-    if (now > invite.expiresAt) return 'expired';
-    if (invite.attempts >= MAX_ATTEMPTS) return 'blocked';
-    if (code.trim() !== invite.code) {
-      this.patch(member.id, { invite: { ...invite, attempts: invite.attempts + 1 } });
-      if (invite.attempts + 1 >= MAX_ATTEMPTS) {
-        return 'blocked';
-      }
-      return 'wrong-code';
-    }
-    this.patch(member.id, { status: 'active', invite: null });
-    return 'ok';
-  }
 
   // Gera um token novo (o anterior deixa de valer) e registra no servidor da API pública.
   // Devolve o token inteiro só desta vez. Falha (lança erro) se o servidor não registrar.
@@ -223,28 +197,4 @@ export class MembersStore {
   }
 }
 
-// E-mail de convite personalizado (texto). O servidor de e-mail usaria este conteúdo.
-export function inviteEmail(member: Member, invitedBy: string, message: string, origin: string) {
-  const firstName = member.name.split(' ')[0];
-  const role = ROLES.find((r) => r.id === member.role)!.label;
-  return {
-    to: member.email,
-    subject: `${invitedBy} convidou você para o LexÁgile`,
-    body: [
-      `Olá, ${firstName}!`,
-      ``,
-      `${invitedBy} convidou você para entrar no LexÁgile como ${role}` + (member.company ? ` na ${member.company}.` : '.'),
-      ...(message.trim() ? [``, `“${message.trim()}”`] : []),
-      ``,
-      `Seu código de verificação é:`,
-      ``,
-      `    ${member.invite?.code}`,
-      ``,
-      `Para ativar sua conta, acesse ${origin}/convite e informe este e-mail e o código acima.`,
-      `O código vale por 24 horas. Se você não esperava este convite, é só ignorar esta mensagem.`,
-      ``,
-      `Equipe LexÁgile`,
-    ].join('\n'),
-  };
-}
 

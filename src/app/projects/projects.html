@@ -1,10 +1,9 @@
 <section class="kanban" aria-label="Kanban de todos os projetos">
-  <h2 class="kanban__title">Todos os projetos</h2>
-
   <div class="kanban__board">
     @for (column of board(); track column.id) {
       <div
         class="kanban__column"
+        [style.--col]="column.color"
         [class.is-drop-target]="dropTarget() === column.id"
         (dragover)="onDragOver($event, column.id)"
         (drop)="onDrop($event, column.id)"
@@ -33,11 +32,23 @@
               (dragend)="endDrag()"
               (click)="openProject(card.id, $event)"
             >
-              <div class="kanban__card-header">
+              <div class="kanban__card-top">
                 <span class="kanban__cover" [style.background]="card.cover" aria-hidden="true"></span>
-                @if (card.company) {
-                  <span class="kanban__project">{{ card.company }}</span>
-                }
+                <a class="kanban__card-title kanban__card-link" [routerLink]="['/projetos', card.id]">{{ card.name }}</a>
+              </div>
+              @if (card.company || card.owner) {
+                <p class="kanban__meta">
+                  {{ card.company }}
+                  @if (card.company && card.owner) {
+                    ·
+                  }
+                  {{ card.owner }}
+                </p>
+              }
+              @if (card.description) {
+                <p class="kanban__description">{{ card.description }}</p>
+              }
+              <div class="kanban__card-actions">
                 <select
                   class="kanban__move"
                   [attr.aria-label]="'Mover ' + card.name + ' para'"
@@ -47,17 +58,14 @@
                     <option [value]="option.id" [selected]="option.id === card.status">{{ option.label }}</option>
                   }
                 </select>
+                <app-card-actions
+                  [name]="card.name"
+                  (open)="router.navigate(['/projetos', card.id])"
+                  (edit)="editProject.emit(card)"
+                  (archive)="move(card.id, 'archived')"
+                  (remove)="removeProject.emit(card)"
+                />
               </div>
-              <a class="kanban__card-title kanban__card-link" [routerLink]="['/projetos', card.id]">{{ card.name }}</a>
-              @if (card.description) {
-                <p class="kanban__description">{{ card.description }}</p>
-              }
-              @if (card.owner) {
-                <div class="kanban__card-footer">
-                  <span class="kanban__avatar" aria-hidden="true">{{ initials(card.owner) }}</span>
-                  <span class="kanban__assignee">{{ card.owner }}</span>
-                </div>
-              }
             </li>
           } @empty {
             <li class="kanban__empty">Nenhum projeto</li>

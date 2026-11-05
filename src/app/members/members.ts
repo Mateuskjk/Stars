@@ -3,7 +3,6 @@ import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, s
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { initials } from '../format';
-import { ResponsiveTable } from '../responsive-table';
 import { AllowedDomains } from './allowed-domains';
 import {
   ACCESS_LEVELS,
@@ -16,15 +15,15 @@ import {
   ROLES,
   Role,
   defaultPermissions,
-  inviteEmail,
 } from './members-store';
 import { CompanyStore } from '../companies/company-store';
 import { AccountStore } from '../account/account-store';
+import { ApiSync } from '../api/api-sync';
 
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 @Component({
-  imports: [AllowedDomains, ResponsiveTable, NgTemplateOutlet, RouterLink],
+  imports: [AllowedDomains, NgTemplateOutlet, RouterLink],
   selector: 'app-members',
   templateUrl: './members.html',
   host: { class: 'members' },
@@ -45,7 +44,33 @@ export class Members {
     const term = normalize(this.search());
     return this.store.members().filter((m) => normalize(`${m.name} ${m.email}`).includes(term));
   });
-  protected readonly pendingCount = computed(() => this.store.members().filter((m) => m.status === 'pending').length);
+  // Lista agrupada por perfil de empresa, cada grupo um menu que abre e fecha (na busca, todos abertos);
+  // a linha aberta mostra os campos para editar
+  protected readonly groups = computed(() => {
+    // Ordem dos perfis de empresa; empresa fora da lista e "Sem empresa" vão no fim (ninguém some)
+    const names = [...new Set([...this.allCompanies().map((c) => c.name), ...this.list().map((m) => m.company ?? '')])];
+    names.sort((a, b) => Number(a === '') - Number(b === ''));
+    return names
+      .map((name) => ({ name, members: this.list().filter((m) => (m.company ?? '') === name) }))
+      .filter((g) => g.members.length);
+  });
+  private readonly openGroups = signal<ReadonlySet<string>>(new Set());
+  protected isGroupOpen(name: string) {
+    return !!this.search().trim() || this.openGroups().has(name);
+  }
+  protected toggleGroup(name: string) {
+    this.openGroups.update((open) => {
+      const next = new Set(open);
+      if (!next.delete(name)) next.add(name);
+      return next;
+    });
+  }
+  protected readonly openId = signal<Member['id'] | null>(null);
+  protected toggle(member: Member) {
+    this.openId.update((id) => (id === member.id ? null : member.id));
+  }
+  protected readonly roleColor: Record<Role, string> = { admin: '#a855f7', supervisor: '#3b82f6', member: '#888' };
+
   private readonly admins = computed(() => this.store.members().filter((m) => m.role === 'admin' && m.status === 'active'));
 
   protected roleLabel(role: Role) {
@@ -83,8 +108,9 @@ export class Members {
   protected readonly inviteStep = signal<'form' | 'sent'>('form');
   protected readonly inviteError = signal('');
   protected readonly inviteRole = signal<Role>('member');
-  protected readonly sentEmail = signal<ReturnType<typeof inviteEmail> | null>(null);
-  private inviteMessage = '';
+  // Situação do e-mail do convite (enviando, enviado ou falhou), vinda do servidor
+  protected readonly inviteMail = this.store.inviteMail;
+  private readonly sync = inject(ApiSync);
 
   protected openInvite() {
     this.inviteStep.set('form');
@@ -115,24 +141,15 @@ export class Members {
       this.inviteError.set('Já existe um membro (ou convite) com esse e-mail.');
       return;
     }
-    this.inviteMessage = String(data.get('message') ?? '');
-    const member = this.store.invite({ name, email, role: this.inviteRole(), permissions: this.permDraft(), company });
-    this.showEmail(member);
+    this.store.invite({ name, email, role: this.inviteRole(), permissions: this.permDraft(), company }, String(data.get('message') ?? ''));
+    this.inviteStep.set('sent');
     form.reset();
   }
 
   protected resend(member: Member) {
-    this.store.resend(member.id);
-    this.inviteMessage = '';
-    this.showEmail(this.store.members().find((m) => m.id === member.id)!);
-    this.inviteDialog().nativeElement.showModal();
-  }
-
-  // ponytail: aqui o servidor enviaria o e-mail (ex.: rota POST /api/convites no server.ts + provedor SMTP);
-  // sem backend, a tela mostra a prévia do e-mail que seria enviado
-  private showEmail(member: Member) {
-    this.sentEmail.set(inviteEmail(member, this.account.fullName(), this.inviteMessage, location.origin));
+    void this.sync.resendInvite(member);
     this.inviteStep.set('sent');
+    this.inviteDialog().nativeElement.showModal();
   }
 
   protected closeInvite() {

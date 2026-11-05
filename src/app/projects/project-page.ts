@@ -1,31 +1,39 @@
+import { SprintStore } from '../planning/sprint-store';
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { BoardToolbar, BoardView, FilterField, FilterRule, matchesQuery, optionsOf, passesFilters } from '../kanban/board-toolbar';
 import { PeopleStore } from '../members/people-store';
 import { Router, RouterLink } from '@angular/router';
 import { compressImage } from '../companies/company-store';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
+import { CardActions } from '../kanban/card-actions';
+import { ConfirmDelete } from '../kanban/confirm-delete';
 import { MembersStore } from '../members/members-store';
 import { HEALTH, burnUp, health, shortDate } from './project-metrics';
 import { ProjectStore } from './project-store';
 import { ProjectTask, SPRINT_DAYS, ProjectTaskStore, TaskStatus, sprintOf, sprintWindow, today } from './project-tasks';
 import { ProjectTaskEditor } from './project-task-editor';
-import { initials } from './projects';
 
-const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const POINTS = [1, 2, 3, 5, 8, 13];
 
 // /projetos/:id — cabeçalho com os dados do projeto e o kanban só com as atividades dele
 @Component({
-  imports: [RouterLink, AddColumn, ColumnTitle, ProjectTaskEditor],
+  imports: [RouterLink, AddColumn, ColumnTitle, ProjectTaskEditor, BoardToolbar, CardActions, ConfirmDelete],
   selector: 'app-project-page',
   templateUrl: './project-page.html',
-  host: { class: 'project-page' },
+  host: {
+    class: 'project-page',
+    '(document:click)': 'closeMenuOnOutsideClick($event)',
+    '(document:keydown.escape)': 'menuOpen.set(false)',
+  },
 })
 export class ProjectPage {
   readonly id = input.required<string>(); // vem da rota (withComponentInputBinding)
 
   private readonly projectStore = inject(ProjectStore);
   private readonly taskStore = inject(ProjectTaskStore);
+  protected readonly sprintName = (n: number) => this.sprintStore.nameOf(n); // nome da sprint da Planning
+  private readonly sprintStore = inject(SprintStore);
 
   protected readonly now = today();
   protected readonly currentSprint = sprintOf(this.now);
@@ -33,7 +41,6 @@ export class ProjectPage {
   protected readonly sprintDays = SPRINT_DAYS;
   protected readonly people = inject(PeopleStore).names; // membros reais da empresa escolhida
   protected readonly points = POINTS;
-  protected readonly initials = initials;
   protected readonly shortDate = shortDate;
   protected readonly columns = this.taskStore.columns;
   protected readonly isAdmin = inject(MembersStore).isAdmin;
@@ -95,7 +102,7 @@ export class ProjectPage {
   protected confirmDelete(dialog: HTMLDialogElement) {
     dialog.close();
     this.projectStore.remove(Number(this.id()));
-    void this.router.navigate(['/projetos/visaoGeral']);
+    void this.router.navigate(['/projetos']);
   }
 
   protected closeOnBackdrop(event: MouseEvent, dialog: HTMLDialogElement) {
@@ -133,21 +140,35 @@ export class ProjectPage {
   });
 
   // ---------- Kanban ----------
-  protected readonly sprintFilter = signal(0); // 0 = todas as sprints
-  protected readonly sprintOptions = computed(() => {
+  // Filtros: Sprint (as que têm atividades, mais a atual) e Responsável
+  protected readonly filters = signal<FilterRule[]>([]);
+  protected readonly filterFields = computed<FilterField[]>(() => {
     const numbers = new Set(this.tasks().map((t) => t.sprint));
     numbers.add(this.currentSprint);
-    return [...numbers].sort((a, b) => b - a);
+    const current = this.sprintName(this.currentSprint);
+    // por nome: períodos do calendário que caem na mesma sprint da Planning viram uma opção só
+    const names = [...new Set([...numbers].sort((a, b) => b - a).map(this.sprintName))];
+    const sprints = names.map((name) => ({ value: name, label: name === current ? name + ' (atual)' : name }));
+    return [
+      { key: 'sprint', label: 'Sprint', options: sprints },
+      { key: 'responsavel', label: 'Responsável', options: optionsOf(this.tasks().map((t) => t.assignee)) },
+    ];
   });
 
+  // Barra acima do quadro: busca pelo nome e kanban/lista
+  protected readonly query = signal('');
+  protected readonly view = signal<BoardView>('board');
   protected readonly board = computed(() => {
-    const sprint = this.sprintFilter();
-    const tasks = this.tasks().filter((t) => !sprint || t.sprint === sprint);
+    const tasks = this.tasks().filter(
+      (t) => matchesQuery(t.title, this.query()) && passesFilters(this.filters(), (key) => (key === 'sprint' ? this.sprintName(t.sprint) : t.assignee)),
+    );
     return this.columns().map((column) => {
       const cards = tasks.filter((t) => t.status === column.id).sort((a, b) => a.end.localeCompare(b.end));
       return { ...column, cards, points: cards.reduce((n, t) => n + t.points, 0) };
     });
   });
+
+  protected readonly hasCards = computed(() => this.board().some((c) => c.cards.length));
 
   protected readonly dragging = signal<number | null>(null);
   protected readonly dropTarget = signal<TaskStatus | null>(null);
@@ -156,6 +177,22 @@ export class ProjectPage {
   protected openCard(task: ProjectTask, event: Event, editor: ProjectTaskEditor) {
     if ((event.target as HTMLElement).closest('select')) return;
     editor.open(task);
+  }
+
+  // Menu "…" do cabeçalho (foto, arquivar, excluir): fecha ao clicar fora ou com Esc
+  protected readonly menuOpen = signal(false);
+  protected closeMenuOnOutsideClick(event: Event) {
+    const target = event.target as Element;
+    if (target.isConnected && !target.closest('.row-menu')) this.menuOpen.set(false);
+  }
+
+  // Botões do cartão
+  protected archiveTask(task: ProjectTask) {
+    this.taskStore.archive(task.id);
+  }
+
+  protected removeTask(task: ProjectTask) {
+    return () => this.taskStore.remove(task.id);
   }
 
   protected move(id: number, status: TaskStatus) {
@@ -206,15 +243,16 @@ export class ProjectPage {
     const form = event.target as HTMLFormElement;
     const data = new FormData(form);
     const title = String(data.get('title') ?? '').trim();
-    if (!project || !title) return;
-    const sprint = Number(data.get('sprint')) || this.currentSprint;
+    const assignee = String(data.get('assignee') ?? '');
+    if (!project || !title || !assignee) return; // atividade de projeto sempre tem responsável
+    const sprint = this.currentSprint; // nasce na sprint atual
     const points = Number(data.get('points')) || 1;
     const window = sprintWindow(sprint);
     this.taskStore.add(
       {
         projectId: project.id,
         title,
-        assignee: String(data.get('assignee') ?? ''),
+        assignee,
         points,
         status: String(data.get('status') ?? 'todo') as TaskStatus,
         sprint,
@@ -226,7 +264,4 @@ export class ProjectPage {
     this.creating.set(false);
   }
 
-  protected money(value: number) {
-    return value ? currency.format(value) : '—';
-  }
 }

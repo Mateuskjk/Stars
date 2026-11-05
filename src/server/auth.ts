@@ -99,6 +99,13 @@ export async function verifyPassword(password: string, stored: string | null): P
   return false;
 }
 
+// Hash novo no mesmo formato que o sistema já usa (o convidado criando a senha no primeiro acesso)
+export async function hashPassword(password: string) {
+  const salt = randomBytes(16);
+  const key = await scryptAsync(password, salt, 32, { N: 32768, r: 8, p: 1 });
+  return `scrypt$32768$8$1$${salt.toString('base64')}$${key.toString('base64')}`;
+}
+
 const DUMMY_HASH = `scrypt$32768$8$1$${Buffer.alloc(16).toString('base64')}$${Buffer.alloc(32).toString('base64')}`;
 
 // ---------- Limite de tentativas de login (no banco: vale em todas as cópias do servidor) ----------

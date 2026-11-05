@@ -45,6 +45,11 @@ export function lineChart(labels: string[], series: LineSeries[], max: number, s
       return {
         ...s,
         path: points.map((p, i) => `${i ? 'L' : 'M'}${p.x},${p.y}`).join(''),
+        // Área embaixo da linha (preenchida com degradê); tracejadas não têm
+        area:
+          s.dashed || points.length < 2
+            ? null
+            : `${points.map((p, i) => `${i ? 'L' : 'M'}${p.x},${p.y}`).join('')}L${points.at(-1)!.x},${PAD.top + plotH}L${points[0].x},${PAD.top + plotH}Z`,
         end: points.at(-1) ?? null,
       };
     }),

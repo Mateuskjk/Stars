@@ -2,12 +2,12 @@
   @if (welcome(); as name) {
     <span class="invite__icon invite__icon--ok" aria-hidden="true">✓</span>
     <h2 class="invite__title">Conta ativada! Bem-vindo(a), {{ name }}.</h2>
-    <p class="invite__text">Seu acesso ao LexÁgile já está liberado.</p>
-    <a class="modal__primary invite__button" routerLink="/">Ir para o início</a>
+    <p class="invite__text">Sua senha foi criada e o seu acesso ao LexÁgile já está liberado.</p>
+    <button class="modal__primary invite__button" type="button" (click)="enter()">Entrar no LexÁgile</button>
   } @else {
     <span class="invite__icon" aria-hidden="true">✉️</span>
-    <h2 class="invite__title">Validar convite</h2>
-    <p class="invite__text">Informe o e-mail que recebeu o convite e o código de 6 números enviado para ele.</p>
+    <h2 class="invite__title">Ativar convite</h2>
+    <p class="invite__text">Informe o e-mail que recebeu o convite, o código de 6 números enviado para ele e crie a sua senha.</p>
 
     <form class="invite__form" (submit)="submit($event)">
       <label class="modal__field">
@@ -30,8 +30,18 @@
           (input)="onlyDigits(code)"
         />
       </label>
+      <label class="modal__field">
+        <span class="modal__label">Crie uma senha <span class="modal__optional">(mínimo 8 caracteres)</span></span>
+        <input class="modal__input" name="password" type="password" required minlength="8" autocomplete="new-password" />
+      </label>
+      <label class="modal__field">
+        <span class="modal__label">Repita a senha</span>
+        <input class="modal__input" name="confirm" type="password" required minlength="8" autocomplete="new-password" />
+      </label>
       <p id="invite-error" class="planning__error" role="alert">{{ error() }}</p>
-      <button class="modal__primary invite__button" type="submit">Validar e ativar conta</button>
+      <button class="modal__primary invite__button" type="submit" [disabled]="sending()">
+        {{ sending() ? 'Ativando…' : 'Ativar conta e entrar' }}
+      </button>
     </form>
   }
 </section>

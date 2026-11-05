@@ -36,6 +36,7 @@ export class BacklogEditor {
 
   private readonly editor = viewChild.required<ElementRef<HTMLDialogElement>>('editor');
   // Rascunho: as mudanças só valem ao clicar em "Salvar atividade"
+  protected readonly error = signal('');
   protected readonly draft = signal<BacklogItem>(emptyItem());
   protected readonly isNew = computed(() => !this.draft().id);
   // Id da atividade no banco (os anexos gravam direto lá); nova ou ainda não salva = null
@@ -66,8 +67,10 @@ export class BacklogEditor {
   }
 
 
-  openNew(status: BacklogStatus = 'to-refine') {
-    this.draft.set(emptyItem(status));
+  // `preset`: campos já preenchidos (ex.: na página do setor, a atividade nasce no setor e na sprint ativa)
+  openNew(status: BacklogStatus = 'to-refine', preset: Partial<BacklogItem> = {}) {
+    this.draft.set({ ...emptyItem(status), ...preset });
+    this.error.set('');
     this.editor().nativeElement.showModal();
   }
 
@@ -94,6 +97,12 @@ export class BacklogEditor {
     event.preventDefault();
     const item = this.draft();
     if (!item.name.trim()) return;
+    // Na sprint, toda atividade tem dono (o servidor também recusa sem responsável)
+    if (item.sprintId && !item.assignee) {
+      this.error.set('Na sprint, a atividade precisa de um responsável.');
+      return;
+    }
+    this.error.set('');
     // o responsável não fica entre as pessoas com quem a atividade foi compartilhada
     const sharedWith = item.sharedWith.filter((name) => name !== item.assignee);
     this.store.save({ ...item, name: item.name.trim(), sharedWith });

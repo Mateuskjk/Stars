@@ -22,7 +22,7 @@ async function open(email = '') {
   fixture.componentRef.setInput('sectorId', '4'); // TI
   fixture.detectChanges();
   const el = fixture.nativeElement as HTMLElement;
-  const cards = () => [...el.querySelectorAll('.backlog-card__name')].map((n) => n.textContent).sort();
+  const cards = () => [...el.querySelectorAll('.backlog-card .kanban__card-title')].map((n) => n.textContent).sort();
   return { fixture, el, cards };
 }
 
@@ -31,21 +31,20 @@ describe('SectorPage', () => {
     const { el, cards } = await open();
     expect(el.querySelector('.sector-page__sprint-name')!.textContent).toBe('Sprint 12');
     expect(el.textContent).toContain('de 7 úteis');
-    // cada cartão mostra a sprint dele
-    expect([...el.querySelectorAll('.backlog-card .backlog-card__sprint')].every((chip) => chip.textContent!.trim() === 'Sprint 12')).toBe(true);
-    expect(el.querySelectorAll('.backlog-card .backlog-card__sprint').length).toBe(el.querySelectorAll('.backlog-card').length);
+    // cada cartão mostra a sprint dele (na linha de dados)
+    const metas = [...el.querySelectorAll('.backlog-card .kanban__meta')];
+    expect(metas.length).toBe(el.querySelectorAll('.backlog-card').length);
+    expect(metas.every((meta) => meta.textContent!.includes('Sprint 12'))).toBe(true);
     expect([...el.querySelectorAll('.backlog__column-title h3')].map((h) => h.textContent)).toEqual(['Não iniciado', 'Andamento', 'Revisão', 'Bloqueado', 'Finalizado']);
     // admin vê todas as da sprint; as fora da sprint (Renovar licenças, Treinamento) não aparecem
     expect(cards()).toEqual(['Atualizar antivírus das máquinas', 'Automatizar convites da daily', 'Monitoramento dos servidores', 'Revisar acessos do Drive']);
   });
 
-  it('a member sees only own, shared and team activities; shared ones count for both people', async () => {
+  it('a member sees only own, shared and team activities', async () => {
     const carlos = await open('carlos.lima@stars.com'); // membro comum, fora da equipe Plataforma
     expect(carlos.cards()).toEqual(['Automatizar convites da daily', 'Revisar acessos do Drive']);
-    expect(carlos.el.querySelector('.sector-page__shared-by')!.textContent).toContain('Ana Souza');
-    const people = [...carlos.el.querySelectorAll('.sector-page__people li')].map((li) => li.textContent!.replace(/\s+/g, ''));
-    expect(people).toContain('CLCarlosLima·2(1⇄)');
-    expect(people).toContain('ASAnaSouza·1(1⇄)');
+    // a compartilhada mostra quem compartilhou ⇄ com quem
+    expect([...carlos.el.querySelectorAll('.kanban__meta')].some((m) => m.textContent!.includes('Ana Souza ⇄ Carlos Lima'))).toBe(true);
 
     // Diego é da equipe Plataforma: vê a atividade da equipe (Monitoramento dos servidores) e a própria
     TestBed.resetTestingModule();
@@ -56,16 +55,28 @@ describe('SectorPage', () => {
   it('new activity enters the active sprint linked to the sector; moving changes the sprint column', async () => {
     const { fixture, el } = await open();
     const backlog = TestBed.inject(BacklogStore);
+    // "+ Nova atividade" abre o painel lateral (o mesmo do Backlog), já no setor e na sprint ativa
     el.querySelector<HTMLButtonElement>('.sector-page__kanban .backlog__new')!.click();
     fixture.detectChanges();
-    const form = el.querySelector<HTMLFormElement>('.sector-page__new')!;
-    form.querySelector<HTMLInputElement>('[name="name"]')!.value = 'Inventário de máquinas';
+    const drawer = el.querySelector<HTMLDialogElement>('dialog[aria-labelledby="editor-title"]')!;
+    expect(drawer.open).toBe(true);
+    const form = drawer.querySelector<HTMLFormElement>('form')!;
+    const name = form.querySelector<HTMLInputElement>('input')!;
+    name.value = 'Inventário de máquinas';
+    name.dispatchEvent(new Event('input'));
+    // sem responsável não entra na sprint
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    fixture.detectChanges();
+    expect(form.textContent).toContain('precisa de um responsável');
+    const assignee = [...form.querySelectorAll<HTMLSelectElement>('select')].find((sel) => [...sel.options].some((o) => o.value === 'Carlos Lima'))!;
+    assignee.value = 'Carlos Lima';
+    assignee.dispatchEvent(new Event('change'));
     form.dispatchEvent(new Event('submit', { cancelable: true }));
     fixture.detectChanges();
     const created = backlog.items().at(-1)!;
-    expect(created).toMatchObject({ name: 'Inventário de máquinas', sectorId: 4, sprintId: 12, sprintStatus: 'todo', status: 'refinement-done' });
+    expect(created).toMatchObject({ name: 'Inventário de máquinas', assignee: 'Carlos Lima', sectorId: 4, sprintId: 12, sprintStatus: 'todo', status: 'refinement-done' });
 
-    const select = [...el.querySelectorAll<HTMLSelectElement>('.sector-page__move')].find((s) => s.closest('.backlog-card')!.textContent!.includes('Inventário'))!;
+    const select = [...el.querySelectorAll<HTMLSelectElement>('.backlog-card .kanban__move')].find((s) => s.closest('.backlog-card')!.textContent!.includes('Inventário'))!;
     select.value = 'doing';
     select.dispatchEvent(new Event('change'));
     expect(backlog.items().find((i) => i.id === created.id)!.sprintStatus).toBe('doing');
@@ -85,7 +96,7 @@ describe('SectorPage', () => {
     const backlog = TestBed.inject(BacklogStore);
     const item = backlog.items().find((i) => i.name === 'Monitoramento dos servidores')!; // Andamento
     const column = (title: string) => [...el.querySelectorAll('.backlog__column')].find((c) => c.querySelector('h3')!.textContent === title)!;
-    const moveSelect = () => [...el.querySelectorAll<HTMLSelectElement>('.sector-page__move')].find((s) => s.closest('.backlog-card')!.textContent!.includes('Monitoramento'))!;
+    const moveSelect = () => [...el.querySelectorAll<HTMLSelectElement>('.backlog-card .kanban__move')].find((s) => s.closest('.backlog-card')!.textContent!.includes('Monitoramento'))!;
 
     moveSelect().value = 'blocked';
     moveSelect().dispatchEvent(new Event('change'));

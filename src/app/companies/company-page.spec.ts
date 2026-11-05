@@ -12,7 +12,7 @@ HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
 };
 
 describe('CompanyPage', () => {
-  it('shows the company header, its sector profiles and creates, edits and deletes sectors', async () => {
+  it('shows the sector profiles (no company header: the name is in the top bar) and creates, edits and deletes sectors', async () => {
     await TestBed.configureTestingModule({ imports: [CompanyPage], providers: [provideRouter([])] }).compileComponents();
     const fixture = TestBed.createComponent(CompanyPage);
     fixture.componentRef.setInput('id', '1'); // Acme Ltda
@@ -26,9 +26,11 @@ describe('CompanyPage', () => {
       fixture.detectChanges();
     };
 
-    expect(el.querySelector('.project-page__title')!.textContent).toBe('Acme Ltda');
+    expect(el.querySelector('.company-page__header')).toBeNull();
     expect(sectors()).toEqual(['Marketing', 'Comercial', 'Financeiro', 'TI']);
-    expect(el.querySelector('.sector-card')!.textContent).toContain('Redesign do site');
+    // cartão enxuto: sem a lista de projetos do setor; o cartão leva para a página do setor
+    expect(el.querySelector('.sector-card')!.textContent).not.toContain('Redesign do site');
+    expect(el.querySelector('.sector-card a')!.getAttribute('href')).toContain('/setores/');
 
     // criar
     el.querySelector<HTMLButtonElement>('.company-page__sectors .backlog__new')!.click();

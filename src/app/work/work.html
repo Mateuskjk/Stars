@@ -1,39 +1,106 @@
-<header class="backlog__header">
-  <div>
-    <h2 class="backlog__title">Work</h2>
-    <p class="backlog__subtitle">Suas atividades gerais e de projetos da sprint atual. Mover aqui move também no kanban da sprint do setor e no kanban do projeto.</p>
-  </div>
-</header>
+<!-- Busca, filtros (Pessoa só para Admin e Supervisor) e kanban/lista -->
+<app-board-toolbar storageKey="work" [count]="cards().length" [fields]="filterFields()" [(filters)]="filters" [(query)]="query" [(view)]="view" />
 
-<section class="kanban" aria-label="Minhas atividades">
-  <div class="kanban__board">
-    @for (column of board(); track column.id) {
-      <div
-        class="kanban__column"
-        [class.is-drop-target]="dropTarget() === column.id"
-        (dragover)="onDragOver($event, column.id)"
-        (drop)="onDrop($event, column.id)"
-      >
-        <header class="kanban__column-header">
-          <span class="kanban__status" [style.background]="column.color"></span>
-          <span class="kanban__column-title">{{ column.label }}</span>
-          <span class="kanban__count">{{ column.cards.length }}</span>
-        </header>
-
-        <ul class="kanban__cards">
+@if (view() === 'list') {
+  <!-- Lista: uma linha por atividade, com as ações à direita -->
+  <div class="work-list" role="region" aria-label="Atividades em lista">
+    <table class="work-list__table">
+      <thead>
+        <tr>
+          <th scope="col">Código</th>
+          <th scope="col">Atividade</th>
+          <th scope="col">Status</th>
+          <th scope="col">Responsável</th>
+          <th scope="col">Prazo</th>
+          <th scope="col" class="card-actions-head">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (column of board(); track column.id) {
           @for (card of column.cards; track card.key) {
-            <li
-              class="kanban__card"
-              draggable="true"
-              [class.is-dragging]="dragging() === card.key"
-              [class.is-late]="isLate(card)"
-              (dragstart)="dragging.set(card.key)"
-              (dragend)="endDrag()"
-              (click)="openCard(card, $event)"
-            >
-              <div class="kanban__card-header">
-                <span class="kanban__project" [title]="card.kind === 'task' ? 'Projeto ' + card.origin : 'Atividade geral (Backlog)'">{{ card.origin }}</span>
-                <select
+            <tr>
+              <td class="work-list__code">{{ card.number ? '#' + card.number : '—' }}</td>
+              <td>
+                <button class="work-list__name" type="button" (click)="open(card)">{{ card.title }}</button>
+                <span class="kanban__meta">{{ card.origin }}</span>
+              </td>
+              <td>
+                <span class="work-list__status" [style.--col]="column.color">{{ column.label }}</span>
+              </td>
+              <td>{{ card.assignee || '—' }}</td>
+              <td>
+                @if (card.due) {
+                  <span class="kanban__badge" [class.is-late]="isLate(card)" [title]="isLate(card) ? 'Atrasada' : ''">{{ shortDate(card.due) }}</span>
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                <app-card-actions
+                  [name]="card.title"
+                  [link]="card.link"
+                  [goLabel]="card.kind === 'task' ? 'Ir até o projeto' : 'Ir até o kanban'"
+                  (open)="open(card)"
+                  (edit)="open(card)"
+                  (archive)="archive(card)"
+                  (remove)="askDelete(card)"
+                />
+              </td>
+            </tr>
+          }
+        }
+        @if (!cards().length) {
+          <tr>
+            <td class="planning__empty" colspan="6">Nenhuma atividade.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else {
+  <section class="kanban" [attr.aria-label]="seesAll() ? 'Atividades da empresa' : 'Minhas atividades'">
+    <div class="kanban__board">
+      @for (column of board(); track column.id) {
+        <div
+          class="kanban__column"
+          [style.--col]="column.color"
+          [class.is-drop-target]="dropTarget() === column.id"
+          (dragover)="onDragOver($event, column.id)"
+          (drop)="onDrop($event, column.id)"
+        >
+          <header class="kanban__column-header">
+            <span class="kanban__status" [style.background]="column.color"></span>
+            <span class="kanban__column-title">{{ column.label }}</span>
+            <span class="kanban__count">{{ column.cards.length }}</span>
+          </header>
+  
+          <ul class="kanban__cards">
+            @for (card of column.cards; track card.key) {
+              <li
+                class="kanban__card"
+                draggable="true"
+                [class.is-dragging]="dragging() === card.key"
+                [class.is-late]="isLate(card)"
+                (dragstart)="dragging.set(card.key)"
+                (dragend)="endDrag()"
+                (click)="openCard(card, $event)"
+              >
+                <div class="kanban__card-top">
+                  <!-- Clicar no cartão (ou no nome, pelo teclado) abre o modal da atividade aqui mesmo -->
+                  <button class="kanban__card-title work__open" type="button">{{ card.title }}</button>
+                  @if (card.due) {
+                    <span class="kanban__badge" [class.is-late]="isLate(card)" [title]="(isLate(card) ? 'Atrasada · ' : '') + 'até ' + shortDate(card.due)">{{ shortDate(card.due) }}</span>
+                  }
+                </div>
+                <p class="kanban__meta">
+                  <span [title]="card.kind === 'task' ? 'Projeto ' + card.origin : 'Atividade geral (Backlog)'">{{ card.origin }}</span>
+                  · <span title="Coluna no kanban de origem">{{ card.kind === 'task' ? 'No projeto' : 'Na sprint' }}: {{ originLabel(card) }}</span>
+                  @if (seesAll() && card.assignee) {
+                    · {{ card.assignee }}
+                  }
+                </p>
+                <div class="kanban__card-actions">
+                  <select
                     class="kanban__move"
                     [attr.aria-label]="'Mover ' + card.title + ' para'"
                     (change)="ask(card.key, $any($event.target).value); $any($event.target).value = card.column"
@@ -42,24 +109,26 @@
                       <option [value]="option.id" [selected]="option.id === card.column">{{ option.label }}</option>
                     }
                   </select>
-              </div>
-              <!-- Clicar no cartão (ou no nome, pelo teclado) abre o modal da atividade aqui mesmo -->
-              <button class="kanban__card-title work__open" type="button">{{ card.title }}</button>
-              <div class="kanban__card-footer">
-                <span class="work__origin" [title]="'Coluna no kanban de origem'">{{ card.kind === 'task' ? 'No projeto' : 'Na sprint' }}: {{ originLabel(card) }}</span>
-                @if (card.due) {
-                  <span class="project-page__due" [class.is-late]="isLate(card)">{{ isLate(card) ? 'Atrasada · ' : '' }}até {{ shortDate(card.due) }}</span>
-                }
-              </div>
-            </li>
-          } @empty {
-            <li class="kanban__empty">Nenhuma atividade</li>
-          }
-        </ul>
-      </div>
-    }
-  </div>
-</section>
+                  <app-card-actions
+                    [name]="card.title"
+                    [link]="card.link"
+                    [goLabel]="card.kind === 'task' ? 'Ir até o projeto' : 'Ir até o kanban'"
+                    (open)="open(card)"
+                    (edit)="open(card)"
+                    (archive)="archive(card)"
+                    (remove)="askDelete(card)"
+                  />
+                </div>
+              </li>
+            } @empty {
+              <li class="kanban__empty">Nenhuma atividade</li>
+            }
+          </ul>
+        </div>
+      }
+    </div>
+  </section>
+}
 
 <!-- Sempre que um cartão muda de coluna: as colunas do Work não são as mesmas do kanban de origem -->
 <dialog #moveDialog class="confirm-dialog" aria-labelledby="work-move-title" (click)="onDialogClick($event)">
@@ -91,6 +160,20 @@
         <button class="confirm-dialog__button confirm-dialog__button--primary" type="button" [disabled]="p.choice === p.card.originColumn" (click)="confirm()">
           Mover
         </button>
+      </div>
+    </div>
+  }
+</dialog>
+
+<!-- Excluir pela lista: confirma antes -->
+<dialog #deleteDialog class="confirm-dialog" aria-labelledby="work-delete-title" (click)="$event.target === deleteDialog && deleteDialog.close()">
+  @if (deleting(); as card) {
+    <div class="confirm-dialog__box">
+      <h2 id="work-delete-title" class="confirm-dialog__title">Excluir esta atividade?</h2>
+      <p class="confirm-dialog__text">“{{ card.title }}” será removida. Essa ação não pode ser desfeita.</p>
+      <div class="confirm-dialog__actions">
+        <button class="confirm-dialog__button" type="button" (click)="deleteDialog.close()">Cancelar</button>
+        <button class="confirm-dialog__button confirm-dialog__button--danger" type="button" (click)="confirmDelete()">Excluir</button>
       </div>
     </div>
   }

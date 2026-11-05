@@ -1,15 +1,14 @@
-<header class="backlog__header">
-  <div>
-    <h2 class="backlog__title">Membros</h2>
-    <p class="backlog__subtitle">
-      {{ store.members().length }} membros
-      @if (pendingCount()) {
-        · {{ pendingCount() }} {{ pendingCount() === 1 ? 'convite pendente' : 'convites pendentes' }}
-      }
-    </p>
-  </div>
-  <button class="backlog__new" type="button" (click)="openInvite()">+ Convidar membro</button>
-</header>
+<!-- Padrão LexPré: o título fica na barra do topo; aqui, busca + convite e a lista agrupada por cargo -->
+<div class="members__toolbar">
+  <label class="members__search">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16.5 16.5 3.5 3.5" />
+    </svg>
+    <input type="search" placeholder="Buscar por nome ou e-mail" aria-label="Buscar membros" [value]="search()" (input)="search.set($any($event.target).value)" />
+  </label>
+  <button class="members__add" type="button" (click)="openInvite()">+ Convidar membro</button>
+</div>
 
 <app-allowed-domains />
 
@@ -17,117 +16,116 @@
   <p class="planning__error" role="alert">{{ tokenError() }}</p>
 }
 
-<label class="chat__search members__search">
-  <svg class="chat__icon" viewBox="0 0 24 24" aria-hidden="true">
-    <circle cx="11" cy="11" r="7" />
-    <path d="m20 20-4-4" />
-  </svg>
-  <input type="search" placeholder="Buscar por nome ou e-mail" aria-label="Buscar membros" [value]="search()" (input)="search.set($any($event.target).value)" />
-</label>
-
-<div class="project-table">
-  <table appResponsiveTable class="project-table__table members__table">
-    <thead>
-      <tr>
-        <th class="project-table__sticky" scope="col">Membro</th>
-        <th scope="col">Empresa</th>
-        <th scope="col">Cargo</th>
-        <th scope="col">Status</th>
-        <th scope="col">Permissões</th>
-        <th scope="col">Token</th>
-        <th scope="col">Ações</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (member of list(); track member.id) {
-        <tr>
-          <th class="project-table__sticky" scope="row">
-            <span class="members__person">
-              <span class="backlog-card__avatar members__avatar">{{ initials(member.name) }}</span>
-              <span>
+@for (group of groups(); track group.name) {
+  <section class="members__group" [class.is-open]="isGroupOpen(group.name)">
+    <h3>
+      <button class="members__group-head" type="button" [attr.aria-expanded]="isGroupOpen(group.name)" (click)="toggleGroup(group.name)">
+        <svg class="members__chevron members__chevron--group" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+        <span class="members__group-title">{{ group.name || 'Sem empresa' }}</span>
+        <span class="members__group-count">{{ group.members.length }} {{ group.members.length === 1 ? 'pessoa' : 'pessoas' }}</span>
+      </button>
+    </h3>
+    @if (isGroupOpen(group.name)) {
+      <div class="members__list">
+        @for (member of group.members; track member.id) {
+          <div class="members__item" [class.is-open]="openId() === member.id">
+            <button class="members__line" type="button" [attr.aria-expanded]="openId() === member.id" (click)="toggle(member)">
+              <span class="members__avatar" aria-hidden="true">{{ initials(member.name) }}</span>
+              <span class="members__main">
                 <span class="members__name">{{ member.name }}</span>
-                <span class="members__email">{{ member.email }}</span>
+                <span class="members__meta">{{ member.email }}</span>
               </span>
-            </span>
-          </th>
-          <td>
-            <select
-              class="project-table__input members__role"
-              [class.members__missing]="!member.company"
-              [attr.aria-label]="'Empresa de ' + member.name"
-              (change)="store.patch(member.id, { company: $any($event.target).value || null })"
-            >
-              <option value="" [selected]="!member.company">Sem empresa</option>
-              @for (company of allCompanies(); track company.id) {
-                <option [value]="company.name" [selected]="company.name === member.company" [disabled]="!company.active && company.name !== member.company">
-                  {{ company.name }}{{ company.active ? '' : ' (inativa)' }}
-                </option>
-              }
-            </select>
-          </td>
-          <td>
-            <select
-              class="project-table__input members__role"
-              [attr.aria-label]="'Cargo de ' + member.name"
-              [attr.title]="isLastAdmin(member) ? 'É o único admin: não pode deixar de ser admin' : null"
-              (change)="changeRole(member, $any($event.target).value)"
-            >
-              @for (role of roles; track role.id) {
-                <option [value]="role.id" [selected]="role.id === member.role" [disabled]="isLastAdmin(member) && role.id !== 'admin'">{{ role.label }}</option>
-              }
-            </select>
-          </td>
-          <td>
-            @if (member.status === 'active') {
-              <span class="status-chip" style="--status-color: #0ca30c">Ativo</span>
-            } @else {
-              <span class="status-chip" style="--status-color: #eda100">Convite pendente</span>
-            }
-          </td>
-          <td>
-            <button class="members__perm-button" type="button" (click)="openPermissions(member)">
-              {{ summary(member.permissions) }} <span aria-hidden="true">›</span>
-            </button>
-          </td>
-          <td>
-            @if (member.tokenHint) {
-              <span class="members__token">
-                <code>stars_••••{{ member.tokenHint }}</code>
-                <button class="attachment__link" type="button" (click)="generateToken(member)">Gerar novo</button>
-                <button class="attachment__link members__danger" type="button" (click)="askRevoke(member)">Revogar</button>
-              </span>
-            } @else {
-              <button class="modal__ghost planning__small" type="button" [disabled]="member.status !== 'active'" (click)="generateToken(member)">
-                Gerar token
-              </button>
-            }
-          </td>
-          <td>
-            <span class="planning__actions">
               @if (member.status === 'pending') {
-                <button class="modal__ghost planning__small" type="button" (click)="resend(member)">Reenviar convite</button>
-                <a class="modal__ghost planning__small members__link" routerLink="/convite" [queryParams]="{ email: member.email }">Validar código</a>
+                <span class="members__level" style="--lvl: #eda100"><span class="members__dot"></span>Convite pendente</span>
+              } @else {
+                <span class="members__level" [style.--lvl]="roleColor[member.role]"><span class="members__dot"></span>{{ roleLabel(member.role) }}</span>
               }
-              <button
-                class="modal__ghost modal__ghost--danger planning__small"
-                type="button"
-                [disabled]="isLastAdmin(member)"
-                [attr.title]="isLastAdmin(member) ? 'É o único admin ativo' : null"
-                (click)="askRemove(member)"
-              >
-                Remover
-              </button>
-            </span>
-          </td>
-        </tr>
-      } @empty {
-        <tr>
-          <td class="planning__empty" colspan="7">Nenhum membro encontrado.</td>
-        </tr>
-      }
-    </tbody>
-  </table>
-</div>
+              <svg class="members__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+
+            @if (openId() === member.id) {
+              <div class="members__thread">
+                <div class="members__props">
+                  <div class="members__prop">
+                    <span class="members__prop-label">E-mail</span>
+                    <span>{{ member.email }}</span>
+                  </div>
+                  <label class="members__prop">
+                    <span class="members__prop-label">Empresa</span>
+                    <select
+                      class="project-table__input members__select"
+                      [class.members__missing]="!member.company"
+                      [attr.aria-label]="'Empresa de ' + member.name"
+                      (change)="store.patch(member.id, { company: $any($event.target).value || null })"
+                    >
+                      <option value="" [selected]="!member.company">Sem empresa</option>
+                      @for (company of allCompanies(); track company.id) {
+                        <option [value]="company.name" [selected]="company.name === member.company" [disabled]="!company.active && company.name !== member.company">
+                          {{ company.name }}{{ company.active ? '' : ' (inativa)' }}
+                        </option>
+                      }
+                    </select>
+                  </label>
+                  <label class="members__prop">
+                    <span class="members__prop-label">Cargo</span>
+                    <select
+                      class="project-table__input members__select"
+                      [attr.aria-label]="'Cargo de ' + member.name"
+                      [attr.title]="isLastAdmin(member) ? 'É o único admin: não pode deixar de ser admin' : null"
+                      (change)="changeRole(member, $any($event.target).value)"
+                    >
+                      @for (role of roles; track role.id) {
+                        <option [value]="role.id" [selected]="role.id === member.role" [disabled]="isLastAdmin(member) && role.id !== 'admin'">{{ role.label }}</option>
+                      }
+                    </select>
+                  </label>
+                  <div class="members__prop">
+                    <span class="members__prop-label">Permissões</span>
+                    <button class="members__perm-button" type="button" (click)="openPermissions(member)">
+                      {{ summary(member.permissions) }} <span aria-hidden="true">›</span>
+                    </button>
+                  </div>
+                  <div class="members__prop">
+                    <span class="members__prop-label">Token</span>
+                    @if (member.tokenHint) {
+                      <span class="members__token">
+                        <code>stars_••••{{ member.tokenHint }}</code>
+                        <button class="attachment__link" type="button" (click)="generateToken(member)">Gerar novo</button>
+                        <button class="attachment__link members__danger" type="button" (click)="askRevoke(member)">Revogar</button>
+                      </span>
+                    } @else {
+                      <span class="members__empty">Nenhum</span>
+                    }
+                  </div>
+                </div>
+                <div class="members__foot">
+                  @if (member.status === 'pending') {
+                    <button class="members__ghost" type="button" (click)="resend(member)">Reenviar convite</button>
+                    <a class="members__ghost" routerLink="/convite" [queryParams]="{ email: member.email }">Validar código</a>
+                  }
+                  @if (!member.tokenHint) {
+                    <button class="members__ghost" type="button" [disabled]="member.status !== 'active'" (click)="generateToken(member)">Gerar token</button>
+                  }
+                  <button
+                    class="members__danger-button"
+                    type="button"
+                    [disabled]="isLastAdmin(member)"
+                    [attr.title]="isLastAdmin(member) ? 'É o único admin ativo' : null"
+                    (click)="askRemove(member)"
+                  >
+                    Remover
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </section>
+} @empty {
+  <p class="members__none">Nenhum membro encontrado.</p>
+}
 
 <!-- Matriz de permissões (convite e edição) -->
 <ng-template #permissionMatrix>
@@ -223,24 +221,32 @@
         <button class="modal__primary" type="submit">Enviar convite</button>
       </footer>
     </form>
-  } @else if (sentEmail(); as email) {
+  } @else if (inviteMail(); as mail) {
     <header class="modal__header">
-      <h2 id="invite-title" class="modal__title">Convite criado ✓</h2>
+      <h2 id="invite-title" class="modal__title">
+        {{ mail.state === 'sent' ? 'Convite enviado ✓' : mail.state === 'failed' ? 'Convite criado, e-mail não enviado' : 'Enviando convite…' }}
+      </h2>
       <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeInvite()">✕</button>
     </header>
     <div class="modal__body members__dialog-body">
-      <p class="members__notice">
-        ⚠️ O envio real de e-mail ainda não está ligado (falta o servidor de e-mail). Esta é a prévia do e-mail que
-        <strong>{{ email.to }}</strong> vai receber.
-      </p>
-      <article class="members__email-preview">
-        <p class="members__email-meta"><span>Para:</span> {{ email.to }}</p>
-        <p class="members__email-meta"><span>Assunto:</span> {{ email.subject }}</p>
-        <pre class="members__email-body">{{ email.body }}</pre>
-      </article>
+      @switch (mail.state) {
+        @case ('sending') {
+          <p class="members__mail is-sending" role="status">Enviando o e-mail para <strong>{{ mail.email }}</strong>…</p>
+        }
+        @case ('sent') {
+          <p class="members__mail is-sent" role="status">
+            Enviamos para <strong>{{ mail.email }}</strong> um e-mail com o código de acesso (vale 24h). A pessoa abre o link do e-mail,
+            informa o código e cria a senha. Quem já tinha conta em outra empresa recebe só o aviso do acesso novo.
+          </p>
+        }
+        @case ('failed') {
+          <p class="members__mail is-failed" role="alert">
+            A pessoa foi cadastrada, mas o e-mail para <strong>{{ mail.email }}</strong> não saiu. {{ mail.error }}
+          </p>
+        }
+      }
     </div>
     <footer class="modal__footer">
-      <a class="modal__ghost members__link" routerLink="/convite" [queryParams]="{ email: email.to }" (click)="closeInvite()">Abrir tela de validação</a>
       <button class="modal__primary" type="button" (click)="closeInvite()">Concluir</button>
     </footer>
   }

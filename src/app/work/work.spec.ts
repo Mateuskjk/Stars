@@ -17,7 +17,10 @@ HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
 describe('Work', () => {
   it('shows only my current-sprint general and project activities and moves them in the origin kanban through the pop-up', async () => {
     await TestBed.configureTestingModule({ imports: [Work], providers: [provideRouter([])] }).compileComponents();
-    const me = TestBed.inject(MembersStore).current()!.name;
+    // Entra como Membro comum (Admin e Supervisor veem os de todos: teste abaixo)
+    const members = TestBed.inject(MembersStore);
+    members.sessionEmail.set(members.members().find((m) => m.role === 'member')!.email);
+    const me = members.current()!.name;
     const backlog = TestBed.inject(BacklogStore);
     const tasks = TestBed.inject(ProjectTaskStore);
     // Uma atividade geral minha em "Para refinar", uma de outra pessoa e uma de projeto minha em "A fazer"
@@ -44,7 +47,9 @@ describe('Work', () => {
     expect(titles).toContain('Projeto minha');
     expect(titles).not.toContain('Geral fora da sprint');
     expect(titles).not.toContain('Projeto sprint passada');
-    expect(el.querySelector('a')).toBeNull(); // não leva para outros kanbans
+    // o cartão abre o modal aqui; só o botão "Ir até" leva para o kanban de origem
+    expect([...el.querySelectorAll('.kanban__card a')].every((link) => link.classList.contains('card-action--go'))).toBe(true);
+    expect(el.querySelector('.kanban__card .card-action--go')).not.toBeNull();
 
     // A geral já concluída na sprint do setor aparece em "Concluída", mesmo com o Backlog em outra coluna
     backlog.items.update((list) => [...list, { ...base, id: 4, name: 'Geral concluída', assignee: me, status: 'refined', sprintStatus: 'done', locked: false, companyId: undefined }]);
@@ -91,5 +96,65 @@ describe('Work', () => {
     // O seletor "Mover" do cartão não abre o modal
     el.querySelector<HTMLSelectElement>('.kanban__move')!.click();
     expect(backlogModal.open || taskModal.open).toBe(false);
+  });
+
+  it('Admin vê as atividades de todos da empresa e filtra por pessoa e por origem', async () => {
+    await TestBed.configureTestingModule({ imports: [Work], providers: [provideRouter([])] }).compileComponents();
+    const members = TestBed.inject(MembersStore);
+    const admin = members.current()!; // sem login, o Admin de exemplo
+    expect(admin.role).toBe('admin');
+    const backlog = TestBed.inject(BacklogStore);
+    const tasks = TestBed.inject(ProjectTaskStore);
+    const active = TestBed.inject(SprintStore).active()!;
+    const base = { ...backlog.items()[0], sprintId: active.id, status: 'refinement-done' as const, locked: false, companyId: undefined, sharedWith: [] };
+    backlog.items.set([
+      { ...base, id: 1, name: 'Geral do Admin', assignee: admin.name },
+      { ...base, id: 2, name: 'Geral da Outra', assignee: 'Outra Pessoa' },
+    ]);
+    const task = tasks.tasks()[0];
+    tasks.tasks.set([{ ...task, id: 7, title: 'Projeto da Outra', assignee: 'Outra Pessoa', status: 'todo', sprint: sprintOf(active.start) }]);
+
+    const fixture = TestBed.createComponent(Work);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const titles = () => [...el.querySelectorAll('.kanban__card-title')].map((a) => a.textContent?.trim()).sort();
+    expect(titles()).toEqual(['Geral da Outra', 'Geral do Admin', 'Projeto da Outra']);
+    expect([...el.querySelectorAll('.kanban__meta')].some((m) => m.textContent!.includes('Outra Pessoa'))).toBe(true); // mostra de quem é cada cartão
+
+    // Painel de filtros: abre com uma linha (o primeiro campo é Sprint); troca o campo da linha para Pessoa
+    el.querySelector<HTMLButtonElement>('.board-toolbar__button')!.click();
+    fixture.detectChanges();
+    const value = (i: number) => el.querySelectorAll<HTMLSelectElement>('.board-toolbar__select--value')[i];
+    const fieldOf = (i: number, key: string) => {
+      const select = el.querySelectorAll<HTMLSelectElement>('.board-toolbar__select:not(.board-toolbar__select--value)')[i];
+      select.value = key;
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    };
+    // Sprint: escolher outra sprint mostra as atividades dela (aqui, nenhuma); voltar para a ativa mostra as três
+    value(0).value = '11';
+    value(0).dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(titles()).toEqual([]);
+    value(0).value = String(active.id);
+    value(0).dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(titles()).toEqual(['Geral da Outra', 'Geral do Admin', 'Projeto da Outra']);
+
+    fieldOf(0, 'pessoa');
+    const person = value(0);
+    person.innerHTML += '<option value="Outra Pessoa">Outra Pessoa</option>'; // a pessoa de exemplo não está na lista da empresa
+    person.value = 'Outra Pessoa';
+    person.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(titles()).toEqual(['Geral da Outra', 'Projeto da Outra']);
+
+    el.querySelector<HTMLButtonElement>('.board-toolbar__add')!.click();
+    fixture.detectChanges();
+    fieldOf(1, 'origem');
+    value(1).value = 'geral';
+    value(1).dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(titles()).toEqual(['Geral da Outra']);
   });
 });

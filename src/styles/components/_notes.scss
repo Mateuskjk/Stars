@@ -33,7 +33,7 @@ $notes-link: var(--ink-purple);
     min-height: min(620px, 75dvh);
     overflow: hidden;
     border: 1px solid $notes-line;
-    border-radius: 15px;
+    border-radius: 12px;
   }
 
   // Lista
@@ -73,7 +73,7 @@ $notes-link: var(--ink-purple);
     align-items: center;
     padding: 8px 10px;
     border: 1px solid $notes-line;
-    border-radius: 10px;
+    border-radius: 8px;
 
     &.is-changed {
       border-color: $color-nav-hover;
@@ -105,7 +105,7 @@ $notes-link: var(--ink-purple);
     margin: 0 12px 8px;
     padding: 8px 12px;
     border: 1px dashed $notes-line;
-    border-radius: 10px;
+    border-radius: 8px;
     background: none;
     color: $color-title;
     font: inherit;
@@ -135,7 +135,7 @@ $notes-link: var(--ink-purple);
     width: 100%;
     padding: 10px;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     background: none;
     font: inherit;
     text-align: left;
@@ -230,13 +230,13 @@ $notes-link: var(--ink-purple);
   &__modes {
     display: flex;
     padding: 3px;
-    border-radius: 20px;
+    border-radius: 12px;
     background-color: $notes-soft;
 
     button {
       padding: 6px 12px;
       border: none;
-      border-radius: 20px;
+      border-radius: 12px;
       background: none;
       color: $notes-muted;
       font: inherit;

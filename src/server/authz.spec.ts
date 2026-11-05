@@ -92,7 +92,6 @@ describe('Atendente (sem configuração)', () => {
       ['PATCH', `/api/data/sprints/${IDS.sprintAtivaA}`, { situacao: 'FECHADA' }],
       ['POST', '/api/data/dominios', { dominio: 'gmail.com' }],
       ['PUT', '/api/internal/tokens/1', { token: 'stars_' + 'a'.repeat(48), role: 'admin', permissions: {} }],
-      ['GET', '/api/integrations/webhooks', undefined],
     ];
     for (const [method, path, body] of tries) {
       const r = await env.call('atendenteA', method, path, body);

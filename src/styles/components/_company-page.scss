@@ -12,59 +12,6 @@ $cp-line: var(--color-line);
   gap: 20px;
   min-width: 0;
 
-  &__header {
-    display: grid;
-    grid-template-columns: 96px 1fr 240px;
-    gap: 16px;
-    padding: 16px;
-    border-radius: 15px;
-    background-color: $color-surface;
-    box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
-  }
-
-  &__cover {
-    width: 96px;
-    height: 96px;
-    border-radius: 15px;
-  }
-
-  &__main {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  &__site {
-    color: $color-title;
-    word-break: break-all;
-  }
-
-  &__counts {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    text-align: center;
-
-    dt {
-      color: $cp-muted;
-      font-size: 11px;
-    }
-
-    dd {
-      color: $color-title;
-      font-size: 24px;
-      font-weight: 700;
-    }
-  }
-
-  &__people {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    list-style: none;
-  }
-
   &__sectors {
     display: flex;
     flex-direction: column;
@@ -88,145 +35,73 @@ $cp-line: var(--color-line);
 
   &__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
     list-style: none;
   }
 
-  &__hint {
-    color: $cp-muted;
-    font-size: 13px;
-
-    a {
-      color: $color-title;
-      font-weight: 600;
-    }
-  }
 }
 
-// Perfil de um setor
+// Perfil de um setor (padrão dos cartões dos kanbans): só nome e descrição, a faixa à esquerda na cor do setor;
+// o cartão inteiro abre a página do setor (o link do nome cobre o cartão; editar/excluir ficam por cima)
 .sector-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-top: 4px solid var(--sector-color);
-  border-radius: 15px;
-  background-color: $color-surface;
-  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+  position: relative;
+  padding: 12px 12px 12px 13px;
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--sector-color);
+  border-radius: 6px;
+  background-color: var(--color-card);
+  transition: background-color 0.12s;
+
+  &:hover {
+    background-color: var(--color-soft);
+  }
 
   &__head {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
   }
 
   &__badge {
     display: grid;
     place-items: center;
     flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
     background-color: color-mix(in srgb, var(--sector-color) 16%, transparent);
     color: $color-title;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
   }
 
   &__title {
     display: flex;
     flex-direction: column;
+    gap: 2px;
     min-width: 0;
 
     h3 {
-      color: $color-title;
-      font-size: 16px;
-    }
-
-    span {
-      color: $cp-muted;
-      font-size: 12px;
-    }
-  }
-
-  &__facts {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-
-    dt {
-      color: $cp-muted;
-      font-size: 11px;
-    }
-
-    dd {
-      color: $color-title;
-      font-size: 13px;
-      font-weight: 600;
-    }
-  }
-
-  &__progress {
-    margin-top: -6px;
-    color: $cp-muted;
-    font-size: 12px;
-  }
-
-  &__projects {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding-top: 10px;
-    border-top: 1px solid $cp-line;
-    list-style: none;
-
-    li {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
-
-    a {
-      min-width: 0;
       overflow: hidden;
       color: $color-title;
-      font-size: 13px;
+      font-size: 13.5px;
       font-weight: 600;
       white-space: nowrap;
       text-overflow: ellipsis;
-      text-decoration: none;
-
-      &:hover {
-        text-decoration: underline;
-      }
     }
-  }
 
-  &__empty {
-    color: $cp-muted;
-    font-size: 12px;
+    span {
+      overflow: hidden;
+      color: var(--color-date);
+      font-size: 12px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
   }
 }
 
 @media (max-width: $bp-tablet) {
-  .company-page__header {
-    grid-template-columns: 64px 1fr;
-  }
-
-  .company-page__cover {
-    width: 64px;
-    height: 64px;
-  }
-
-  .company-page__header .project-page__progress {
-    grid-column: 1 / -1;
-    padding: 12px 0 0;
-    border-top: 1px solid $cp-line;
-    border-left: none;
-  }
-
   .company-page__new {
     grid-template-columns: 1fr;
   }
@@ -237,8 +112,10 @@ $cp-line: var(--color-line);
   color: inherit;
   text-decoration: none;
 
-  &:hover {
-    text-decoration: underline;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
   }
 }
 
@@ -251,52 +128,54 @@ $cp-line: var(--color-line);
   gap: 20px;
   min-width: 0;
 
-  &__header {
-    border-top: 4px solid var(--sector-color);
+  // Cabeçalho numa faixa só (como a da sprint na Planning): setor · sprint ativa · ações
+  &__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 10px 14px 10px 12px;
+    border: 1px solid var(--color-line);
+    border-left: 3px solid var(--sector-color);
+    border-radius: 8px;
+    background-color: var(--color-card);
   }
 
   &__badge {
     display: grid;
     place-items: center;
-    width: 96px;
-    height: 96px;
-    border-radius: 15px;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
     background-color: color-mix(in srgb, var(--sector-color) 16%, transparent);
     color: $color-title;
-    font-size: 32px;
+    font-size: 12px;
     font-weight: 700;
   }
 
-  &__crumb {
-    color: $cp-muted;
-    font-size: 12px;
-
-    a {
-      color: $color-title;
-      font-weight: 600;
-    }
-  }
-
-  &__projects {
+  &__info {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 180px;
   }
 
-  &__project {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 4px 4px 10px;
-    border: 1px solid $cp-line;
-    border-radius: 20px;
+  &__name {
+    color: $color-title;
+    font-size: 14px;
+    font-weight: 650;
+  }
+
+  &__sprint-name {
     color: $color-title;
     font-size: 13px;
-    text-decoration: none;
+    font-weight: 600;
+  }
 
-    &:hover {
-      background-color: var(--color-soft);
-    }
+  &__admin {
+    margin-left: auto;
   }
 
   &__kanban {
@@ -309,64 +188,31 @@ $cp-line: var(--color-line);
       min-height: 360px;
     }
 
-    .backlog-card {
-      position: relative;
-    }
-
     .backlog-card__open {
       text-decoration: none;
     }
-
-    // Só as linhas de cima abrem espaço para o seletor "Mover para";
-    // a linha de baixo vai até a borda, para o avatar ficar alinhado com o botão
-    .backlog-card__tags,
-    .backlog-card__name {
-      padding-right: 36px;
-    }
-  }
-
-  &__new {
-    grid-template-columns: 2fr repeat(3, 1fr) auto;
-  }
-
-  // Seletor "Mover para" no canto do cartão
-  &__move {
-    position: absolute;
-    top: 12px;
-    right: 12px; // mesma margem do conteúdo do cartão: alinha com o avatar
   }
 
   &__sprint {
-    padding: 1px 8px;
-    border-radius: 10px;
-    background-color: color-mix(in srgb, #2a78d6 16%, var(--color-card));
-    color: $color-title;
-    font-size: 11px;
-    font-weight: 600;
-  }
-}
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
 
-@media (max-width: $bp-tablet) {
-  .sector-page__badge {
-    width: 64px;
-    height: 64px;
-    font-size: 22px;
+    a {
+      color: $color-title;
+      font-weight: 600;
+    }
   }
 }
 
 // Editar/excluir setor (só admin)
 .sector-card__actions {
+  position: relative; // por cima do link que cobre o cartão
+  z-index: 1;
   display: flex;
   gap: 4px;
   margin-left: auto;
-}
-
-.sector-card__head {
-  align-items: flex-start;
-}
-
-.sector-page__admin {
-  gap: 6px;
 }
 
 // Diálogo de criar/editar setor
@@ -382,31 +228,12 @@ $cp-line: var(--color-line);
   }
 }
 
-// Sprint ativa no cabeçalho do setor
-.sector-page__sprint-box {
-  gap: 8px;
-}
-
-.sector-page__sprint-name {
-  font-size: 20px !important;
-}
-
-.sector-page__period,
-.sector-page__goal {
-  color: $cp-muted;
-  font-size: 12px;
-
-  a {
-    color: $color-title;
-    font-weight: 600;
-  }
-}
-
 // 7 dias úteis: passados, hoje e os que faltam
 .sector-page__days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 3px;
+  width: 84px;
 
   span {
     height: 6px;
@@ -425,66 +252,10 @@ $cp-line: var(--color-line);
 
 .sector-page__notice {
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   background-color: color-mix(in srgb, #2a78d6 7%, var(--color-card));
   color: $color-text;
   font-size: 13px;
-}
-
-// Contagem por pessoa (atividade conjunta conta para cada um)
-.sector-page__people {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  list-style: none;
-
-  li {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 10px 3px 3px;
-    border: 1px solid $cp-line;
-    border-radius: 20px;
-    color: $color-text;
-    font-size: 12px;
-
-    small {
-      color: $cp-muted;
-    }
-  }
-}
-
-.sector-page__team {
-  padding: 1px 8px;
-  border-radius: 10px;
-  background-color: color-mix(in srgb, var(--ink-purple) 8%, var(--color-card));
-  color: $color-title;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.sector-page__shared-by {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: $cp-muted;
-  font-size: 11px;
-}
-
-.sector-page__avatars {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-}
-
-.sector-page__share-icon {
-  color: $cp-muted;
-  font-size: 12px;
-}
-
-.sector-page__avatar-shared {
-  background-color: #5598e7;
 }
 
 .sector-page__share {

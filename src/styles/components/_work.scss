@@ -21,11 +21,6 @@
     cursor: pointer;
   }
 
-  &__origin {
-    color: var(--color-muted);
-    font-size: 12px;
-  }
-
   &__field {
     display: flex;
     flex-direction: column;
@@ -42,5 +37,92 @@
   .confirm-dialog__button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+}
+
+// ---------- Work em lista (padrão LexPré): Código · Atividade · Status · Responsável · Prazo · Ações ----------
+.work-list {
+  overflow-x: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background-color: var(--color-card);
+
+  &__table {
+    width: 100%;
+    min-width: 820px;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th,
+  td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--color-line);
+    color: $color-text;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  thead th {
+    color: var(--color-date);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover td {
+    background-color: color-mix(in srgb, $color-title 4%, transparent);
+  }
+
+  &__code {
+    color: var(--color-date);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  // Nome: abre o modal da atividade
+  &__name {
+    display: block;
+    padding: 0;
+    border: none;
+    background: none;
+    color: $color-title;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  // Status: bolinha na cor da coluna + nome
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+
+    &::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--col);
+    }
+  }
+
+  &__actions-head {
+    width: 1%;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 4px;
   }
 }

@@ -101,7 +101,7 @@
   &__kicker {
     align-self: flex-start;
     padding: 4px 12px;
-    border-radius: 20px;
+    border-radius: 12px;
     background-color: rgb(255 254 253 / 0.16);
     font-size: 13px;
     font-weight: 600;
@@ -136,7 +136,7 @@
     height: 10px;
     padding: 0;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     background-color: rgb(255 254 253 / 0.4);
     cursor: pointer;
     transition:
@@ -197,7 +197,7 @@
 
   &__error {
     padding: 10px 14px;
-    border-radius: 10px;
+    border-radius: 8px;
     background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
     color: var(--ink-red);
     font-size: 14px;
@@ -211,7 +211,7 @@
     gap: 10px;
     height: 46px;
     border: 1px solid var(--color-line);
-    border-radius: 25px;
+    border-radius: 8px;
     background-color: #fff;
     color: #1f1f1f;
     font-size: 15px;
@@ -390,4 +390,11 @@
   .login__dot {
     transition: none;
   }
+}
+
+// Ativar convite (link do e-mail, sem sessão): o cartão no meio da tela
+.login--invite {
+  grid-template-columns: 1fr;
+  place-items: center;
+  padding: 24px 16px;
 }

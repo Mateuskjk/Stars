@@ -3,58 +3,49 @@
 $planning-line: var(--color-line);
 $planning-muted: var(--color-muted);
 
+// Planning enxuta (padrão LexPré): faixa da sprint ativa, busca/filtro e a lista das atividades prontas
 .planning {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   min-width: 0;
 
-  // Mesma div de data da Home: sprint ativa à esquerda, dia da semana à direita
-  &__date {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 8px 16px;
-    margin-bottom: 0;
-  }
-
-  &__sprint-label {
-    color: $color-title;
-    font-size: 18px;
-
-    strong {
-      font-weight: 700;
-    }
-  }
-
+  // Sprint ativa numa faixa só: nome, período e objetivo à esquerda; ações à direita
   &__sprint {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 16px;
-    padding: 16px 20px;
+    gap: 12px;
+    padding: 12px 14px;
     border: 1px solid $planning-line;
-    border-radius: 15px;
+    border-radius: 8px;
+    background-color: var(--color-card);
   }
 
   &__sprint-info {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    min-width: 0;
   }
 
   &__sprint-name {
     color: $color-title;
-    font-size: 18px;
+    font-size: 14px;
+    font-weight: 650;
   }
 
   &__goal {
+    overflow: hidden;
+    max-width: 420px;
     color: $color-text;
-    font-size: 14px;
+    font-size: 13px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   &__sprint-actions {
@@ -70,42 +61,110 @@ $planning-muted: var(--color-muted);
   &__group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
 
   &__group-title {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 4px;
     color: $color-title;
-    font-size: 16px;
+    font-size: 13.5px;
+    font-weight: 650;
   }
 
-  // Tabela no estilo da criação de projetos; cabe na largura (só rola no celular)
-  &__table {
-    min-width: 820px;
-  }
-
-  &__activity {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  &__person {
+  // "Cartões aguardando para voltar à sprint": o título é o botão que abre e fecha a lista
+  &__toggle {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    white-space: nowrap;
+    padding: 0;
+    border: none;
+    background: none;
+    color: $color-title;
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 650;
+    cursor: pointer;
   }
 
-  &__category {
-    min-width: 150px;
+  &__chevron {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: var(--color-date);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.15s;
+
+    .is-open & {
+      transform: rotate(90deg);
+    }
+  }
+
+  &__count {
+    color: var(--color-date);
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+
+  // Lista: uma linha por atividade (nome + dados; ações à direita)
+  &__list {
+    overflow: hidden;
+    border: 1px solid $planning-line;
+    border-radius: 8px;
+    background-color: var(--color-card);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid $planning-line;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background-color: color-mix(in srgb, $color-title 4%, transparent);
+    }
+  }
+
+  // Nome + dados da atividade: abre o modal de edição
+  &__open {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover .planning__name {
+      text-decoration: underline;
+    }
+  }
+
+  &__name {
+    overflow: hidden;
+    color: $color-title;
+    font-size: 13.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   &__actions {
     display: flex;
+    flex-shrink: 0;
     flex-wrap: wrap; // sem espaço, os botões quebram linha em vez de cobrir outras colunas
     gap: 6px;
   }
@@ -120,29 +179,6 @@ $planning-muted: var(--color-muted);
     padding: 20px 12px;
     color: $planning-muted;
     text-align: center;
-  }
-
-  &__history {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    list-style: none;
-  }
-
-  &__history-item {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 10px 14px;
-    border: 1px solid $planning-line;
-    border-radius: 12px;
-    color: $color-title;
-    font-size: 14px;
-  }
-
-  &__history-action {
-    margin-left: auto;
   }
 
   &__dialog {
@@ -168,16 +204,17 @@ $planning-muted: var(--color-muted);
 }
 
 @media (max-width: $bp-mobile) {
-  .planning__sprint-label {
-    font-size: 16px;
-  }
-
   .planning__sprint-actions {
     width: 100%;
 
     > * {
       flex: 1;
     }
+  }
+
+  // No celular as ações descem para baixo do nome
+  .planning__row {
+    flex-wrap: wrap;
   }
 
   .planning__dates {

@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -11,24 +12,24 @@ type Tab = 'sprints' | 'projetos';
 // A aba fica na URL (?aba=projetos), então dá para linkar direto e o voltar do navegador funciona.
 @Component({
   selector: 'app-dashboards',
-  imports: [Dashboard, ProjectDashboard],
+  imports: [Dashboard, ProjectDashboard, NgTemplateOutlet],
   host: { class: 'dashboards' },
   template: `
-    <header class="project-dash__header">
-      <h2 class="backlog__title">Dashboards</h2>
-    </header>
-    <div class="tabs" role="tablist" aria-label="Dashboard">
-      <button type="button" role="tab" [attr.aria-selected]="tab() === 'sprints'" [class.is-active]="tab() === 'sprints'" (click)="select('sprints')">
-        Sprints e setores
-      </button>
-      <button type="button" role="tab" [attr.aria-selected]="tab() === 'projetos'" [class.is-active]="tab() === 'projetos'" (click)="select('projetos')">
-        Projetos
-      </button>
-    </div>
+    <!-- As abas vão para dentro da barra de cada painel (mesmo cabeçalho do Work) -->
+    <ng-template #tabs>
+      <div class="tabs dashboards__tabs" role="tablist" aria-label="Dashboard">
+        <button type="button" role="tab" [attr.aria-selected]="tab() === 'sprints'" [class.is-active]="tab() === 'sprints'" (click)="select('sprints')">
+          Sprints e setores
+        </button>
+        <button type="button" role="tab" [attr.aria-selected]="tab() === 'projetos'" [class.is-active]="tab() === 'projetos'" (click)="select('projetos')">
+          Projetos
+        </button>
+      </div>
+    </ng-template>
     @if (tab() === 'projetos') {
-      <app-project-dashboard />
+      <app-project-dashboard><ng-container *ngTemplateOutlet="tabs" /></app-project-dashboard>
     } @else {
-      <app-dashboard />
+      <app-dashboard><ng-container *ngTemplateOutlet="tabs" /></app-dashboard>
     }
   `,
 })

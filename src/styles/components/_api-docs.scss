@@ -13,7 +13,7 @@ $docs-get: #2a78d6;
   &__version {
     margin-left: 6px;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: 8px;
     background-color: var(--color-soft);
     color: var(--color-muted);
     font-size: 12px;
@@ -33,7 +33,7 @@ $docs-get: #2a78d6;
     gap: 10px;
     padding: 16px;
     border: 1px solid $docs-line;
-    border-radius: 15px;
+    border-radius: 12px;
 
     a {
       color: $color-title;
@@ -93,7 +93,7 @@ $docs-get: #2a78d6;
   &__op {
     overflow: hidden;
     border: 1px solid color-mix(in srgb, $docs-get 35%, transparent);
-    border-radius: 10px;
+    border-radius: 8px;
     background-color: color-mix(in srgb, $docs-get 6%, $color-surface);
 
     &.is-open {

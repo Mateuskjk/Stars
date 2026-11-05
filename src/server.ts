@@ -7,6 +7,8 @@ import {
 import express from 'express';
 import { join } from 'node:path';
 import { aiRouter } from './server/ai';
+import { cronRouter, dailyAnalysisRouter } from './server/daily-ai';
+import { invitesRouter, resendInviteRouter } from './server/invites';
 import { authRouter, requireAuth } from './server/auth';
 import { googleRouter } from './server/google-auth';
 import { domainsRouter } from './server/domains';
@@ -16,7 +18,6 @@ import { writesRouter } from './server/writes';
 import { notesRouter } from './server/notes';
 import { accountRouter } from './server/account';
 import { attachmentsRouter } from './server/attachments';
-import { integrationsRouter } from './server/integrations';
 import { publicApiInternalRouter, publicApiRouter } from './server/public-api';
 import { SECURITY_HEADERS, csrfGuard } from './server/security-headers';
 
@@ -60,12 +61,20 @@ const angularApp = new AngularNodeAppEngine({ allowedHosts });
  */
 app.use('/api/auth', authRouter());
 app.use('/api/auth', googleRouter());
+app.use('/api/auth', invitesRouter()); // convidado valida o código e cria a senha
 app.use('/api/data', dataRouter());
 app.use('/api/data', writesRouter());
 app.use('/api/data', domainsRouter());
 app.use('/api/data', notesRouter());
 app.use('/api/data', accountRouter());
 app.use('/api/data', attachmentsRouter());
+app.use('/api/data', dailyAnalysisRouter());
+app.use('/api/data', resendInviteRouter());
+
+/**
+ * Rotinas do Cron da Vercel (vercel.json): análise diária da IA dos Dashboards às 10h de Brasília.
+ */
+app.use('/api/cron', cronRouter());
 
 /**
  * MCP: o Claude (site/app e Claude Code) conecta em /mcp com login OAuth (conta do LexÁgile).
@@ -76,11 +85,6 @@ app.use(mcpRouters());
  * API da integração com IA (as chaves ficam só no servidor).
  */
 app.use('/api/ai', requireAuth, aiRouter());
-
-/**
- * Integrações: webhooks e bancos PostgreSQL externos (segredos e senhas ficam só no servidor).
- */
-app.use('/api/integrations', requireAuth, integrationsRouter());
 
 /**
  * API pública v1 (com token) e as rotas internas que o app usa para registrar tokens e enviar o retrato dos dados.

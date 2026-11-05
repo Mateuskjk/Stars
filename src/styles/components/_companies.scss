@@ -26,7 +26,7 @@ $companies-muted: var(--color-muted);
     flex-direction: column;
     overflow: hidden;
     border: 1px solid $companies-line;
-    border-radius: 15px;
+    border-radius: 12px;
     background-color: $color-surface;
 
     &.is-inactive {

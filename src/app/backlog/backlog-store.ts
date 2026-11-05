@@ -39,6 +39,7 @@ export interface Attachment {
 
 export interface BacklogItem {
   id: number;
+  number?: number; // número do cartão na empresa (#123), vindo do banco
   name: string;
   description: string;
   status: BacklogStatus;

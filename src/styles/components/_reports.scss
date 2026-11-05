@@ -1,14 +1,7 @@
 @use '../variables' as *;
 
-// Peças que vieram da antiga tela de Relatórios e outras telas usam (Dashboards, Erros do navegador)
+// Peça que veio da antiga tela de Relatórios e os Dashboards usam
 .reports {
-  // Barra de botões do cabeçalho (some na impressão)
-  &__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
   // Linha cinza embaixo de um número (ex.: "de 12 na sprint")
   &__vs-average {
     color: var(--color-muted);
@@ -24,8 +17,7 @@
 @media print {
   .navigation-top,
   .left-content,
-  .assistant,
-  .reports__actions {
+  .assistant {
     display: none !important;
   }
 

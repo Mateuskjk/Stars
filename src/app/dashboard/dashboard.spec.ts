@@ -17,9 +17,21 @@ async function render(email = '') {
   const fixture = TestBed.createComponent(Dashboard);
   fixture.detectChanges();
   const el = fixture.nativeElement as HTMLElement;
+  // Filtro pelo painel do cabeçalho (o mesmo do Work): abre, usa a última linha (ou cria uma) e escolhe campo e valor
   const select = (label: string, value: string) => {
-    const field = [...el.querySelectorAll('.project-dash__filter')].find((f) => f.textContent!.includes(label))!;
-    const input = field.querySelector('select')!;
+    const toolbar = el.querySelector('app-board-toolbar')!;
+    if (!toolbar.querySelector('.board-toolbar__panel')) toolbar.querySelector<HTMLButtonElement>('.board-toolbar__button')!.click();
+    fixture.detectChanges();
+    const last = () => [...toolbar.querySelectorAll('.board-toolbar__rule')].at(-1)!;
+    if (last().querySelectorAll('select')[1].value) {
+      toolbar.querySelector<HTMLButtonElement>('.board-toolbar__add')!.click();
+      fixture.detectChanges();
+    }
+    const field = last().querySelectorAll('select')[0];
+    field.value = [...field.options].find((o) => o.textContent!.trim() === label)!.value;
+    field.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    const input = last().querySelectorAll('select')[1];
     input.value = value;
     input.dispatchEvent(new Event('change'));
     fixture.detectChanges();
@@ -28,31 +40,29 @@ async function render(email = '') {
 }
 
 describe('Dashboard (atividades gerais dos setores)', () => {
-  it('uses the sector sprint activities: stats, burn-down, burn-up, workload and Gantt by sector', async () => {
+  beforeEach(() => localStorage.clear()); // fotografias do dia (insights e IA) de um teste não vazam para o outro
+
+  it('uses the sector sprint activities: stats, burn-down, burn-up, workload and the Gantt of a person', async () => {
     const { el } = await render();
     // Sprint 12 (ativa): 4 atividades gerais com setor (todas do TI); 1 finalizada (antivírus)
     expect(el.querySelector('.stat .stat__value')!.textContent!.trim()).toBe('1');
     expect(el.querySelector('.stat .reports__vs-average')!.textContent).toContain('de 4 na sprint');
     expect(el.querySelectorAll('.chart__line').length).toBeGreaterThanOrEqual(5); // burn-down (2) + burn-up (3 ou 4)
     expect(el.querySelectorAll('.pie__slice').length).toBeGreaterThan(0);
-    // Gantt geral: um setor por linha
-    const rows = [...el.querySelectorAll('.gantt__name')].map((n) => n.textContent);
-    expect(rows).toContain('TI · Acme Ltda');
+    // Gantt da primeira pessoa (em ordem alfabética) com atividade na sprint: as dela
+    expect(el.querySelector<HTMLSelectElement>('[aria-label="Pessoa do Gantt"]')!.value).toBe('Ana Souza');
+    expect([...el.querySelectorAll('.gantt__name')].map((n) => n.textContent)).toEqual(['Automatizar convites da daily']);
     // o burn-up usa os nomes das sprints da Planning
     expect([...el.querySelectorAll('.chart text')].some((t) => t.textContent === 'S12')).toBe(true);
   });
 
-  it('filters by sector (Gantt per activity) and by person (shared counts for both)', async () => {
+  it('filters by sector and by person (shared counts for both); the Gantt follows the chosen person', async () => {
     const { el, select } = await render();
     select('Setor', '4'); // TI
-    expect([...el.querySelectorAll('.gantt__name')].map((n) => n.textContent).sort()).toEqual([
-      'Atualizar antivírus das máquinas',
-      'Automatizar convites da daily',
-      'Monitoramento dos servidores',
-      'Revisar acessos do Drive',
-    ]);
+    expect(el.querySelector('.stat .reports__vs-average')!.textContent).toContain('de 4 na sprint');
     select('Pessoa', 'Carlos Lima'); // dele + compartilhada com ele
     expect(el.querySelector('.stat .reports__vs-average')!.textContent).toContain('de 2 na sprint');
+    expect([...el.querySelectorAll('.gantt__name')].map((n) => n.textContent).sort()).toEqual(['Automatizar convites da daily', 'Revisar acessos do Drive']);
   });
 
   it('applies the same visibility rule as the sector kanban', async () => {
