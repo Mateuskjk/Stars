@@ -391,3 +391,10 @@
     transition: none;
   }
 }
+
+// Ativar convite (link do e-mail, sem sessão): o cartão no meio da tela
+.login--invite {
+  grid-template-columns: 1fr;
+  place-items: center;
+  padding: 24px 16px;
+}

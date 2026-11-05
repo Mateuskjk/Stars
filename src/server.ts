@@ -8,6 +8,7 @@ import express from 'express';
 import { join } from 'node:path';
 import { aiRouter } from './server/ai';
 import { cronRouter, dailyAnalysisRouter } from './server/daily-ai';
+import { invitesRouter, resendInviteRouter } from './server/invites';
 import { authRouter, requireAuth } from './server/auth';
 import { googleRouter } from './server/google-auth';
 import { domainsRouter } from './server/domains';
@@ -60,6 +61,7 @@ const angularApp = new AngularNodeAppEngine({ allowedHosts });
  */
 app.use('/api/auth', authRouter());
 app.use('/api/auth', googleRouter());
+app.use('/api/auth', invitesRouter()); // convidado valida o código e cria a senha
 app.use('/api/data', dataRouter());
 app.use('/api/data', writesRouter());
 app.use('/api/data', domainsRouter());
@@ -67,6 +69,7 @@ app.use('/api/data', notesRouter());
 app.use('/api/data', accountRouter());
 app.use('/api/data', attachmentsRouter());
 app.use('/api/data', dailyAnalysisRouter());
+app.use('/api/data', resendInviteRouter());
 
 /**
  * Rotinas do Cron da Vercel (vercel.json): análise diária da IA dos Dashboards às 10h de Brasília.

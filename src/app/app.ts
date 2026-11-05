@@ -5,6 +5,7 @@ import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Rout
 import { filter, map } from 'rxjs';
 import { Assistant } from './ai/assistant';
 import { Login } from './login/login';
+import { Invite } from './members/invite';
 import { Loader } from './loader/loader';
 import { initials } from './format';
 import { SessionStore } from './api/session';
@@ -16,7 +17,7 @@ type Menu = 'nav' | 'notifications';
 const THEME_KEY = 'stars.theme';
 
 @Component({
-  imports: [Assistant, Login, NgTemplateOutlet, RouterLink, RouterLinkActive, RouterOutlet, Loader],
+  imports: [Assistant, Invite, Login, NgTemplateOutlet, RouterLink, RouterLinkActive, RouterOutlet, Loader],
   selector: 'app-root',
   templateUrl: './app.html',
   host: {
@@ -61,6 +62,9 @@ export class App {
     ),
     { initialValue: '' },
   );
+  // Link do e-mail de convite (/convite?email=…): sem sessão, mostra a tela de ativar a conta no lugar do login
+  protected readonly invitePage = typeof location !== 'undefined' && location.pathname.startsWith('/convite');
+
   // Voltar (barra do topo): a página anterior dentro do sistema; abriu direto aqui (link, recarga), vai para a Home
   private readonly location = inject(Location);
   private visited = 0;

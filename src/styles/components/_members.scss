@@ -685,3 +685,26 @@ $members-soft: var(--color-soft);
     }
   }
 }
+
+// Situação do e-mail do convite (diálogo "Convidar membro")
+.members__mail {
+  padding: 12px 14px;
+  border-left: 3px solid var(--tone);
+  border-radius: 8px;
+  background-color: color-mix(in srgb, var(--tone) 10%, transparent);
+  color: $color-text;
+  font-size: 14px;
+  line-height: 1.55;
+
+  &.is-sending {
+    --tone: #2a78d6;
+  }
+
+  &.is-sent {
+    --tone: #0ca30c;
+  }
+
+  &.is-failed {
+    --tone: #d03b3b;
+  }
+}

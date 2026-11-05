@@ -8,6 +8,7 @@ import { Session, isSuperAdmin, liveMemberships, requireAuth, saveSession } from
 import { HttpError, createTenant, ensureSchema, newId } from './schema';
 import { meOf, seesAllTenants, tenantsOf, visibleActivitySql, visibleProjectSql } from './data';
 import { isAllowedEmail } from './domains';
+import { newInviteCode, trySendInvite } from './invites';
 import { hit } from './limits';
 
 const STATUSES = ['RASCUNHO', 'PRONTO', 'EM_EXECUCAO', 'EM_REVISAO', 'CONCLUIDO'];
@@ -275,7 +276,9 @@ function write(handler: (client: PoolClient, req: Request, s: Session) => Promis
       await client.query('commit');
       client.release();
       released = true;
-      res.json(result ?? { ok: true });
+      // Algo que só faz sentido depois de gravado (ex.: enviar o e-mail do convite); o resultado vai junto na resposta
+      const after = res.locals['afterCommit'] as (() => Promise<object>) | undefined;
+      res.json(after ? { ...((result as object) ?? { ok: true }), ...(await after()) } : (result ?? { ok: true }));
     } catch (error) {
       if (!released) await client.query('rollback').catch(() => undefined);
       if (error instanceof HttpError) res.status(error.status).json({ error: error.message });
@@ -643,12 +646,17 @@ function configRoutes(router: Router) {
            from "Usuario" where lower(email) = $4 and "removidoEm" is null and "senhaHash" is not null limit 1`,
         [id, papel, tenantId, email],
       );
+      let code: string | null = null;
       if (!rowCount) {
         await client.query(
           `insert into "Usuario" (id, nome, email, papel, situacao, "convidadoEm", "tenantId") values ($1, $2, $3, $4, 'CONVIDADO', now(), $5)`,
           [id, nonEmpty(body['nome'], 120, 'nome'), email, papel, tenantId],
         );
+        code = await newInviteCode(client, id);
       }
+      // Depois de gravado: e-mail com o código (convidado novo) ou o aviso do acesso novo (já tinha conta)
+      const mensagem = typeof body['mensagem'] === 'string' ? body['mensagem'].slice(0, 1000) : '';
+      req.res!.locals['afterCommit'] = () => trySendInvite(id, s.nome, mensagem, code);
       return { id };
     }),
   );

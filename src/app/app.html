@@ -266,9 +266,15 @@
     <app-assistant />
   }
 } @else if (session.status() === 'out') {
-  <!-- Carregada à parte: só quem está sem sessão baixa a tela de entrada -->
-  @defer (on immediate) {
-    <app-login />
+  <!-- Carregada à parte: só quem está sem sessão baixa a tela de entrada (ou a de ativar o convite) -->
+  @if (invitePage) {
+    @defer (on immediate) {
+      <main class="login login--invite"><app-invite /></main>
+    }
+  } @else {
+    @defer (on immediate) {
+      <app-login />
+    }
   }
 } @else {
   <main class="login login--checking"><app-loader /></main>

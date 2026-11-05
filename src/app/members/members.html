@@ -221,24 +221,32 @@
         <button class="modal__primary" type="submit">Enviar convite</button>
       </footer>
     </form>
-  } @else if (sentEmail(); as email) {
+  } @else if (inviteMail(); as mail) {
     <header class="modal__header">
-      <h2 id="invite-title" class="modal__title">Convite criado ✓</h2>
+      <h2 id="invite-title" class="modal__title">
+        {{ mail.state === 'sent' ? 'Convite enviado ✓' : mail.state === 'failed' ? 'Convite criado, e-mail não enviado' : 'Enviando convite…' }}
+      </h2>
       <button class="modal__icon-button" type="button" aria-label="Fechar" (click)="closeInvite()">✕</button>
     </header>
     <div class="modal__body members__dialog-body">
-      <p class="members__notice">
-        ⚠️ O envio real de e-mail ainda não está ligado (falta o servidor de e-mail). Esta é a prévia do e-mail que
-        <strong>{{ email.to }}</strong> vai receber.
-      </p>
-      <article class="members__email-preview">
-        <p class="members__email-meta"><span>Para:</span> {{ email.to }}</p>
-        <p class="members__email-meta"><span>Assunto:</span> {{ email.subject }}</p>
-        <pre class="members__email-body">{{ email.body }}</pre>
-      </article>
+      @switch (mail.state) {
+        @case ('sending') {
+          <p class="members__mail is-sending" role="status">Enviando o e-mail para <strong>{{ mail.email }}</strong>…</p>
+        }
+        @case ('sent') {
+          <p class="members__mail is-sent" role="status">
+            Enviamos para <strong>{{ mail.email }}</strong> um e-mail com o código de acesso (vale 24h). A pessoa abre o link do e-mail,
+            informa o código e cria a senha. Quem já tinha conta em outra empresa recebe só o aviso do acesso novo.
+          </p>
+        }
+        @case ('failed') {
+          <p class="members__mail is-failed" role="alert">
+            A pessoa foi cadastrada, mas o e-mail para <strong>{{ mail.email }}</strong> não saiu. {{ mail.error }}
+          </p>
+        }
+      }
     </div>
     <footer class="modal__footer">
-      <a class="modal__ghost members__link" routerLink="/convite" [queryParams]="{ email: email.to }" (click)="closeInvite()">Abrir tela de validação</a>
       <button class="modal__primary" type="button" (click)="closeInvite()">Concluir</button>
     </footer>
   }

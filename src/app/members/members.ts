@@ -15,10 +15,10 @@ import {
   ROLES,
   Role,
   defaultPermissions,
-  inviteEmail,
 } from './members-store';
 import { CompanyStore } from '../companies/company-store';
 import { AccountStore } from '../account/account-store';
+import { ApiSync } from '../api/api-sync';
 
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
@@ -108,8 +108,9 @@ export class Members {
   protected readonly inviteStep = signal<'form' | 'sent'>('form');
   protected readonly inviteError = signal('');
   protected readonly inviteRole = signal<Role>('member');
-  protected readonly sentEmail = signal<ReturnType<typeof inviteEmail> | null>(null);
-  private inviteMessage = '';
+  // Situação do e-mail do convite (enviando, enviado ou falhou), vinda do servidor
+  protected readonly inviteMail = this.store.inviteMail;
+  private readonly sync = inject(ApiSync);
 
   protected openInvite() {
     this.inviteStep.set('form');
@@ -140,24 +141,15 @@ export class Members {
       this.inviteError.set('Já existe um membro (ou convite) com esse e-mail.');
       return;
     }
-    this.inviteMessage = String(data.get('message') ?? '');
-    const member = this.store.invite({ name, email, role: this.inviteRole(), permissions: this.permDraft(), company });
-    this.showEmail(member);
+    this.store.invite({ name, email, role: this.inviteRole(), permissions: this.permDraft(), company }, String(data.get('message') ?? ''));
+    this.inviteStep.set('sent');
     form.reset();
   }
 
   protected resend(member: Member) {
-    this.store.resend(member.id);
-    this.inviteMessage = '';
-    this.showEmail(this.store.members().find((m) => m.id === member.id)!);
-    this.inviteDialog().nativeElement.showModal();
-  }
-
-  // ponytail: aqui o servidor enviaria o e-mail (ex.: rota POST /api/convites no server.ts + provedor SMTP);
-  // sem backend, a tela mostra a prévia do e-mail que seria enviado
-  private showEmail(member: Member) {
-    this.sentEmail.set(inviteEmail(member, this.account.fullName(), this.inviteMessage, location.origin));
+    void this.sync.resendInvite(member);
     this.inviteStep.set('sent');
+    this.inviteDialog().nativeElement.showModal();
   }
 
   protected closeInvite() {

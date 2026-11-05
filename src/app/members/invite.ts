@@ -1,43 +1,46 @@
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { MAX_ATTEMPTS, MembersStore, ValidationResult } from './members-store';
+import { api } from '../api/http';
+import { SessionStore } from '../api/session';
 
-const MESSAGES: Record<Exclude<ValidationResult, 'ok'>, string> = {
-  'not-found': 'Não encontramos um convite pendente para esse e-mail.',
-  expired: 'Esse código expirou (vale 24h). Peça para reenviarem o convite.',
-  blocked: `Muitas tentativas erradas (${MAX_ATTEMPTS}). Peça para reenviarem o convite com um código novo.`,
-  'wrong-code': 'Código incorreto. Confira o e-mail e tente de novo.',
-};
-
-// Tela onde a pessoa convidada valida o código de 6 dígitos que recebeu por e-mail
+// Tela /convite (aberta sem login): a pessoa convidada informa o e-mail, o código de 6 números que recebeu
+// e cria a senha. O servidor confere o código, ativa a conta e já abre a sessão.
 @Component({
-  imports: [RouterLink],
   selector: 'app-invite',
   templateUrl: './invite.html',
   host: { class: 'invite' },
 })
 export class Invite {
-  private readonly store = inject(MembersStore);
-  protected readonly email = inject(ActivatedRoute).snapshot.queryParamMap.get('email') ?? '';
+  private readonly session = inject(SessionStore);
+  protected readonly email = typeof location === 'undefined' ? '' : (new URLSearchParams(location.search).get('email') ?? '');
   protected readonly error = signal('');
+  protected readonly sending = signal(false);
   protected readonly welcome = signal<string | null>(null);
 
-  protected submit(event: Event) {
+  protected async submit(event: Event) {
     event.preventDefault();
     const data = new FormData(event.target as HTMLFormElement);
-    const email = String(data.get('email') ?? '');
-    const code = String(data.get('code') ?? '').replace(/\D/g, '');
-    if (code.length !== 6) {
-      this.error.set('O código tem 6 números.');
-      return;
+    const email = String(data.get('email') ?? '').trim();
+    const codigo = String(data.get('code') ?? '').replace(/\D/g, '');
+    const senha = String(data.get('password') ?? '');
+    if (codigo.length !== 6) return void this.error.set('O código tem 6 números.');
+    if (senha.length < 8) return void this.error.set('A senha precisa ter pelo menos 8 caracteres.');
+    if (senha !== String(data.get('confirm') ?? '')) return void this.error.set('As senhas não conferem.');
+    this.error.set('');
+    this.sending.set(true);
+    try {
+      const r = await api<{ nome: string }>('/auth/convite', { method: 'POST', body: JSON.stringify({ email, codigo, senha }) });
+      this.welcome.set(r.nome.split(' ')[0]);
+    } catch (e) {
+      this.error.set((e as Error).message);
+    } finally {
+      this.sending.set(false);
     }
-    const result = this.store.validate(email, code);
-    if (result === 'ok') {
-      this.error.set('');
-      this.welcome.set(this.store.findByEmail(email)!.name.split(' ')[0]);
-    } else {
-      this.error.set(MESSAGES[result]);
-    }
+  }
+
+  // Sessão já aberta pelo servidor: carrega os dados e vai para o início
+  protected async enter() {
+    history.replaceState(null, '', '/');
+    await this.session.check();
   }
 
   // Aceita só números no campo do código (também ao colar)

@@ -521,10 +521,10 @@ export class ApiSync {
   }
 
   // Grava em ordem, uma de cada vez (não embaralha mudanças seguidas no mesmo cartão)
-  private send(path: string | (() => string), method: string, body: unknown, after?: (result: { id?: string } | null) => void) {
+  private send(path: string | (() => string), method: string, body: unknown, after?: (result: { id?: string; emailEnviado?: boolean; emailErro?: string } | null) => void) {
     this.queue = this.queue.then(async () => {
       try {
-        const result = await api<{ id?: string } | null>(typeof path === 'string' ? path : path(), { method, body: JSON.stringify(body) });
+        const result = await api<{ id?: string; emailEnviado?: boolean; emailErro?: string } | null>(typeof path === 'string' ? path : path(), { method, body: JSON.stringify(body) });
         after?.(result);
       } catch (e) {
         this.saveError.set(`Não foi possível salvar no banco: ${(e as Error).message}`);
@@ -665,6 +665,26 @@ export class ApiSync {
     });
   }
 
+  // O servidor responde se o e-mail do convite saiu (a pessoa é criada mesmo se o e-mail falhar)
+  private noteInviteMail(email: string, r: { emailEnviado?: boolean; emailErro?: string } | null) {
+    if (r?.emailEnviado === undefined) return;
+    this.members.inviteMail.set(r.emailEnviado ? { email, state: 'sent' } : { email, state: 'failed', error: r.emailErro });
+  }
+
+  // Reenviar o convite (código novo) de quem ainda não ativou a conta, em cada empresa em que foi convidado
+  async resendInvite(m: Member) {
+    this.members.inviteMail.set({ email: m.email, state: 'sending' });
+    const users = [...this.userByPersonTenant].filter(([key]) => key.startsWith(`${m.id}|`)).map(([, id]) => id);
+    try {
+      if (!users.length) throw new Error('Esse convite ainda não foi gravado no banco. Tente de novo em instantes.');
+      const results = await Promise.all(users.map((id) => api<{ emailEnviado: boolean; emailErro?: string }>(`/data/usuarios/${id}/convite`, { method: 'POST', body: '{}' })));
+      const failed = results.find((r) => !r.emailEnviado);
+      this.members.inviteMail.set(failed ? { email: m.email, state: 'failed', error: failed.emailErro } : { email: m.email, state: 'sent' });
+    } catch (e) {
+      this.members.inviteMail.set({ email: m.email, state: 'failed', error: (e as Error).message });
+    }
+  }
+
   private syncMembers(list: Member[]) {
     this.syncList(list, this.lastMembers, {
       dbId: (m) => this.ids.pessoa.db(m.id),
@@ -675,7 +695,8 @@ export class ApiSync {
           this.saveError.set('Não foi possível salvar no banco: escolha a empresa do membro.');
           return;
         }
-        this.send('/data/usuarios', 'POST', { tenantId, nome: m.name, email: m.email, papel: PAPEL_OF[m.role] }, (r) => {
+        this.send('/data/usuarios', 'POST', { tenantId, nome: m.name, email: m.email, papel: PAPEL_OF[m.role], mensagem: m.invite?.message ?? '' }, (r) => {
+          this.noteInviteMail(m.email, r);
           if (!r?.id) return;
           this.ids.pessoa.link(m.email.trim().toLowerCase(), m.id);
           this.userByPersonTenant.set(`${m.id}|${tenantId}`, r.id);
@@ -689,6 +710,7 @@ export class ApiSync {
         const tenantId = typeof empresa === 'string' ? this.companyDb(empresa) : null;
         if (tenantId && !this.userByPersonTenant.has(`${m.id}|${tenantId}`)) {
           this.send('/data/usuarios', 'POST', { tenantId, nome: m.name, email: m.email, papel: PAPEL_OF[m.role] }, (r) => {
+            this.noteInviteMail(m.email, r);
             if (r?.id) this.userByPersonTenant.set(`${m.id}|${tenantId}`, r.id);
           });
         }

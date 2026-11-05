@@ -21,6 +21,7 @@ import { publicApiInternalRouter, publicApiRouter } from '../public-api';
 import { csrfGuard } from '../security-headers';
 import { aiRouter } from '../ai';
 import { cronRouter, dailyAnalysisRouter } from '../daily-ai';
+import { invitesRouter, resendInviteRouter } from '../invites';
 import { migrateAll } from '../migrate-all';
 
 export const A = 'tenant-a';
@@ -119,6 +120,7 @@ export async function startTestEnv(): Promise<TestEnv> {
   const app = express();
   app.use(csrfGuard);
   app.use('/api/auth', authRouter());
+  app.use('/api/auth', invitesRouter());
   app.use('/api/data', dataRouter());
   app.use('/api/data', writesRouter());
   app.use('/api/data', domainsRouter());
@@ -126,6 +128,7 @@ export async function startTestEnv(): Promise<TestEnv> {
   app.use('/api/data', accountRouter());
   app.use('/api/data', attachmentsRouter());
   app.use('/api/data', dailyAnalysisRouter());
+  app.use('/api/data', resendInviteRouter());
   app.use('/api/cron', cronRouter());
   app.use('/api/v1', publicApiRouter());
   app.use('/api/internal', requireAuth, publicApiInternalRouter());

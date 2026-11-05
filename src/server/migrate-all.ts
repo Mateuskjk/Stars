@@ -5,6 +5,7 @@ import { ensureSessionTable } from './auth';
 import { INSTALL_SQL, ensureSchema } from './schema';
 import { ensureTable as ensureAi } from './ai';
 import { ensureTable as ensureDailyAi } from './daily-ai';
+import { ensureTable as ensureInvites } from './invites';
 import { ensureTable as ensureAccount } from './account';
 import { ensureTable as ensureDomains } from './domains';
 import { ensureTable as ensureLimits } from './limits';
@@ -14,7 +15,7 @@ import { ensureTables as ensurePublicApi } from './public-api';
 // Tabelas que o app espera encontrar
 const EXPECTED = [
   'sessao', 'limite', 'dominio', 'ia_config', 'api_token',
-  'oauth_cliente', 'oauth_codigo', 'oauth_token', 'conta', 'ia_analise_diaria', 'empresa_config', 'setor_membro', 'atividade_setor', 'sprint_periodo',
+  'oauth_cliente', 'oauth_codigo', 'oauth_token', 'conta', 'ia_analise_diaria', 'convite', 'empresa_config', 'setor_membro', 'atividade_setor', 'sprint_periodo',
 ];
 
 export async function migrateAll() {
@@ -25,6 +26,7 @@ export async function migrateAll() {
   await ensureDomains();
   await ensureAi();
   await ensureDailyAi();
+  await ensureInvites();
   await ensureAccount();
   await ensurePublicApi();
   await ensureOauth();
