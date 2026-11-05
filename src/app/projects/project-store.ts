@@ -142,14 +142,15 @@ export class ProjectStore {
     this.projects.update((list) => list.map((project) => (project.id === id ? { ...project, status } : project)));
   }
 
-  private change(id: number, changes: Partial<Project>) {
+  // Editar os dados do projeto (tela de criação/edição); a sincronização com o banco manda só o que mudou
+  update(id: number, changes: Partial<Project>) {
     this.projects.update((list) => list.map((p) => (p.id === id ? { ...p, ...changes } : p)));
   }
 
   setImage(id: number, image: string | null) {
     const project = this.projects().find((p) => p.id === id);
     if (!project) return;
-    this.change(id, { image, cover: coverFor(id, image) });
+    this.update(id, { image, cover: coverFor(id, image) });
   }
 
   // Agregar: o projeto vira secundário de outro (só um nível: um principal não vira secundário)
@@ -157,7 +158,7 @@ export class ProjectStore {
     const project = this.projects().find((p) => p.id === id);
     const parent = parentId ? this.projects().find((p) => p.id === parentId) : null;
     if (!project || id === parentId || (parentId && (!parent || parent.parentId || this.childrenOf(id).length))) return;
-    this.change(id, { parentId });
+    this.update(id, { parentId });
   }
 
   // Excluir: some das telas (no banco fica arquivado e marcado como excluído); os agregados viram independentes

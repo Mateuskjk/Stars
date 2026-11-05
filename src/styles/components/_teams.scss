@@ -29,7 +29,7 @@ $teams-soft: var(--color-soft);
     gap: 12px;
     padding: 16px;
     border: 1px solid $teams-line;
-    border-radius: 15px;
+    border-radius: 12px;
     background-color: $color-surface;
   }
 
@@ -97,7 +97,7 @@ $teams-soft: var(--color-soft);
     align-items: center;
     gap: 6px;
     padding: 3px 10px 3px 4px;
-    border-radius: 14px;
+    border-radius: 12px;
     background-color: $teams-soft;
     color: $color-title;
     font-size: 12px;
@@ -174,7 +174,7 @@ $teams-soft: var(--color-soft);
     overflow-y: auto;
     padding: 4px;
     border: 1px solid $teams-line;
-    border-radius: 10px;
+    border-radius: 8px;
     list-style: none;
   }
 

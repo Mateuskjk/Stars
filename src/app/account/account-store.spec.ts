@@ -18,7 +18,7 @@ describe('AccountStore', () => {
     localStorage.setItem('stars.account', JSON.stringify({ fullName: 'Ana', notifications: { enabled: false, types: { daily: false } } }));
     const store = TestBed.inject(AccountStore);
     store.load();
-    expect(store.account().notifications).toEqual({ enabled: false, sound: true, types: { daily: false, planning: true, mentions: true, system: true } });
+    expect(store.account().notifications).toEqual({ enabled: false, sound: true, types: { daily: false, planning: true, mentions: true, system: true }, readIds: [] });
     expect(store.account().assistantEnabled).toBe(true);
 
     store.updateNotifications({ sound: false });

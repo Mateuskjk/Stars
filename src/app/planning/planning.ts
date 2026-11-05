@@ -1,11 +1,8 @@
-import { NgTemplateOutlet } from '@angular/common';
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { initials } from '../format';
-import { BacklogItem, BacklogStore, tagColor } from '../backlog/backlog-store';
-import { formatWeekDate } from '../home/home';
+import { BacklogItem, BacklogStore } from '../backlog/backlog-store';
+import { BoardToolbar, FilterField, FilterRule, matchesQuery, optionsOf, passesFilters } from '../kanban/board-toolbar';
 import { SPRINT_DAYS, businessDay, businessIndex } from '../projects/project-tasks';
 import { SPRINT_STATUS, Sprint, SprintStore } from './sprint-store';
-import { ResponsiveTable } from '../responsive-table';
 import { BacklogEditor } from '../backlog/backlog-editor';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -19,7 +16,7 @@ interface PendingConfirm {
 }
 
 @Component({
-  imports: [ResponsiveTable, NgTemplateOutlet, BacklogEditor],
+  imports: [BoardToolbar, BacklogEditor],
   selector: 'app-planning',
   templateUrl: './planning.html',
   host: { class: 'planning' },
@@ -28,25 +25,45 @@ export class Planning {
   private readonly backlog = inject(BacklogStore);
   protected readonly sprints = inject(SprintStore);
 
-  protected readonly weekDate = formatWeekDate(new Date());
-  protected readonly initials = initials;
-  protected readonly tagColor = tagColor;
   protected readonly sprintStatus = SPRINT_STATUS;
 
   protected readonly active = this.sprints.active;
 
-  // Atividades que terminaram o refinamento e ainda não entraram numa sprint
-  private readonly candidates = computed(() =>
+  // Atividades que terminaram o refinamento e ainda não entraram numa sprint (uma lista só, sem "aguardando")
+  protected readonly candidates = computed(() =>
     this.backlog.ofCompany().filter((item) => item.status === 'refinement-done' && !item.sprintId),
   );
-  protected readonly ready = computed(() => this.candidates().filter((item) => (item.planning ?? 'ready') === 'ready'));
-  protected readonly waiting = computed(() => this.candidates().filter((item) => item.planning === 'waiting'));
+
+  // Busca pelo nome e filtros (Responsável, Etiqueta)
+  protected readonly query = signal('');
+  protected readonly filters = signal<FilterRule[]>([]);
+  protected readonly filterFields = computed<FilterField[]>(() => [
+    { key: 'responsavel', label: 'Responsável', options: optionsOf(this.candidates().map((i) => i.assignee)) },
+    { key: 'etiqueta', label: 'Etiqueta', options: optionsOf(this.candidates().flatMap((i) => i.tags)) },
+  ]);
+  private readonly matches = (item: BacklogItem) =>
+    matchesQuery(item.name, this.query()) && passesFilters(this.filters(), (key) => (key === 'etiqueta' ? item.tags : item.assignee));
+  protected readonly ready = computed(() => this.candidates().filter(this.matches));
+
+  // Aguardando para voltar à sprint: o que não foi concluído numa sprint que já fechou. A atividade continua registrada
+  // na sprint antiga (o histórico e os dashboards não mudam) até alguém mandá-la de novo para a sprint ativa.
+  protected readonly returning = computed(() =>
+    this.backlog.ofCompany().filter((item) => {
+      const sprint = this.sprints.byId(item.sprintId);
+      const closed = sprint?.status === 'closed' || sprint?.status === 'archived';
+      const finished = item.sprintStatus === 'done' || !!item.doneAt || ['archived', 'canceled'].includes(item.status);
+      return closed && !finished && this.matches(item);
+    }),
+  );
+  protected readonly returningOpen = signal(false);
+
+  protected sprintName(item: BacklogItem) {
+    return this.sprints.byId(item.sprintId)?.name ?? '';
+  }
   protected readonly inSprint = computed(() => {
     const sprint = this.active();
     return sprint ? this.backlog.ofCompany().filter((item) => item.sprintId === sprint.id) : [];
   });
-
-  protected readonly history = computed(() => [...this.sprints.ofCompany()].filter((s) => s.status !== 'active').reverse());
 
   protected readonly daysLeft = computed(() => {
     const sprint = this.active();
@@ -65,15 +82,20 @@ export class Planning {
     return `${this.formatDay(sprint.start)} a ${this.formatDay(sprint.end)}`;
   }
 
-  protected doneSubtasks(item: BacklogItem) {
-    return item.subtasks.filter((s) => s.done).length;
+  // Linha de dados: etiquetas · responsável · prazo · sub atividades
+  protected meta(item: BacklogItem) {
+    const done = item.subtasks.filter((s) => s.done).length;
+    return [
+      item.tags.join(', '),
+      item.assignee || 'Sem responsável',
+      item.due && 'até ' + this.formatDay(item.due),
+      item.subtasks.length && `☑ ${done}/${item.subtasks.length}`,
+    ]
+      .filter(Boolean)
+      .join(' · ');
   }
 
   // ---------- Decisões sobre as atividades ----------
-  protected setCategory(item: BacklogItem, planning: 'ready' | 'waiting') {
-    this.backlog.patch(item.id, { planning });
-  }
-
   // Editar a atividade (o mesmo modal do Backlog) antes de mandar para a sprint
   private readonly editor = viewChild.required(BacklogEditor);
 
@@ -109,7 +131,7 @@ export class Planning {
   protected askClose(sprint: Sprint) {
     this.ask({
       title: `Fechar a ${sprint.name}?`,
-      text: 'A sprint vai para o histórico com as atividades que estão nela. Depois você pode criar a próxima.',
+      text: 'A sprint vai para o histórico. Os cartões que não foram concluídos ficam aqui, em “Cartões aguardando para voltar à sprint”. Depois você pode criar a próxima.',
       label: 'Fechar sprint',
       danger: false,
       run: () => this.sprints.setStatus(sprint.id, 'closed'),
@@ -127,10 +149,6 @@ export class Planning {
         this.sprints.setStatus(sprint.id, 'canceled');
       },
     });
-  }
-
-  protected archiveSprint(sprint: Sprint) {
-    this.sprints.setStatus(sprint.id, 'archived');
   }
 
   // Modal de criação de sprint

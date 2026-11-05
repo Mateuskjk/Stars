@@ -150,8 +150,17 @@ export async function applyActivity(client: PoolClient, s: Session, id: string, 
     set('tags', JSON.stringify(list.map((t) => nonEmpty(t, 40, 'tag'))));
   }
   if (has(body, 'sprintId')) {
-    const sprintId = idOrNull(body['sprintId'], 'sprint');
-    if (sprintId) await sameTenant(client, 'Sprint', [sprintId], tenantId, 'Sprint');
+    let sprintId = idOrNull(body['sprintId'], 'sprint');
+    if (sprintId) {
+      await sameTenant(client, 'Sprint', [sprintId], tenantId, 'Sprint');
+      // Tela aberta antes de fechar a sprint ainda manda a antiga: atividade só entra na sprint ativa da empresa
+      const { rows } = await client.query(
+        `select id from "Sprint" where "tenantId" = $1 and situacao = 'ATIVA' order by (id = $2) desc limit 1`,
+        [tenantId, sprintId],
+      );
+      if (!rows[0]) throw new HttpError(409, 'Não há sprint ativa nesta empresa. Recarregue a página.');
+      sprintId = rows[0].id as string;
+    }
     set('sprintId', sprintId);
   }
   if (has(body, 'bloqueado')) {
@@ -315,15 +324,8 @@ export function writesRouter() {
       if (await ensureSchema()) {
         await client.query(`insert into lexagile.sprint_periodo ("sprintId", inicio, fim) values ($1, $2, $3)`, [id, inicio, fim]);
       }
-      // Pendências: o que ficou aberto em sprints já fechadas desta empresa passa para a sprint nova
-      // (concluídas e arquivadas ficam onde estavam). Sem isso, a atividade some do Work e do kanban da sprint.
-      const carried = await client.query(
-        `update "Atividade" set "sprintId" = $1, "atualizadoEm" = now()
-          where "tenantId" = $2 and "arquivadoEm" is null and status <> 'CONCLUIDO'
-            and "sprintId" in (select id from "Sprint" where "tenantId" = $2 and situacao = 'FECHADA')`,
-        [id, tenantId],
-      );
-      return { id, levadas: carried.rowCount ?? 0 };
+      // As pendências das sprints fechadas não vêm sozinhas: ficam na Planning, em "aguardando para voltar à sprint"
+      return { id };
     }),
   );
 

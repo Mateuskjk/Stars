@@ -6,9 +6,15 @@
   "functions": {
     "api/index.mjs": {
       "includeFiles": "dist/Stars/**",
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/analise-ia",
+      "schedule": "0 13 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

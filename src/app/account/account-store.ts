@@ -19,7 +19,8 @@ export interface Account {
   bio: string;
   photo: string | null; // data URL já reduzida
   timeZone: string; // '' = fuso do navegador
-  notifications: { enabled: boolean; sound: boolean; types: Record<NotificationType, boolean> };
+  // readIds: notificações já lidas (vão para Arquivadas) — ficam na conta, para não voltarem como novas
+  notifications: { enabled: boolean; sound: boolean; types: Record<NotificationType, boolean>; readIds: number[] };
   assistantEnabled: boolean;
   reduceMotion: boolean;
 }
@@ -33,7 +34,7 @@ export const DEFAULT_ACCOUNT: Account = {
   bio: '',
   photo: null,
   timeZone: '',
-  notifications: { enabled: true, sound: true, types: { daily: true, planning: true, mentions: true, system: true } },
+  notifications: { enabled: true, sound: true, types: { daily: true, planning: true, mentions: true, system: true }, readIds: [] },
   assistantEnabled: true,
   reduceMotion: false,
 };

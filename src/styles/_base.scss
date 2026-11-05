@@ -11,6 +11,8 @@
 body {
   font-family: $font-family;
   background-color: $color-background;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
 }
 
 // Barras de rolagem invisíveis em todo o site: a rolagem continua (roda do mouse, toque, teclado, arrastar)

@@ -1,13 +1,14 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { CardActions } from '../kanban/card-actions';
+import { BoardToolbar, BoardView, FilterField, FilterRule, matchesQuery, passesFilters } from '../kanban/board-toolbar';
 import { BacklogItem, BacklogStore } from '../backlog/backlog-store';
 import { BacklogEditor } from '../backlog/backlog-editor';
 import { ProjectTaskEditor } from '../projects/project-task-editor';
-import { initials } from '../format';
 import { MembersStore } from '../members/members-store';
 import { PeopleStore } from '../members/people-store';
 import { CompanyStore } from '../companies/company-store';
 import { SPRINT_COLUMNS, SectorStore, sprintColumnOf } from '../companies/sector-store';
-import { SprintStore } from '../planning/sprint-store';
+import { SprintStore, chosenSprints, sprintFilterField } from '../planning/sprint-store';
 import { ProjectStore } from '../projects/project-store';
 import { ProjectTaskStore, TASK_STATUSES, TaskStatus, sprintOf, today } from '../projects/project-tasks';
 
@@ -21,6 +22,8 @@ const toWork = (status: string): WorkColumn => (status in TASK_STATUSES ? (statu
 interface WorkCard {
   key: string; // b-1 (atividade geral) ou t-1 (atividade de projeto)
   id: number;
+  number?: number; // #123 do cartão
+  link: (string | number)[]; // onde o cartão está: kanban do setor, Backlog ou página do projeto
   kind: 'backlog' | 'task';
   title: string;
   origin: string; // "Atividade geral" ou nome do projeto
@@ -43,7 +46,7 @@ interface PendingMove {
 // Não cria atividades nem leva para outros kanbans; mover aqui move no kanban do setor ou do projeto.
 @Component({
   selector: 'app-work',
-  imports: [BacklogEditor, ProjectTaskEditor],
+  imports: [BacklogEditor, ProjectTaskEditor, BoardToolbar, CardActions],
   templateUrl: './work.html',
   host: { class: 'work' },
 })
@@ -54,16 +57,13 @@ export class Work {
   private readonly members = inject(MembersStore);
   private readonly sprints = inject(SprintStore);
   private readonly sectors = inject(SectorStore);
-  protected readonly initials = initials;
   protected readonly columns = WORK_COLUMNS;
   protected readonly me = computed(() => this.members.current()?.name ?? '');
   private readonly company = inject(CompanyStore);
-  protected readonly people = inject(PeopleStore).names; // pessoas da empresa escolhida
+  private readonly people = inject(PeopleStore).names; // pessoas da empresa escolhida
 
   // Cargos administrativos (Admin e Supervisor) veem todos da empresa
   protected readonly seesAll = computed(() => ['admin', 'supervisor'].includes(this.members.current()?.role ?? ''));
-  protected readonly personFilter = signal(''); // '' = todas as pessoas
-  protected readonly originFilter = signal(''); // '' = todas; 'geral'; ou 'p-<id>'
 
   // Todas as atividades da sprint atual que a pessoa pode ver aqui (antes dos filtros)
   private readonly all = computed<WorkCard[]>(() => {
@@ -71,12 +71,16 @@ export class Work {
     if (!me) return [];
     const seesAll = this.seesAll();
     const mine = (assignee: string, shared: string[] = []) => seesAll || assignee === me || shared.includes(me);
-    // Sprint atual: a ativa da empresa (gerais pela sprint; de projetos pelo número da sprint em que começa)
+    // Sprint mostrada: a(s) escolhida(s) no filtro ou, sem filtro, a ativa da empresa
+    // (gerais pela sprint; de projetos pelo número da sprint em que começa)
+    const chosen = chosenSprints(this.filters());
     const active = this.sprints.active();
-    const sprintNumber = sprintOf(active?.start ?? today());
+    const shown = chosen.size ? this.sprints.ofCompany().filter((s) => chosen.has(s.id)) : active ? [active] : [];
+    const ids = new Set(shown.map((s) => s.id));
+    const numbers = new Set(shown.length ? shown.map((s) => sprintOf(s.start)) : [sprintOf(today())]);
     const general = this.backlog
       .ofCompany()
-      .filter((i) => !!active && i.sprintId === active.id)
+      .filter((i) => i.sprintId !== undefined && ids.has(i.sprintId))
       .filter((i) => mine(i.assignee, i.sharedWith) && i.status !== 'archived' && i.status !== 'canceled')
       .map<WorkCard>((i) => {
         // Na sprint, a atividade geral anda no kanban do setor (não mais nas colunas do Backlog)
@@ -84,6 +88,8 @@ export class Work {
         return {
           key: `b-${i.id}`,
           id: i.id,
+          number: i.number,
+          link: this.placeOf(i),
           kind: 'backlog',
           title: i.name,
           origin: 'Atividade geral',
@@ -100,10 +106,12 @@ export class Work {
     const projects = new Map(this.projects.visible().filter((p) => !current || !p.company || p.company === current.name).map((p) => [p.id, p.name]));
     const fromProjects = this.tasks
       .tasks()
-      .filter((t) => mine(t.assignee) && t.sprint === sprintNumber && projects.has(t.projectId))
+      .filter((t) => mine(t.assignee) && numbers.has(t.sprint) && projects.has(t.projectId))
       .map<WorkCard>((t) => ({
         key: `t-${t.id}`,
         id: t.id,
+        number: t.number,
+        link: ['/projetos', t.projectId],
         kind: 'task',
         title: t.title,
         origin: projects.get(t.projectId)!,
@@ -117,27 +125,54 @@ export class Work {
     return [...general, ...fromProjects];
   });
 
-  // Origens que aparecem nas atividades (para o filtro): atividades gerais e cada projeto
-  protected readonly origins = computed(() => {
-    const seen = new Map<string, string>();
-    for (const card of this.all()) seen.set(card.originKey, card.origin);
-    return [...seen].map(([key, label]) => ({ key, label: key === 'geral' ? 'Atividades gerais' : label })).sort((a, b) => a.label.localeCompare(b.label));
+  // Filtros: Pessoa (só Admin e Supervisor, que veem todos), Origem (atividades gerais ou cada projeto) e Coluna
+  protected readonly filters = signal<FilterRule[]>([]);
+  protected readonly filterFields = computed<FilterField[]>(() => {
+    const origins = new Map<string, string>();
+    for (const card of this.all()) origins.set(card.originKey, card.origin);
+    const origin: FilterField = {
+      key: 'origem',
+      label: 'Origem',
+      options: [...origins]
+        .map(([value, label]) => ({
+          value,
+          label: value === 'geral' ? 'Atividades gerais' : label,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    };
+    const column: FilterField = {
+      key: 'coluna',
+      label: 'Coluna',
+      options: this.columns.map((c) => ({ value: c.id, label: c.label })),
+    };
+    const sprint = sprintFilterField(this.sprints.ofCompany());
+    if (!this.seesAll()) return [sprint, origin, column];
+    const me = this.me();
+    const person: FilterField = {
+      key: 'pessoa',
+      label: 'Pessoa',
+      options: this.people().map((p) => ({ value: p, label: p === me ? p + ' (você)' : p })),
+    };
+    return [sprint, person, origin, column];
   });
 
-  protected readonly cards = computed<WorkCard[]>(() => {
-    const person = this.personFilter();
-    const origin = this.originFilter();
-    return this.all().filter(
-      (card) => (!person || card.assignee === person || card.sharedWith.includes(person)) && (!origin || card.originKey === origin),
-    );
+  protected readonly cards = computed<WorkCard[]>(() =>
+    this.all().filter((card) =>
+      // a sprint já foi aplicada acima (ela decide quais atividades entram)
+      passesFilters(
+        this.filters().filter((r) => r.key !== 'sprint'),
+        (key) => (key === 'pessoa' ? [card.assignee, ...card.sharedWith] : key === 'origem' ? card.originKey : card.column),
+      ),
+    ),
+  );
+
+  // Barra acima do quadro: busca pelo nome e kanban/lista
+  protected readonly query = signal('');
+  protected readonly view = signal<BoardView>('board');
+  protected readonly board = computed(() => {
+    const cards = this.cards().filter((card) => matchesQuery(card.title, this.query()));
+    return this.columns.map((c) => ({ ...c, cards: cards.filter((card) => card.column === c.id) }));
   });
-
-  protected clearFilters() {
-    this.personFilter.set('');
-    this.originFilter.set('');
-  }
-
-  protected readonly board = computed(() => this.columns.map((c) => ({ ...c, cards: this.cards().filter((card) => card.column === c.id) })));
 
   // ---------- Abrir o cartão: o mesmo modal do Backlog (geral) ou do projeto (ver, editar, comentar, mudar coluna) ----------
   private readonly backlogEditor = viewChild.required(BacklogEditor);
@@ -152,6 +187,41 @@ export class Work {
       const task = this.tasks.tasks().find((t) => t.id === card.id);
       if (task) this.taskEditor().open(task);
     }
+  }
+
+  // Atividade geral: no kanban do setor dela (sem setor, no Backlog)
+  private placeOf(item: BacklogItem) {
+    const sector = item.sectorId ? this.sectors.byId(item.sectorId) : undefined;
+    return sector ? ['/empresas', sector.companyId, 'setores', sector.id] : ['/workspace/backlog'];
+  }
+
+  // ---------- Ações da lista: abrir/editar (o modal da atividade), arquivar, excluir e ir até o cartão ----------
+  protected open(card: WorkCard) {
+    this.openCard(card, new Event('click'));
+  }
+
+  protected archive(card: WorkCard) {
+    if (card.kind === 'backlog') this.backlog.patch(card.id, { status: 'archived' });
+    else this.tasks.archive(card.id);
+  }
+
+  private readonly deleteDialog = viewChild.required<ElementRef<HTMLDialogElement>>('deleteDialog');
+  protected readonly deleting = signal<WorkCard | null>(null);
+
+  protected askDelete(card: WorkCard) {
+    this.deleting.set(card);
+    this.deleteDialog().nativeElement.showModal();
+  }
+
+  protected confirmDelete() {
+    const card = this.deleting();
+    if (card?.kind === 'backlog') this.backlog.remove(card.id);
+    else if (card) this.tasks.remove(card.id);
+    this.deleteDialog().nativeElement.close();
+  }
+
+  protected columnOf(card: WorkCard) {
+    return this.columns.find((c) => c.id === card.column)!;
   }
 
   protected isLate(card: WorkCard) {

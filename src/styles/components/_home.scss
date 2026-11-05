@@ -31,7 +31,7 @@
     flex-direction: column;
     height: 300px;
     overflow: hidden;
-    border-radius: 15px;
+    border-radius: 12px;
     background-color: $color-surface;
     box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
   }
@@ -61,7 +61,7 @@
   &__open {
     flex-shrink: 0;
     padding: 6px 14px;
-    border-radius: 25px;
+    border-radius: 8px;
     background-color: $color-nav-hover;
     color: $color-surface;
     font-size: 13px;

@@ -3,7 +3,6 @@ import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, s
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { initials } from '../format';
-import { ResponsiveTable } from '../responsive-table';
 import { AllowedDomains } from './allowed-domains';
 import {
   ACCESS_LEVELS,
@@ -24,7 +23,7 @@ import { AccountStore } from '../account/account-store';
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 @Component({
-  imports: [AllowedDomains, ResponsiveTable, NgTemplateOutlet, RouterLink],
+  imports: [AllowedDomains, NgTemplateOutlet, RouterLink],
   selector: 'app-members',
   templateUrl: './members.html',
   host: { class: 'members' },
@@ -45,7 +44,33 @@ export class Members {
     const term = normalize(this.search());
     return this.store.members().filter((m) => normalize(`${m.name} ${m.email}`).includes(term));
   });
-  protected readonly pendingCount = computed(() => this.store.members().filter((m) => m.status === 'pending').length);
+  // Lista agrupada por perfil de empresa, cada grupo um menu que abre e fecha (na busca, todos abertos);
+  // a linha aberta mostra os campos para editar
+  protected readonly groups = computed(() => {
+    // Ordem dos perfis de empresa; empresa fora da lista e "Sem empresa" vão no fim (ninguém some)
+    const names = [...new Set([...this.allCompanies().map((c) => c.name), ...this.list().map((m) => m.company ?? '')])];
+    names.sort((a, b) => Number(a === '') - Number(b === ''));
+    return names
+      .map((name) => ({ name, members: this.list().filter((m) => (m.company ?? '') === name) }))
+      .filter((g) => g.members.length);
+  });
+  private readonly openGroups = signal<ReadonlySet<string>>(new Set());
+  protected isGroupOpen(name: string) {
+    return !!this.search().trim() || this.openGroups().has(name);
+  }
+  protected toggleGroup(name: string) {
+    this.openGroups.update((open) => {
+      const next = new Set(open);
+      if (!next.delete(name)) next.add(name);
+      return next;
+    });
+  }
+  protected readonly openId = signal<Member['id'] | null>(null);
+  protected toggle(member: Member) {
+    this.openId.update((id) => (id === member.id ? null : member.id));
+  }
+  protected readonly roleColor: Record<Role, string> = { admin: '#a855f7', supervisor: '#3b82f6', member: '#888' };
+
   private readonly admins = computed(() => this.store.members().filter((m) => m.role === 'admin' && m.status === 'active'));
 
   protected roleLabel(role: Role) {

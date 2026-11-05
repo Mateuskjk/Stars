@@ -22,6 +22,13 @@ describe('responsável obrigatório', () => {
     expect((await patch(IDS.atividadeEscondida, { responsavelId: null })).status).toBe(400); // é de projeto
   });
 
+  it('sprint fechada (tela desatualizada) vira a sprint ativa da empresa', async () => {
+    const id = IDS.atividadeDoAtendente;
+    expect((await patch(id, { sprintId: IDS.sprintFechadaA })).status).toBe(200);
+    const { rows } = await env.db.query<{ sprintId: string }>(`select "sprintId" from "Atividade" where id = $1`, [id]);
+    expect(rows[0].sprintId).toBe(IDS.sprintAtivaA);
+  });
+
   it('editar outros campos continua livre (mesmo em atividade antiga sem responsável)', async () => {
     await env.db.exec(`reset role; update "Atividade" set "responsavelId" = null where id = '${IDS.atividadeEscondida}'; set role lexagile_app;`);
     expect((await patch(IDS.atividadeEscondida, { titulo: 'Novo título' })).status).toBe(200);

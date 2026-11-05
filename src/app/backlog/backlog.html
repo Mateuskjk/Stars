@@ -1,96 +1,153 @@
-<header class="backlog__header">
-  <div>
-    <h2 class="backlog__title">Backlog</h2>
-    <p class="backlog__subtitle">Atividades gerais do time (não vinculadas a projetos)</p>
-  </div>
+<app-board-toolbar storageKey="backlog" [count]="total()" [fields]="filterFields()" [(filters)]="filters" [(query)]="query" [(view)]="view">
   <button class="backlog__new" type="button" (click)="openNew()">+ Nova atividade</button>
-</header>
+</app-board-toolbar>
 
 <!-- Quadro -->
-<div class="backlog__board">
-  @for (column of board(); track column.id) {
-    <section
-      class="backlog__column"
-      [class.is-drop-target]="dropTarget() === column.id"
-      [attr.aria-label]="column.label"
-      (dragover)="onDragOver($event, column.id)"
-      (drop)="onDrop($event, column.id)"
-    >
-      <header class="backlog__column-header">
-        <span class="backlog__dot" [style.background]="column.color"></span>
-        <app-column-title
-          class="backlog__column-title"
-          [label]="column.label"
-          [custom]="isCustom(column.id)"
-          [count]="column.cards.length"
-          [fallback]="columns()[0].label"
-          (rename)="renameColumn(column.id, $event)"
-          (remove)="removeColumn(column.id)"
-        />
-        <span class="backlog__count">{{ column.cards.length }}</span>
-      </header>
-
-      <ul class="backlog__cards">
-        @for (card of column.cards; track card.id) {
-          <li
-            class="backlog-card"
-            [class.is-locked]="card.locked"
-            [class.is-late]="isOverdue(card)"
-            [class.is-dragging]="dragging() === card.id"
-            [attr.draggable]="!card.locked"
-            (dragstart)="dragging.set(card.id)"
-            (dragend)="endDrag()"
-          >
-            <button class="backlog-card__open" type="button" (click)="openEdit(card)">
-              @if (card.tags.length) {
-                <span class="backlog-card__tags">
-                  @for (tag of card.tags; track tag) {
-                    <span class="tag" [style.--tag-color]="tagColor(tag)">{{ tag }}</span>
-                  }
-                </span>
-              }
-              <span class="backlog-card__name">{{ card.name }}</span>
-              <span class="backlog-card__meta">
-                @if (sprintOf(card); as sprint) {
-                  <span class="backlog-card__sprint" [class.is-active]="sprint.status === 'active'" [title]="sprint.status === 'active' ? 'Na sprint ativa' : 'Sprint ' + sprint.status">{{ sprint.name }}</span>
-                }
-                @if (card.due) {
-                  <span class="backlog-card__due" [class.is-overdue]="isOverdue(card)">
-                    {{ isOverdue(card) ? 'Atrasado · ' : '' }}{{ formatDue(card.due) }}
-                  </span>
-                }
-                @if (card.subtasks.length) {
-                  <span title="Sub atividades">☑ {{ doneSubtasks(card) }}/{{ card.subtasks.length }}</span>
-                }
-                @if (card.comments.length) {
-                  <span title="Comentários">💬 {{ card.comments.length }}</span>
-                }
-                @if (card.attachments.length) {
-                  <span title="Anexos">📎 {{ card.attachments.length }}</span>
-                }
-                <span class="backlog-card__flags">
+@if (view() === 'list') {
+  <div class="work-list" role="region" aria-label="Atividades em lista">
+    <table class="work-list__table">
+      <thead>
+        <tr>
+          <th scope="col">Código</th>
+          <th scope="col">Atividade</th>
+          <th scope="col">Status</th>
+          <th scope="col">Responsável</th>
+          <th scope="col">Prazo</th>
+          <th scope="col" class="work-list__actions-head">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (column of board(); track column.id) {
+          @for (card of column.cards; track card.id) {
+            <tr>
+              <td class="work-list__code">{{ card.number ? '#' + card.number : '—' }}</td>
+              <td>
+                <button class="work-list__name" type="button" (click)="openEdit(card)">
+                  {{ card.name }}
                   @if (card.locked) {
                     <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
                   }
-                  @if (card.assignee) {
-                    <span class="backlog-card__avatar" [attr.title]="card.assignee">{{ initials(card.assignee) }}</span>
+                </button>
+                @if (meta(card); as text) {
+                  <span class="kanban__meta" [title]="text">{{ text }}</span>
+                }
+              </td>
+              <td>
+                <span class="work-list__status" [style.--col]="column.color">{{ column.label }}</span>
+              </td>
+              <td>{{ card.assignee || '—' }}</td>
+              <td>
+                @if (card.due) {
+                  <span class="kanban__badge" [class.is-late]="isOverdue(card)" [title]="isOverdue(card) ? 'Atrasado' : ''">{{ formatDue(card.due) }}</span>
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                <app-card-actions
+                  [name]="card.name"
+                  (open)="openEdit(card)"
+                  (edit)="openEdit(card)"
+                  (archive)="archive(card)"
+                  (remove)="confirmDelete.ask(card.name, removeItem(card))"
+                />
+              </td>
+            </tr>
+          }
+        }
+        @if (!hasCards()) {
+          <tr>
+            <td class="planning__empty" colspan="6">Nenhuma atividade.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else {
+  <div class="backlog__board">
+    @for (column of board(); track column.id) {
+      <section
+        class="backlog__column"
+        [style.--col]="column.color"
+        [class.is-drop-target]="dropTarget() === column.id"
+        [attr.aria-label]="column.label"
+        (dragover)="onDragOver($event, column.id)"
+        (drop)="onDrop($event, column.id)"
+      >
+        <header class="backlog__column-header">
+          <span class="backlog__dot" [style.background]="column.color"></span>
+          <app-column-title
+            class="backlog__column-title"
+            [label]="column.label"
+            [custom]="isCustom(column.id)"
+            [count]="column.cards.length"
+            [fallback]="columns()[0].label"
+            (rename)="renameColumn(column.id, $event)"
+            (remove)="removeColumn(column.id)"
+          />
+          <span class="backlog__count">{{ column.cards.length }}</span>
+        </header>
+
+        <ul class="backlog__cards">
+          @for (card of column.cards; track card.id) {
+            <li
+              class="backlog-card"
+              [class.is-locked]="card.locked"
+              [class.is-late]="isOverdue(card)"
+              [class.is-dragging]="dragging() === card.id"
+              [attr.draggable]="!card.locked"
+              (dragstart)="dragging.set(card.id)"
+              (dragend)="endDrag()"
+            >
+              <button class="backlog-card__open" type="button" (click)="openEdit(card)">
+                <span class="kanban__card-top">
+                  <span class="kanban__card-title">{{ card.name }}</span>
+                  @if (card.due) {
+                    <span class="kanban__badge" [class.is-late]="isOverdue(card)" [title]="(isOverdue(card) ? 'Atrasado · ' : '') + formatDue(card.due)">{{ formatDue(card.due) }}</span>
                   }
                 </span>
-              </span>
-            </button>
-          </li>
-        } @empty {
-          <li class="backlog__empty">{{ column.id === 'refinement-done' ? 'Os cartões finalizados seguem para a Planning' : 'Nenhuma atividade' }}</li>
-        }
-      </ul>
+                @if (meta(card); as text) {
+                  <span class="kanban__meta">{{ text }}</span>
+                }
+              </button>
+              <div class="kanban__card-actions">
+                <app-card-actions
+                  [name]="card.name"
+                  (open)="openEdit(card)"
+                  (edit)="openEdit(card)"
+                  (archive)="archive(card)"
+                  (remove)="confirmDelete.ask(card.name, removeItem(card))"
+                />
+                @if (card.locked) {
+                  <span class="backlog-card__stat" title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
+                }
+                @if (card.subtasks.length) {
+                  <span class="backlog-card__stat" title="Sub atividades">☑ {{ doneSubtasks(card) }}/{{ card.subtasks.length }}</span>
+                }
+                @if (card.comments.length) {
+                  <span class="backlog-card__stat" title="Comentários">💬 {{ card.comments.length }}</span>
+                }
+                @if (card.attachments.length) {
+                  <span class="backlog-card__stat" title="Anexos">📎 {{ card.attachments.length }}</span>
+                }
+              </div>
+            </li>
+          } @empty {
+            <li class="backlog__empty">{{ column.id === 'refinement-done' ? 'Os cartões finalizados seguem para a Planning' : 'Nenhuma atividade' }}</li>
+          }
+        </ul>
 
-      <button class="backlog__add" type="button" (click)="openNew(column.id)">+ Adicionar</button>
-    </section>
-  }
-  @if (isAdmin()) {
-    <app-add-column (add)="addColumn($event)" />
-  }
-</div>
+        <button class="backlog__add" type="button" (click)="openNew(column.id)">+ Adicionar</button>
+      </section>
+    }
+    @if (isAdmin()) {
+      <app-add-column (add)="addColumn($event)" />
+    }
+  </div>
+}
+
 
 <!-- Modal do cartão (o mesmo da página do setor) -->
 <app-backlog-editor />
+
+<app-confirm-delete #confirmDelete />

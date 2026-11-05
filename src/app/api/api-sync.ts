@@ -26,7 +26,7 @@ interface DbProjeto {
 interface DbExtra { tipo: string; registroId: string; dados: Record<string, unknown> }
 interface DbSprint { id: string; nome: string; situacao: string; tenantId: string; inicio: string | null; fim: string | null }
 interface DbAtividade {
-  id: string; titulo: string; descricao: string; status: string; prazo: string | null; tags: string[]; compartilhadoCom: string[];
+  id: string; numero: number | null; titulo: string; descricao: string; status: string; prazo: string | null; tags: string[]; compartilhadoCom: string[];
   responsavelId: string | null; sprintId: string | null; projetoId: string | null; setorGeral: string | null; bloqueioMotivo: string | null;
   estimativa: number | null; arquivadoTipo: string | null; criadoEm: string; atualizadoEm: string; tenantId: string;
   subtarefas?: { id: string; titulo: string; feito: boolean }[];
@@ -400,6 +400,7 @@ export class ApiSync {
         const saved = a.colunaSprint && a.colunaSprint in TASK_STATUSES ? (a.colunaSprint as TaskStatus) : null;
         tasks.push({
           id,
+          number: a.numero ?? undefined,
           projectId: ids.projeto.num(a.projetoId!),
           title: a.titulo,
           description: a.descricao,
@@ -425,6 +426,7 @@ export class ApiSync {
             : status,
         ),
         id,
+        number: a.numero ?? undefined,
         name: a.titulo,
         description: a.descricao,
         due: day(a.prazo),
@@ -519,10 +521,10 @@ export class ApiSync {
   }
 
   // Grava em ordem, uma de cada vez (não embaralha mudanças seguidas no mesmo cartão)
-  private send(path: string | (() => string), method: string, body: unknown, after?: (result: { id?: string; levadas?: number } | null) => void) {
+  private send(path: string | (() => string), method: string, body: unknown, after?: (result: { id?: string } | null) => void) {
     this.queue = this.queue.then(async () => {
       try {
-        const result = await api<{ id?: string; levadas?: number } | null>(typeof path === 'string' ? path : path(), { method, body: JSON.stringify(body) });
+        const result = await api<{ id?: string } | null>(typeof path === 'string' ? path : path(), { method, body: JSON.stringify(body) });
         after?.(result);
       } catch (e) {
         this.saveError.set(`Não foi possível salvar no banco: ${(e as Error).message}`);
@@ -774,7 +776,6 @@ export class ApiSync {
         const body = { tenantId, nome: sprint.name, inicio: sprint.start, fim: sprint.end };
         this.send('/data/sprints', 'POST', body, (r) => {
           if (r?.id) this.ids.sprint.link(r.id, sprint.id);
-          if (r?.levadas) void this.session.check(); // pendências vieram para a sprint nova: recarrega os dados
         });
       } else if (before && before.status !== sprint.status) {
         this.send(() => `/data/sprints/${this.ids.sprint.db(sprint.id)}`, 'PATCH', { situacao: sprintSituacao(sprint.status) });

@@ -1,5 +1,5 @@
 import { LineSeries, MUTED, SERIES, Tip } from '../charts/charts';
-import { ProjectTask, SPRINT_DAYS, SprintWindow, TASK_STATUSES, businessIndex, parseDay, sprintOf, sprintWindow } from './project-tasks';
+import { ProjectTask, SPRINT_DAYS, SprintWindow, TASK_STATUSES, businessDay, businessIndex, parseDay, sprintOf, sprintWindow } from './project-tasks';
 
 // Cálculos do Dash de Projetos. Funções puras: recebem as atividades (já filtradas) e o dia de hoje.
 
@@ -171,11 +171,45 @@ export interface GanttItem {
   late: boolean;
   chip?: { label: string; color: string };
   forecast?: string | null; // previsão de término (marcador ◆)
+  planned?: { start: string; end: string } | null; // período planejado, quando o atraso empurrou a barra (contorno tracejado)
+  delay?: number; // dias úteis de atraso (próprio + empurrado pelas anteriores)
+}
+
+// ---------- Cascata do Gantt: atividade atrasada empurra as seguintes ----------
+// Em ordem de início planejado, cada atividade em aberto anda o atraso acumulado das anteriores; se mesmo assim
+// já passou do fim, vai até hoje e o atraso dela soma para as próximas. A finalizada fica onde aconteceu (do
+// início ao dia em que terminou) e não segura o atraso: se terminou depois do planejado, o atraso dela também segue.
+export interface Planned {
+  id: number;
+  start: string;
+  end: string;
+  doneAt: string | null;
+}
+
+export function cascade<T extends Planned>(items: T[], now: string) {
+  const today = businessIndex(now);
+  let shift = 0;
+  return [...items]
+    .sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.id - b.id)
+    .map((item) => {
+      const start = businessIndex(item.start);
+      const end = Math.max(start, businessIndex(item.end));
+      if (item.doneAt) {
+        const done = Math.max(start, businessIndex(item.doneAt));
+        const own = Math.max(0, done - end);
+        shift = Math.max(shift, own);
+        return { item, start: item.start, end: businessDay(done), pushed: 0, delay: own };
+      }
+      const pushed = shift;
+      const projected = Math.max(end + shift, today); // em aberto: não termina antes de hoje
+      shift = projected - end;
+      return { item, start: businessDay(start + pushed), end: businessDay(projected), pushed, delay: shift };
+    });
 }
 
 export function gantt(items: GanttItem[], now: string) {
   if (!items.length) return null;
-  const days = items.flatMap((item) => [item.start, item.end, item.forecast ?? item.end]).concat(now);
+  const days = items.flatMap((item) => [item.start, item.end, item.forecast ?? item.end, ...(item.planned ? [item.planned.start, item.planned.end] : [])]).concat(now);
   const from = Math.min(...days.map(businessIndex));
   const to = Math.max(...days.map(businessIndex)) + 1;
   const pos = (day: string, end = false) => ((businessIndex(day) + (end ? 1 : 0) - from) / (to - from)) * 100;
@@ -194,8 +228,10 @@ export function gantt(items: GanttItem[], now: string) {
       const tip: Tip = {
         heading: item.label,
         rows: [
-          { name: 'período planejado', value: `${shortDate(item.start)} – ${shortDate(item.end)}`, color: item.color },
+          { name: item.planned ? 'com o atraso' : 'período planejado', value: `${shortDate(item.start)} – ${shortDate(item.end)}`, color: item.color },
           { name: 'concluído', value: `${Math.round(item.progress * 100)}%`, color: item.color },
+          ...(item.planned ? [{ name: 'planejado', value: `${shortDate(item.planned.start)} – ${shortDate(item.planned.end)}`, color: MUTED }] : []),
+          ...(item.delay ? [{ name: item.delay === 1 ? 'dia útil de atraso' : 'dias úteis de atraso', value: `+${item.delay}`, color: '#d03b3b' }] : []),
           ...(item.forecast ? [{ name: 'previsão de término', value: shortDate(item.forecast), color: SERIES[2] }] : []),
           ...(item.late ? [{ name: 'passou do prazo', value: '⚠', color: '#d03b3b' }] : []),
         ],
@@ -205,6 +241,8 @@ export function gantt(items: GanttItem[], now: string) {
         left,
         width: Math.max(0.6, pos(item.end, true) - left),
         forecastLeft: item.forecast && item.forecast !== item.end ? pos(item.forecast, true) : null,
+        plannedLeft: item.planned ? pos(item.planned.start) : null,
+        plannedWidth: item.planned ? Math.max(0.6, pos(item.planned.end, true) - pos(item.planned.start)) : 0,
         tip,
       };
     }),

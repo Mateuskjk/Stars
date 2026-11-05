@@ -25,7 +25,7 @@ $daily-good: #0ca30c;
     gap: 12px;
     min-height: 360px;
     border: 2px dashed $daily-line;
-    border-radius: 15px;
+    border-radius: 12px;
     background: none;
     color: $color-title;
     font: inherit;
@@ -154,7 +154,7 @@ $daily-good: #0ca30c;
     min-width: 0;
     padding: 16px;
     border: 1px solid $daily-line;
-    border-radius: 15px;
+    border-radius: 12px;
   }
 
   &__panel-title {
@@ -216,7 +216,7 @@ $daily-good: #0ca30c;
 
   &__tag {
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: 8px;
     background-color: $daily-soft;
     color: $color-text;
 
@@ -260,7 +260,7 @@ $daily-good: #0ca30c;
   &__textarea {
     padding: 10px 12px;
     border: 1px solid $daily-line;
-    border-radius: 10px;
+    border-radius: 8px;
     background-color: var(--color-card);
     color: $color-text;
     font: inherit;
@@ -323,7 +323,7 @@ $daily-good: #0ca30c;
     height: 44px;
     padding: 0 24px;
     border: none;
-    border-radius: 25px;
+    border-radius: 8px;
     background-color: $color-nav-hover;
     color: $color-surface;
     font: inherit;

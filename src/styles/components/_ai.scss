@@ -15,7 +15,7 @@ $ai-accent: var(--ink-purple);
 
   &__security {
     padding: 10px 14px;
-    border-radius: 10px;
+    border-radius: 8px;
     background-color: color-mix(in srgb, #2a78d6 7%, var(--color-card));
     color: var(--ink-blue);
     font-size: 13px;
@@ -34,7 +34,7 @@ $ai-accent: var(--ink-purple);
     gap: 12px;
     padding: 16px;
     border: 1px solid $ai-line;
-    border-radius: 15px;
+    border-radius: 12px;
     background-color: $color-surface;
 
     &.is-assistant {
@@ -60,7 +60,7 @@ $ai-accent: var(--ink-purple);
     flex-shrink: 0;
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: 8px;
     color: #fff;
     font-weight: 700;
   }
@@ -203,7 +203,7 @@ $ai-accent: var(--ink-purple);
     width: min(380px, calc(100vw - 32px));
     height: min(560px, calc(100dvh - 120px));
     overflow: hidden;
-    border-radius: 15px;
+    border-radius: 12px;
     background-color: $color-surface;
     box-shadow: var(--shadow-ring), 0 16px 40px rgb(var(--shadow-color) / calc(0.25 * var(--shadow-strength)));
   }

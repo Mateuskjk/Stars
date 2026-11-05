@@ -20,6 +20,7 @@ import { domainsRouter } from '../domains';
 import { publicApiInternalRouter, publicApiRouter } from '../public-api';
 import { csrfGuard } from '../security-headers';
 import { aiRouter } from '../ai';
+import { cronRouter, dailyAnalysisRouter } from '../daily-ai';
 import { migrateAll } from '../migrate-all';
 
 export const A = 'tenant-a';
@@ -124,6 +125,8 @@ export async function startTestEnv(): Promise<TestEnv> {
   app.use('/api/data', notesRouter());
   app.use('/api/data', accountRouter());
   app.use('/api/data', attachmentsRouter());
+  app.use('/api/data', dailyAnalysisRouter());
+  app.use('/api/cron', cronRouter());
   app.use('/api/v1', publicApiRouter());
   app.use('/api/internal', requireAuth, publicApiInternalRouter());
   app.use('/api/ai', requireAuth, aiRouter());

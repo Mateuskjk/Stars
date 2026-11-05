@@ -199,6 +199,9 @@
     </div>
 
     <footer class="modal__footer">
+      @if (error()) {
+        <p class="planning__error backlog-editor__error" role="alert">{{ error() }}</p>
+      }
       <button class="modal__ghost" type="button" (click)="closeEditor()">Cancelar</button>
       <button class="modal__primary" type="submit">Salvar atividade</button>
     </footer>

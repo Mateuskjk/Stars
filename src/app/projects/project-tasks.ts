@@ -63,6 +63,7 @@ export const TASK_STATUSES: Record<DefaultTaskStatus, { label: string; color: st
 
 export interface ProjectTask {
   id: number;
+  number?: number; // número do cartão na empresa (#123), vindo do banco
   projectId: number;
   title: string;
   description?: string;

@@ -1,13 +1,15 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { BoardToolbar, BoardView, FilterField, FilterRule, matchesQuery, optionsOf, passesFilters } from '../kanban/board-toolbar';
 import { PeopleStore } from '../members/people-store';
 import { Router, RouterLink } from '@angular/router';
 import { BacklogEditor } from '../backlog/backlog-editor';
-import { BacklogItem, BacklogStore, emptyItem, tagColor } from '../backlog/backlog-store';
+import { BacklogItem, BacklogStore } from '../backlog/backlog-store';
+import { CardActions } from '../kanban/card-actions';
+import { ConfirmDelete } from '../kanban/confirm-delete';
 import { AddColumn } from '../kanban/add-column';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
-import { PeoplePicker } from '../members/people-picker';
-import { SprintStore } from '../planning/sprint-store';
+import { SprintStore, chosenSprints, sprintFilterField } from '../planning/sprint-store';
 import { SPRINT_DAYS, businessIndex, today } from '../projects/project-tasks';
 import { ProjectStore } from '../projects/project-store';
 import { initials } from '../projects/projects';
@@ -19,10 +21,14 @@ import { SectorStore, SprintColumnId, sprintColumnOf } from './sector-store';
 // /empresas/:id/setores/:sectorId — cabeçalho do setor (com a sprint ativa) e o kanban da sprint:
 // só as atividades gerais do setor que estão na sprint ativa da Planning
 @Component({
-  imports: [RouterLink, AddColumn, ColumnTitle, SectorEditor, BacklogEditor, PeoplePicker],
+  imports: [RouterLink, AddColumn, ColumnTitle, SectorEditor, BacklogEditor, BoardToolbar, CardActions, ConfirmDelete],
   selector: 'app-sector-page',
   templateUrl: './sector-page.html',
-  host: { class: 'sector-page' },
+  host: {
+    class: 'sector-page',
+    '(document:click)': 'closeMenuOnOutsideClick($event)',
+    '(document:keydown.escape)': 'menuOpen.set(false)',
+  },
 })
 export class SectorPage {
   readonly id = input.required<string>(); // empresa
@@ -36,7 +42,6 @@ export class SectorPage {
   private readonly router = inject(Router);
 
   protected readonly initials = initials;
-  protected readonly tagColor = tagColor;
   protected readonly people = inject(PeopleStore).names; // membros reais da empresa escolhida
   protected readonly isAdmin = this.membersStore.isAdmin;
   private readonly sprints = inject(SprintStore);
@@ -54,16 +59,12 @@ export class SectorPage {
     return this.membersStore.members().filter((m) => ids.has(m.id));
   });
 
-  // Projetos da empresa com este setor
+  // Projetos da empresa com este setor (o cabeçalho mostra quantos)
   protected readonly projects = computed(() => {
     const sector = this.sector();
     const company = this.company();
     if (!sector || !company) return [];
-    const statuses = this.projectStore.statuses();
-    return this.projectStore
-      .visible()
-      .filter((p) => p.company === company.name && p.sector.toLowerCase() === sector.name.toLowerCase())
-      .map((p) => ({ ...p, statusInfo: statuses.find((s) => s.id === p.status) }));
+    return this.projectStore.visible().filter((p) => p.company === company.name && p.sector.toLowerCase() === sector.name.toLowerCase());
   });
 
   // ---------- Sprint ativa (7 dias úteis) ----------
@@ -72,10 +73,6 @@ export class SectorPage {
     const sprint = this.sprint();
     if (!sprint) return 0;
     return Math.min(SPRINT_DAYS, Math.max(1, businessIndex(today()) - businessIndex(sprint.start) + 1));
-  });
-  protected readonly daysLeft = computed(() => {
-    const sprint = this.sprint();
-    return sprint ? Math.max(0, businessIndex(sprint.end) - businessIndex(today())) : 0;
   });
 
   // ---------- Quem vê o quê (mesma regra dos Dashboards: ActivityAccess) ----------
@@ -98,32 +95,74 @@ export class SectorPage {
       .filter((item) => this.access.canSee(item));
   });
 
+  // Barra acima do quadro: busca pelo nome e kanban/lista
+  protected readonly query = signal('');
+  protected readonly view = signal<BoardView>('board');
+  protected readonly filters = signal<FilterRule[]>([]);
+  protected readonly filterFields = computed<FilterField[]>(() => {
+    const all = this.items();
+    return [
+      sprintFilterField(this.sprints.sprints().filter((s) => s.companyId === undefined || s.companyId === this.sector()?.companyId)),
+      {
+        key: 'responsavel',
+        label: 'Responsável',
+        options: optionsOf(all.flatMap((i) => [i.assignee, ...i.sharedWith])),
+      },
+      { key: 'etiqueta', label: 'Etiqueta', options: optionsOf(all.flatMap((i) => i.tags)) },
+    ];
+  });
+  // Atividades do quadro: as da(s) sprint(s) escolhida(s) no filtro ou, sem filtro, as da sprint ativa
+  protected readonly boardItems = computed(() => {
+    const chosen = chosenSprints(this.filters());
+    const sector = this.sector();
+    if (!chosen.size || !sector) return this.items();
+    return this.backlog
+      .items()
+      .filter((item) => item.sectorId === sector.id && item.sprintId !== undefined && chosen.has(item.sprintId) && !['archived', 'canceled'].includes(item.status))
+      .filter((item) => this.access.canSee(item));
+  });
   protected readonly board = computed(() => {
     const sector = this.sector();
     if (!sector) return [];
     return this.columns().map((column) => ({
       ...column,
-      cards: this.items().filter((item) => sprintColumnOf(sector.columns, item).id === column.id),
+      cards: this.boardItems().filter(
+        (item) =>
+          sprintColumnOf(sector.columns, item).id === column.id &&
+          matchesQuery(item.name, this.query()) &&
+          passesFilters(
+            this.filters().filter((r) => r.key !== 'sprint'),
+            (key) => (key === 'etiqueta' ? item.tags : [item.assignee, ...item.sharedWith]),
+          ),
+      ),
     }));
-  });
-
-  // Atividade conjunta conta para cada pessoa envolvida (responsável + compartilhadas)
-  protected readonly perPerson = computed(() => {
-    const counts = new Map<string, { total: number; shared: number }>();
-    for (const item of this.items()) {
-      const people = new Set([item.assignee, ...item.sharedWith].filter(Boolean));
-      for (const person of people) {
-        const entry = counts.get(person) ?? { total: 0, shared: 0 };
-        entry.total++;
-        if (item.sharedWith.length) entry.shared++;
-        counts.set(person, entry);
-      }
-    }
-    return [...counts].map(([name, c]) => ({ name, ...c })).sort((a, b) => b.total - a.total);
   });
 
   protected readonly doneCount = computed(() => this.board().find((c) => c.id === 'done')?.cards.length ?? 0);
   protected readonly doneLabel = computed(() => this.columns().find((c) => c.id === 'done')?.label ?? 'Finalizado');
+
+  // Menu "…" do cabeçalho (editar e excluir o setor): fecha ao clicar fora ou com Esc
+  protected readonly menuOpen = signal(false);
+  protected closeMenuOnOutsideClick(event: Event) {
+    const target = event.target as Element;
+    if (target.isConnected && !target.closest('.row-menu')) this.menuOpen.set(false);
+  }
+
+  // Botões do cartão
+  protected archive(item: BacklogItem) {
+    this.backlog.patch(item.id, { status: 'archived' });
+  }
+
+  protected removeItem(item: BacklogItem) {
+    return () => this.backlog.remove(item.id);
+  }
+
+  // Linha de dados do cartão: equipe · etiquetas · sprint · responsável (e com quem compartilhou)
+  protected meta(item: BacklogItem) {
+    const team = this.teamOf(item);
+    const people = item.sharedWith.length ? `${item.assignee} ⇄ ${item.sharedWith.join(', ')}` : item.assignee;
+    return [team && '👥 ' + team, item.tags.join(', '), this.sprintOf(item)?.name, people].filter(Boolean).join(' · ');
+  }
 
   protected sprintOf(item: BacklogItem) {
     return this.sprints.byId(item.sprintId);
@@ -189,33 +228,11 @@ export class SectorPage {
     this.router.navigate(['/empresas', this.id()]);
   }
 
-  // ---------- Nova atividade: entra na sprint ativa, já ligada ao setor ----------
-  protected readonly creating = signal(false);
-  protected readonly newShared = signal<string[]>([]);
-
-  protected create(event: Event) {
-    event.preventDefault();
+  // ---------- Nova atividade: abre o painel lateral do Backlog já no setor, na sprint ativa e na 1ª coluna ----------
+  protected newActivity(editor: BacklogEditor) {
     const sector = this.sector();
     const sprint = this.sprint();
-    const form = event.target as HTMLFormElement;
-    const data = new FormData(form);
-    const name = String(data.get('name') ?? '').trim();
-    if (!sector || !sprint || !name) return;
-    const assignee = String(data.get('assignee') ?? '');
-    if (!assignee) return; // entra direto na sprint: precisa de responsável
-    this.backlog.save({
-      ...emptyItem('refinement-done'),
-      name,
-      assignee,
-      sharedWith: this.newShared().filter((p) => p !== assignee),
-      due: String(data.get('due') ?? ''),
-      sectorId: sector.id,
-      sprintId: sprint.id,
-      // criada direto em Bloqueado já nasce com o cadeado
-      ...(data.get('column') === 'blocked' ? { locked: true } : { sprintStatus: String(data.get('column') ?? sector.columns[0].id) }),
-    });
-    form.reset();
-    this.newShared.set([]);
-    this.creating.set(false);
+    if (!sector || !sprint) return;
+    editor.openNew('refinement-done', { sectorId: sector.id, sprintId: sprint.id, sprintStatus: sector.columns[0].id });
   }
 }

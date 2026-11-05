@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { Router, Routes } from '@angular/router';
+import { ActivatedRouteSnapshot, Router, Routes } from '@angular/router';
 import { Home } from './home/home';
 
 // A Home vem no pacote inicial; as outras páginas são baixadas só quando abertas (lazy loading),
@@ -8,17 +8,24 @@ import { Home } from './home/home';
 export const routes: Routes = [
   { path: '', component: Home },
   { path: 'dashboards', loadComponent: () => import('./dashboard/dashboards').then((m) => m.Dashboards) },
+  // Setores da empresa escolhida no topo da sidebar
+  { path: 'setores', loadComponent: () => import('./companies/sectors').then((m) => m.Sectors) },
   {
     path: 'projetos',
     children: [
-      // Endereço antigo do Dash de Projetos: agora é a aba Projetos dos Dashboards (mantém ?projeto=)
+      // Projetos: kanban (o antigo Geral) e lista (o antigo Criar novo projeto) na mesma tela.
+      // O endereço antigo do Dash de Projetos (/projetos?projeto=…) continua levando para a aba Projetos dos Dashboards.
       {
         path: '',
         pathMatch: 'full',
-        redirectTo: ({ queryParams }) => inject(Router).createUrlTree(['/dashboards'], { queryParams: { ...queryParams, aba: 'projetos' } }),
+        canActivate: [
+          ({ queryParams }: ActivatedRouteSnapshot) =>
+            queryParams['projeto'] ? inject(Router).createUrlTree(['/dashboards'], { queryParams: { ...queryParams, aba: 'projetos' } }) : true,
+        ],
+        loadComponent: () => import('./projects/project-create').then((m) => m.ProjectCreate),
       },
-      { path: 'visaoGeral', loadComponent: () => import('./projects/projects').then((m) => m.Projects) },
-      { path: 'novo', loadComponent: () => import('./projects/project-create').then((m) => m.ProjectCreate) },
+      { path: 'visaoGeral', redirectTo: '' },
+      { path: 'novo', redirectTo: '' },
       { path: ':id', loadComponent: () => import('./projects/project-page').then((m) => m.ProjectPage) },
     ],
   },

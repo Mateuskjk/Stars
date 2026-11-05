@@ -1,59 +1,9 @@
 @if (company(); as c) {
-  <!-- Cabeçalho com as informações da empresa -->
-  <header class="company-page__header">
-    <div
-      class="company-page__cover"
-      [style.background]="c.image ? cssImage(c.image) : c.cover"
-      aria-hidden="true"
-    ></div>
-    <div class="company-page__main">
-      <div class="project-page__title-row">
-        <h2 class="project-page__title">{{ c.name }}</h2>
-        <span class="status-chip" [style.--status-color]="c.active ? '#0ca30c' : '#898781'">{{ c.active ? 'Ativa' : 'Inativa' }}</span>
-        <a class="modal__ghost planning__small project-page__dash" routerLink="/configuracoes/perfis-empresas" [queryParams]="{ empresa: c.id }">Editar perfil</a>
-      </div>
-      @if (c.description) {
-        <p class="project-page__description">{{ c.description }}</p>
-      }
-      <dl class="project-page__facts">
-        <div>
-          <dt>Site</dt>
-          <dd>
-            @if (c.site) {
-              <a class="company-page__site" [href]="c.site" target="_blank" rel="noopener noreferrer">{{ c.site }}</a>
-            } @else {
-              —
-            }
-          </dd>
-        </div>
-        <div><dt>Fuso horário</dt><dd>{{ c.timeZone.replaceAll('_', ' ') }} · {{ localTime(c.timeZone) }}</dd></div>
-        <div><dt>Idioma</dt><dd>{{ locales[c.view.locale] }}</dd></div>
-        <div><dt>Moeda</dt><dd>{{ c.view.currency }}</dd></div>
-        <div><dt>Formato de data</dt><dd>{{ c.view.dateFormat }}</dd></div>
-        <div><dt>Semana começa</dt><dd>{{ c.view.weekStart === 'monday' ? 'segunda' : 'domingo' }}</dd></div>
-      </dl>
-    </div>
-
-    <aside class="project-page__progress" aria-label="Resumo da empresa">
-      <dl class="company-page__counts">
-        <div><dt>Setores</dt><dd>{{ sectors().length }}</dd></div>
-        <div><dt>Projetos</dt><dd>{{ projects().length }}</dd></div>
-        <div><dt>Membros</dt><dd>{{ members().length }}</dd></div>
-      </dl>
-      @if (members().length) {
-        <ul class="company-page__people" aria-label="Membros ligados à empresa">
-          @for (m of members(); track m.id) {
-            <li class="kanban__avatar" [title]="m.name">{{ initials(m.name) }}</li>
-          }
-        </ul>
-      }
-    </aside>
-  </header>
-
   <!-- Perfis dos setores -->
   <section class="company-page__sectors" aria-label="Setores">
     <div class="project-page__kanban-head">
       <h2 class="kanban__title">Setores</h2>
+      <!-- O nome da empresa fica na barra do topo; aqui só as ações -->
       @if (isAdmin()) {
         <button class="backlog__new" type="button" (click)="editor()?.open()">+ Novo setor</button>
         <app-sector-editor [company]="c" />
@@ -62,6 +12,7 @@
 
     <ul class="company-page__grid">
       @for (s of sectors(); track s.id) {
+        <!-- Cartão enxuto: só o setor; clicar em qualquer parte abre a página dele -->
         <li class="sector-card" [style.--sector-color]="s.color">
           <div class="sector-card__head">
             <span class="sector-card__badge" aria-hidden="true">{{ initials(s.name) }}</span>
@@ -71,42 +22,15 @@
             </div>
             @if (isAdmin()) {
               <div class="sector-card__actions">
-                <button class="column-title__action" type="button" title="Editar setor" [attr.aria-label]="'Editar setor ' + s.name" (click)="editor()?.open(sectorOf(s.id))">
+                <button class="column-title__action" type="button" title="Editar setor" [attr.aria-label]="'Editar setor ' + s.name" (click)="editor()?.open(s)">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="m13 7 4 4" /></svg>
                 </button>
-                <button class="column-title__action" type="button" title="Excluir setor" [attr.aria-label]="'Excluir setor ' + s.name" (click)="editor()?.askDelete(sectorOf(s.id))">
+                <button class="column-title__action" type="button" title="Excluir setor" [attr.aria-label]="'Excluir setor ' + s.name" (click)="editor()?.askDelete(s)">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" /></svg>
                 </button>
               </div>
             }
           </div>
-
-          <dl class="sector-card__facts">
-            <div><dt>Gestor</dt><dd>{{ s.manager || '—' }}</dd></div>
-            <div><dt>Projetos</dt><dd>{{ s.projects.length }}</dd></div>
-            <div><dt>Atividades de projeto</dt><dd>{{ s.open }} abertas</dd></div>
-            <div><dt>Atividades gerais</dt><dd>{{ s.general }}</dd></div>
-          </dl>
-
-          @if (s.progress !== null) {
-            <span class="meter" role="img" [attr.aria-label]="'Progresso dos projetos do setor: ' + s.progress + '%'">
-              <span class="meter__fill" [style.width.%]="s.progress"></span>
-            </span>
-            <span class="sector-card__progress">{{ s.progress }}% dos pontos entregues</span>
-          }
-
-          <ul class="sector-card__projects">
-            @for (p of s.projects; track p.id) {
-              <li>
-                <a [routerLink]="['/projetos', p.id]">{{ p.name }}</a>
-                @if (p.statusInfo; as st) {
-                  <span class="status-chip" [style.--status-color]="st.color">{{ st.label }}</span>
-                }
-              </li>
-            } @empty {
-              <li class="sector-card__empty">Nenhum projeto neste setor ainda.</li>
-            }
-          </ul>
         </li>
       } @empty {
         <li class="favorites__empty">
@@ -115,15 +39,6 @@
         </li>
       }
     </ul>
-
-    @if (withoutSector().length) {
-      <p class="company-page__hint">
-        Projetos sem setor cadastrado aqui:
-        @for (p of withoutSector(); track p.id) {
-          <a [routerLink]="['/projetos', p.id]">{{ p.name }}</a>{{ p.sector ? ' (' + p.sector + ')' : '' }}{{ $last ? '' : ', ' }}
-        }
-      </p>
-    }
   </section>
 } @else {
   <div class="dash-card favorites__empty">

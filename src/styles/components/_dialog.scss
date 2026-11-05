@@ -11,7 +11,7 @@ $dialog-soft: var(--color-soft);
   margin: auto;
   padding: 0;
   border: none;
-  border-radius: 15px;
+  border-radius: 12px;
   background-color: $color-background; // mesma cor do fundo do site (#ebeff3)
   box-shadow:
     var(--shadow-ring),
@@ -85,7 +85,7 @@ $dialog-soft: var(--color-soft);
     flex: 1;
     height: 44px;
     border: 1px solid $dialog-line;
-    border-radius: 25px;
+    border-radius: 8px;
     background-color: var(--color-card);
     color: $color-title;
     font: inherit;

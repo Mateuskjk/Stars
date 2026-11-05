@@ -1,178 +1,113 @@
-<!-- 1. Sprint ativa (esquerda) e dia da semana (direita) -->
-<div class="week-date planning__date">
-  <p class="planning__sprint-label">
-    @if (active(); as sprint) {
-      <strong>{{ sprint.name }}</strong> · {{ period(sprint) }}
-    } @else {
-      Nenhuma sprint ativa
-    }
-  </p>
-  <p class="week-date__title">{{ weekDate }}</p>
-</div>
-
-<!-- 2. Sprint ativa -->
+<!-- Sprint ativa: uma faixa só, com as ações dela -->
 <section class="planning__sprint">
   @if (active(); as sprint) {
     <div class="planning__sprint-info">
       <span class="status-chip" [style.--status-color]="sprintStatus.active.color">{{ sprintStatus.active.label }}</span>
-      <h2 class="planning__sprint-name">{{ sprint.name }}</h2>
-      <p class="planning__muted">
-        {{ period(sprint) }} · {{ daysLeft() }} {{ daysLeft() === 1 ? 'dia restante' : 'dias restantes' }} ·
-        {{ inSprint().length }} {{ inSprint().length === 1 ? 'atividade' : 'atividades' }}
-      </p>
+      <strong class="planning__sprint-name">{{ sprint.name }}</strong>
+      <span class="planning__muted">
+        {{ period(sprint) }} · {{ daysLeft() }} {{ daysLeft() === 1 ? 'dia restante' : 'dias restantes' }} · {{ inSprint().length }}
+        {{ inSprint().length === 1 ? 'atividade' : 'atividades' }}
+      </span>
       @if (sprint.goal) {
-        <p class="planning__goal">🎯 {{ sprint.goal }}</p>
+        <span class="planning__goal" [title]="sprint.goal">🎯 {{ sprint.goal }}</span>
       }
     </div>
     <div class="planning__sprint-actions">
-      <button class="modal__ghost" type="button" (click)="askCancel(sprint)">Cancelar sprint</button>
-      <button class="modal__primary" type="button" (click)="askClose(sprint)">Fechar sprint</button>
+      <button class="modal__ghost planning__small" type="button" (click)="askCancel(sprint)">Cancelar sprint</button>
+      <button class="modal__primary planning__small" type="button" (click)="askClose(sprint)">Fechar sprint</button>
     </div>
   } @else {
     <div class="planning__sprint-info">
-      <h2 class="planning__sprint-name">Nenhuma sprint ativa</h2>
-      <p class="planning__muted">Crie uma sprint para começar a enviar atividades para ela.</p>
-    </div>
-    <div class="planning__sprint-actions">
-      <button class="modal__primary" type="button" (click)="openCreate()">+ Criar sprint</button>
+      <strong class="planning__sprint-name">Nenhuma sprint ativa</strong>
     </div>
   }
 </section>
 
-<!-- 3. Atividades -->
-<ng-template #activityTable let-items let-mode="mode">
-  <div class="project-table">
-    <table appResponsiveTable class="project-table__table planning__table">
-      <thead>
-        <tr>
-          <th class="project-table__sticky" scope="col">Atividade</th>
-          <th scope="col">Responsável</th>
-          <th scope="col">Tags</th>
-          <th scope="col">Prazo</th>
-          <th scope="col">Sub atividades</th>
-          @if (mode !== 'sprint') {
-            <th scope="col">Categoria</th>
-          }
-          <th scope="col">Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (item of items; track item.id) {
-          <tr>
-            <th class="project-table__sticky" scope="row">
-              <span class="planning__activity">
-                <!-- Abre o mesmo modal do Backlog: dá para ajustar tudo antes de mandar para a sprint -->
-                <button class="planning__open" type="button" [attr.aria-label]="'Editar ' + item.name" (click)="edit(item)">{{ item.name }}</button>
-                @if (item.locked) {
-                  <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
-                }
-              </span>
-            </th>
-            <td>
-              @if (item.assignee) {
-                <span class="planning__person">
-                  <span class="backlog-card__avatar">{{ initials(item.assignee) }}</span>
-                  {{ item.assignee }}
-                </span>
-              } @else {
-                —
-              }
-            </td>
-            <td>
-              <span class="backlog-card__tags">
-                @for (tag of item.tags; track tag) {
-                  <span class="tag" [style.--tag-color]="tagColor(tag)">{{ tag }}</span>
-                } @empty {
-                  —
-                }
-              </span>
-            </td>
-            <td>{{ formatDay(item.due) }}</td>
-            <td>{{ item.subtasks.length ? doneSubtasks(item) + '/' + item.subtasks.length : '—' }}</td>
-            @if (mode !== 'sprint') {
-              <td>
-                <select
-                  class="project-table__input planning__category"
-                  [attr.aria-label]="'Categoria de ' + item.name"
-                  (change)="setCategory(item, $any($event.target).value)"
-                >
-                  <option value="ready" [selected]="mode === 'ready'">Pronta para sprint</option>
-                  <option value="waiting" [selected]="mode === 'waiting'">Aguardando</option>
-                </select>
-              </td>
+<!-- "+ Criar sprint" fica na barra, ao lado do Filtro (só sem sprint ativa) -->
+<app-board-toolbar storageKey="planning" [views]="false" [count]="candidates().length" [fields]="filterFields()" [(filters)]="filters" [(query)]="query">
+  @if (!active()) {
+    <button class="backlog__new" type="button" (click)="openCreate()">+ Criar sprint</button>
+  }
+</app-board-toolbar>
+
+<!-- Atividades que terminaram o refinamento: clicar abre o modal do Backlog (ajustar antes de mandar) -->
+<section class="planning__group">
+  <h2 class="planning__group-title">
+    Prontas para sprint <span class="planning__count">{{ ready().length }}</span>
+  </h2>
+  <div class="planning__list">
+    @for (item of ready(); track item.id) {
+      <div class="planning__row">
+        <button class="planning__open" type="button" [attr.aria-label]="'Editar ' + item.name" (click)="edit(item)">
+          <span class="planning__name">
+            {{ item.name }}
+            @if (item.locked) {
+              <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
             }
-            <td>
-              <span class="planning__actions">
-                <button class="modal__ghost planning__small" type="button" (click)="edit(item)">Editar</button>
-                @if (mode === 'sprint') {
-                  <button class="modal__ghost planning__small" type="button" (click)="removeFromSprint(item)">← Tirar da sprint</button>
-                } @else {
-                  <button
-                    class="modal__primary planning__small"
-                    type="button"
-                    [disabled]="!active() || !item.assignee"
-                    [attr.title]="!item.assignee ? 'Defina um responsável antes de enviar para a sprint' : active() ? 'Enviar para a ' + active()!.name : 'Crie uma sprint primeiro'"
-                    (click)="sendToSprint(item)"
-                  >
-                    Enviar para sprint →
-                  </button>
-                }
-                <button class="modal__ghost planning__small" type="button" (click)="archive(item)">Arquivar</button>
-                <button class="modal__ghost modal__ghost--danger planning__small" type="button" (click)="askDelete(item)">Excluir</button>
-              </span>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td class="planning__empty" colspan="7">Nenhuma atividade aqui.</td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
-</ng-template>
-
-<section class="planning__group">
-  <h2 class="planning__group-title">
-    Prontas para sprint <span class="project-create__count">{{ ready().length }}</span>
-  </h2>
-  <p class="planning__muted">Vindas de “Finalizado refinamento” no backlog. Entram aqui por padrão.</p>
-  <ng-container *ngTemplateOutlet="activityTable; context: { $implicit: ready(), mode: 'ready' }" />
-</section>
-
-<section class="planning__group">
-  <h2 class="planning__group-title">
-    Aguardando próxima sprint <span class="project-create__count">{{ waiting().length }}</span>
-  </h2>
-  <ng-container *ngTemplateOutlet="activityTable; context: { $implicit: waiting(), mode: 'waiting' }" />
-</section>
-
-@if (active(); as sprint) {
-  <section class="planning__group">
-    <h2 class="planning__group-title">
-      Na {{ sprint.name }} <span class="project-create__count">{{ inSprint().length }}</span>
-    </h2>
-    <ng-container *ngTemplateOutlet="activityTable; context: { $implicit: inSprint(), mode: 'sprint' }" />
-  </section>
-}
-
-<!-- 4. Histórico de sprints -->
-<section class="planning__group">
-  <h2 class="planning__group-title">Histórico de sprints</h2>
-  <ul class="planning__history">
-    @for (sprint of history(); track sprint.id) {
-      <li class="planning__history-item">
-        <span class="status-chip" [style.--status-color]="sprintStatus[sprint.status].color">{{ sprintStatus[sprint.status].label }}</span>
-        <strong>{{ sprint.name }}</strong>
-        <span class="planning__muted">{{ period(sprint) }}</span>
-        @if (sprint.status === 'closed') {
-          <button class="modal__ghost planning__small planning__history-action" type="button" (click)="archiveSprint(sprint)">Arquivar</button>
-        }
-      </li>
+          </span>
+          <span class="kanban__meta">{{ meta(item) }}</span>
+        </button>
+        <div class="planning__actions">
+          <button
+            class="modal__primary planning__small"
+            type="button"
+            [disabled]="!active() || !item.assignee"
+            [attr.title]="!item.assignee ? 'Defina um responsável antes de enviar para a sprint' : active() ? 'Enviar para a ' + active()!.name : 'Crie uma sprint primeiro'"
+            (click)="sendToSprint(item)"
+          >
+            Enviar para sprint →
+          </button>
+          <button class="modal__ghost planning__small" type="button" (click)="archive(item)">Arquivar</button>
+          <button class="modal__ghost modal__ghost--danger planning__small" type="button" (click)="askDelete(item)">Excluir</button>
+        </div>
+      </div>
     } @empty {
-      <li class="planning__muted">Nenhuma sprint encerrada ainda.</li>
+      <p class="planning__empty">Nenhuma atividade pronta para a sprint.</p>
     }
-  </ul>
+  </div>
+</section>
+
+<!-- Não concluídas em sprints que já fecharam: esperam aqui para voltar à sprint (menu que abre e fecha) -->
+<section class="planning__group planning__returning" [class.is-open]="returningOpen()">
+  <h2>
+    <button class="planning__toggle" type="button" [attr.aria-expanded]="returningOpen()" (click)="returningOpen.set(!returningOpen())">
+      <svg class="planning__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+      Cartões aguardando para voltar à sprint
+      <span class="planning__count">{{ returning().length }}</span>
+    </button>
+  </h2>
+  @if (returningOpen()) {
+    <div class="planning__list">
+      @for (item of returning(); track item.id) {
+        <div class="planning__row">
+          <button class="planning__open" type="button" [attr.aria-label]="'Editar ' + item.name" (click)="edit(item)">
+            <span class="planning__name">
+              {{ item.name }}
+              @if (item.locked) {
+                <span title="Cartão bloqueado" aria-label="Bloqueado">🔒</span>
+              }
+            </span>
+            <span class="kanban__meta">Estava na {{ sprintName(item) }} · {{ meta(item) }}</span>
+          </button>
+          <div class="planning__actions">
+            <button
+              class="modal__primary planning__small"
+              type="button"
+              [disabled]="!active() || !item.assignee"
+              [attr.title]="!item.assignee ? 'Defina um responsável antes de enviar para a sprint' : active() ? 'Voltar para a ' + active()!.name : 'Crie uma sprint primeiro'"
+              (click)="sendToSprint(item)"
+            >
+              Voltar para a sprint →
+            </button>
+            <button class="modal__ghost planning__small" type="button" (click)="archive(item)">Arquivar</button>
+            <button class="modal__ghost modal__ghost--danger planning__small" type="button" (click)="askDelete(item)">Excluir</button>
+          </div>
+        </div>
+      } @empty {
+        <p class="planning__empty">Nenhum cartão aguardando. Os que não forem concluídos aparecem aqui quando a sprint fechar.</p>
+      }
+    </div>
+  }
 </section>
 
 <!-- Modal: criar sprint -->

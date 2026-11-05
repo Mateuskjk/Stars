@@ -224,6 +224,13 @@ async function readRow(id: string) {
 
 const toConfig = (row: { dados: StoredData; chaveCifrada: string }): AiConfig => ({ ...row.dados, apiKey: decryptKey(row.chaveCifrada) });
 
+// O modelo marcado como assistente (usado também pela análise diária dos Dashboards)
+export async function assistantConfig(): Promise<AiConfig | null> {
+  await ensureTable();
+  const { rows } = await db().query<{ dados: StoredData; chaveCifrada: string }>(`select dados, "chaveCifrada" from lexagile.ia_config where assistente limit 1`);
+  return rows[0] ? toConfig(rows[0]) : null;
+}
+
 // Configurar a IA (vale para todas as empresas): só superadmin. Usar o assistente: qualquer pessoa logada.
 const isAdmin = (req: Request) => !!req.session && isSuperAdmin(req.session);
 

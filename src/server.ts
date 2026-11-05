@@ -7,6 +7,7 @@ import {
 import express from 'express';
 import { join } from 'node:path';
 import { aiRouter } from './server/ai';
+import { cronRouter, dailyAnalysisRouter } from './server/daily-ai';
 import { authRouter, requireAuth } from './server/auth';
 import { googleRouter } from './server/google-auth';
 import { domainsRouter } from './server/domains';
@@ -65,6 +66,12 @@ app.use('/api/data', domainsRouter());
 app.use('/api/data', notesRouter());
 app.use('/api/data', accountRouter());
 app.use('/api/data', attachmentsRouter());
+app.use('/api/data', dailyAnalysisRouter());
+
+/**
+ * Rotinas do Cron da Vercel (vercel.json): análise diária da IA dos Dashboards às 10h de Brasília.
+ */
+app.use('/api/cron', cronRouter());
 
 /**
  * MCP: o Claude (site/app e Claude Code) conecta em /mcp com login OAuth (conta do LexÁgile).

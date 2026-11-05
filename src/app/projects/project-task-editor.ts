@@ -1,3 +1,4 @@
+import { SprintStore } from '../planning/sprint-store';
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { PeopleStore } from '../members/people-store';
 import { ApiSync } from '../api/api-sync';
@@ -15,6 +16,8 @@ const POINTS = [1, 2, 3, 5, 8, 13];
 })
 export class ProjectTaskEditor {
   private readonly store = inject(ProjectTaskStore);
+  protected readonly sprintName = (n: number) => this.sprintStore.nameOf(n); // nome da sprint da Planning
+  private readonly sprintStore = inject(SprintStore);
 
   protected readonly columns = this.store.columns;
   protected readonly people = inject(PeopleStore).names; // membros reais da empresa escolhida
@@ -38,7 +41,7 @@ export class ProjectTaskEditor {
     const list = own !== undefined && own !== this.currentSprint ? [own, this.currentSprint] : [this.currentSprint];
     return list.map((n) => ({
       number: n,
-      label: `Sprint ${n} · ${shortDate(sprintWindow(n).start)} – ${shortDate(sprintWindow(n).end)}${n === this.currentSprint ? ' (atual)' : ' (onde está hoje)'}`,
+      label: `${this.sprintName(n)} · ${shortDate(sprintWindow(n).start)} – ${shortDate(sprintWindow(n).end)}${n === this.currentSprint ? ' (atual)' : ' (onde está hoje)'}`,
     }));
   });
 

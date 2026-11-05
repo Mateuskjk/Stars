@@ -1,9 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AddColumn } from '../kanban/add-column';
+import { CardActions } from '../kanban/card-actions';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
-import { ProjectStatus, ProjectStore } from './project-store';
+import { Project, ProjectStatus, ProjectStore } from './project-store';
 
 export function initials(name: string) {
   return name
@@ -14,16 +15,15 @@ export function initials(name: string) {
 }
 
 @Component({
-  imports: [AddColumn, ColumnTitle, RouterLink],
+  imports: [AddColumn, ColumnTitle, RouterLink, CardActions],
   selector: 'app-projects',
   templateUrl: './projects.html',
   host: { class: 'projects' },
 })
 export class Projects {
   private readonly store = inject(ProjectStore);
-  private readonly router = inject(Router);
+  protected readonly router = inject(Router);
   protected readonly columns = this.store.statuses;
-  protected readonly initials = initials;
   // Criar, renomear e excluir colunas: só admin
   protected readonly isAdmin = inject(MembersStore).isAdmin;
   protected readonly isCustom = (id: string) => this.isAdmin() && isCustomColumn(id);
@@ -31,11 +31,21 @@ export class Projects {
   protected readonly dragging = signal<number | null>(null);
   protected readonly dropTarget = signal<ProjectStatus | null>(null);
 
+  // Quais projetos aparecem: vem da busca e dos filtros da tela Projetos (a mesma regra da lista)
+  readonly shown = input<(project: Project) => boolean>(() => true);
+  // Editar e Excluir do cartão: a tela Projetos abre a janela do projeto
+  readonly editProject = output<Project>();
+  readonly removeProject = output<Project>();
+
   // Uma coluna por situação do projeto; os cards são os projetos
   protected readonly board = computed(() =>
     this.columns().map((column) => ({
       ...column,
-      cards: this.store.topLevel().filter((project) => project.status === column.id),
+      cards: this.store
+        .topLevel()
+        .filter(
+          (project) => project.status === column.id && this.shown()(project),
+        ),
     })),
   );
 

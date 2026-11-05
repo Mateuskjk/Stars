@@ -14,16 +14,10 @@ $backlog-column: var(--color-soft);
   &__header {
     display: flex;
     flex-wrap: wrap; // sem espaço, os botões descem para a linha de baixo em vez de vazar
-    justify-content: space-between;
+    justify-content: flex-end; // sem título (fica na barra do topo): só os botões da tela, à direita
     align-items: center;
     gap: 12px;
     padding: 0 4px;
-
-    // título encolhe e quebra o texto; os botões ficam juntos e descem quando não cabem
-    > :first-child {
-      flex: 1 1 260px;
-      min-width: 0;
-    }
   }
 
   &__title {
@@ -38,14 +32,15 @@ $backlog-column: var(--color-soft);
 
   &__new {
     flex-shrink: 0;
-    height: 40px;
-    padding: 0 18px;
+    height: 36px;
+    padding: 0 14px;
     border: none;
-    border-radius: 25px;
+    border-radius: 8px;
     background-color: $color-nav-hover;
     color: $color-surface;
     font: inherit;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 550;
     cursor: pointer;
     transition: opacity 0.2s;
 
@@ -56,10 +51,15 @@ $backlog-column: var(--color-soft);
 
   // Colunas dividem a largura (quando não cabem, o quadro rola para o lado); a altura de cada uma acompanha
   // os seus cartões e o quadro cresce até a coluna mais cheia
+  // Padrão CRM do LexPré: quadro com moldura, colunas sem caixa, cor da coluna na faixa dos cartões (--col)
   &__board {
     display: flex;
     align-items: flex-start;
     gap: 12px;
+    padding: 14px 12px 20px;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    background-color: var(--color-board);
     overflow-x: auto;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
@@ -75,10 +75,10 @@ $backlog-column: var(--color-soft);
     flex-direction: column;
     gap: 8px;
     min-height: 0;
-    padding: 10px;
+    padding: 0;
     border: 2px dashed transparent;
-    border-radius: 15px;
-    background-color: $backlog-column;
+    border-radius: 8px;
+    background: none;
     scroll-snap-align: start;
     transition:
       border-color 0.15s,
@@ -94,10 +94,11 @@ $backlog-column: var(--color-soft);
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 4px;
+    padding: 2px 2px 2px;
   }
 
   &__dot {
+    display: none; // a cor fica só nos cartões
     flex-shrink: 0;
     width: 10px;
     height: 10px;
@@ -107,16 +108,15 @@ $backlog-column: var(--color-soft);
   &__column-title {
     flex: 1;
     color: $color-title;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 650;
   }
 
   &__count {
-    min-width: 24px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    background-color: $color-surface;
+    color: var(--color-date);
     font-size: 12px;
-    text-align: center;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
 
   &__cards {
@@ -127,16 +127,15 @@ $backlog-column: var(--color-soft);
   }
 
   &__empty {
-    padding: 12px 4px;
-    color: $backlog-muted;
-    font-size: 13px;
-    text-align: center;
+    padding: 12px 2px 0;
+    color: var(--color-date);
+    font-size: 12.5px;
   }
 
   &__add {
     padding: 8px;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     background: none;
     color: $backlog-muted;
     font: inherit;
@@ -152,11 +151,12 @@ $backlog-column: var(--color-soft);
 }
 
 .backlog-card {
-  border-radius: 10px;
-  background-color: $color-surface;
-  box-shadow: var(--shadow-ring), 0 1px 4px rgb(var(--shadow-color) / calc(0.1 * var(--shadow-strength)));
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--col, #a1a1aa);
+  border-radius: 6px;
+  background-color: var(--color-card);
   transition:
-    box-shadow 0.15s,
+    background-color 0.12s,
     opacity 0.15s;
 
   &[draggable='true'] {
@@ -164,31 +164,28 @@ $backlog-column: var(--color-soft);
   }
 
   &:hover {
-    box-shadow: var(--shadow-ring), 0 4px 12px rgb(var(--shadow-color) / calc(0.16 * var(--shadow-strength)));
+    background-color: var(--color-soft);
   }
 
   &.is-dragging {
     opacity: 0.4;
   }
 
-  // Bloqueado: faixa cinza à esquerda + cadeado (não depende só da cor)
   // Bloqueado: cartão vermelho (o cadeado 🔒 também aparece, a cor não fica sozinha)
   &.is-locked {
+    border-left-color: #d03b3b;
     background-color: color-mix(in srgb, #d03b3b 8%, var(--color-card));
-    box-shadow:
-      var(--shadow-ring),
-      inset 3px 0 0 #d03b3b,
-      0 1px 4px rgb(var(--shadow-color) / calc(0.1 * var(--shadow-strength)));
   }
 
+  // Mesma estrutura dos outros kanbans (padrão CRM do LexPré): nome + selo da data, linha de dados e,
+  // embaixo, as ações e os contadores (o botão abre o cartão; o rodapé fica fora dele)
   &__open {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
-    padding: 12px;
+    padding: 12px 12px 0 13px;
     border: none;
-    border-radius: 10px;
     background: none;
     color: inherit;
     font: inherit;
@@ -196,45 +193,36 @@ $backlog-column: var(--color-soft);
     cursor: inherit;
   }
 
+  .kanban__card-actions {
+    margin: 8px 12px 0 13px;
+    padding: 8px 0 10px;
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  // Sem rodapé, o respiro de baixo fica no próprio botão
+  &:has(.kanban__card-actions:empty) .backlog-card__open {
+    padding-bottom: 10px;
+  }
+
+  &__stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 6px;
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    color: var(--color-date);
+    font-size: 11px;
+  }
+
   &__tags {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-  }
-
-  &__name {
-    color: $color-title;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  &__meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 10px;
-    color: $backlog-muted;
-    font-size: 12px;
-  }
-
-  &__due {
-    padding: 1px 6px;
-    border-radius: 6px;
-    background-color: $backlog-column;
-    color: $color-text;
-
-    &.is-overdue {
-      background-color: color-mix(in srgb, var(--color-late) 12%, var(--color-card));
-      color: var(--color-late);
-      font-weight: 600;
-    }
-  }
-
-  &__flags {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-left: auto;
   }
 
   &__avatar {
@@ -257,7 +245,7 @@ $backlog-column: var(--color-soft);
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: 8px;
   background-color: color-mix(in srgb, var(--tag-color) 14%, transparent);
   color: $color-title;
   font-size: 11px;
@@ -291,7 +279,7 @@ $backlog-column: var(--color-soft);
   min-width: 0;
   padding: 8px;
   border: 1px solid $backlog-line;
-  border-radius: 10px;
+  border-radius: 8px;
 
   &__preview {
     display: grid;
@@ -410,7 +398,7 @@ $backlog-column: var(--color-soft);
 // Sprint da atividade (cartão e modal)
 .backlog-card__sprint {
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: 8px;
   background-color: var(--color-soft);
   color: $color-text;
   font-size: 11px;
@@ -459,7 +447,7 @@ $backlog-column: var(--color-soft);
     align-items: center;
     gap: 4px;
     padding: 2px 6px 2px 2px;
-    border-radius: 14px;
+    border-radius: 12px;
     background-color: var(--color-soft);
     color: $color-title;
     font-size: 12px;
@@ -550,20 +538,8 @@ $backlog-column: var(--color-soft);
   }
 }
 
-// Atividade atrasada (Backlog, setor e kanban do projeto): cartão em âmbar.
-// Bloqueado (vermelho) tem prioridade.
-.backlog-card.is-late:not(.is-locked),
-.kanban__card.is-late {
-  background-color: color-mix(in srgb, var(--color-late) 12%, var(--color-card));
-  box-shadow:
-    var(--shadow-ring),
-    inset 3px 0 0 var(--color-late),
-    0 1px 4px rgb(var(--shadow-color) / calc(0.1 * var(--shadow-strength)));
-
-  &:hover {
-    box-shadow:
-      var(--shadow-ring),
-      inset 3px 0 0 var(--color-late),
-      0 4px 12px rgb(var(--shadow-color) / calc(0.16 * var(--shadow-strength)));
-  }
+// Atividade atrasada no Backlog e no setor: a faixa da esquerda fica âmbar (bloqueado, vermelho, tem prioridade).
+// Nos kanbans de projeto e no Work o atraso aparece no selo da data (vermelho), como no CRM do LexPré.
+.backlog-card.is-late:not(.is-locked) {
+  border-left-color: var(--color-late);
 }

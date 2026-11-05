@@ -1,15 +1,15 @@
 @use '../variables' as *;
 
+// Moldura no padrão do LexPré: sidebar lisa na altura toda à esquerda, barra fina no topo e o conteúdo
+// direto no fundo (sem cartão em volta)
 .container-main {
   display: grid;
   grid-template-areas:
-    'nav  nav'
+    'left nav'
     'left main';
-  grid-template-columns: 240px 1fr;
-  grid-template-rows: 74px 1fr;
-  gap: 10px 20px; // linhas, colunas
-  min-height: calc(100vh - 30px);
-  margin: 12px;
+  grid-template-columns: 276px minmax(0, 1fr);
+  grid-template-rows: 56px 1fr;
+  min-height: 100dvh;
 }
 
 .main-content {
@@ -18,10 +18,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0; // sem isso o carrossel estica a coluna do grid
-  padding: 16px;
-  border-radius: 15px;
-  background-color: $color-surface;
-  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+  padding: 28px;
+  background-color: $color-background;
 }
 
 // Abas em forma de pílula (Dashboards, Arquivo)
@@ -52,10 +50,78 @@
 }
 
 .navigation-top {
+  position: sticky;
+  top: 0;
+  z-index: 15;
   grid-area: nav;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 10px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--color-line);
+  background-color: $color-background;
+
+  // Título da tela, centralizado na barra
+  &__title {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 200px;
+    color: $color-title;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    pointer-events: none;
+  }
+
+  .logo-sys {
+    margin-left: auto;
+  }
+}
+
+// Voltar para a página anterior (barra do topo, em todas as telas)
+.nav-back {
+  position: relative; // fica por cima do título centralizado
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.15s;
+  }
+
+  &:hover,
+  &:focus-visible {
+    background-color: var(--color-board);
+    color: $color-title;
+
+    svg {
+      transform: translateX(-2px);
+    }
+  }
 }
 
 .left-content {
@@ -85,29 +151,72 @@
 // ---------- Menu principal (sidebar) ----------
 // Ocupa a altura toda da coluna: o fim da sidebar fica alinhado com o fim do main-content
 .sidebar {
-  padding: 12px;
-  border-radius: 15px;
-  background-color: $color-surface;
-  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+  border-right: 1px solid var(--color-line);
+  background-color: $color-background;
 
-  // Acompanha a rolagem com a altura da janela (abaixo da barra do topo)
+  // Altura da janela, parada enquanto a página rola (empresa no topo, conta no rodapé)
   &__inner {
     position: sticky;
-    top: 12px;
+    top: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    height: calc(100dvh - 132px);
+    gap: 2px;
+    height: 100dvh;
+    padding: 10px 12px 0;
     overflow-y: auto;
   }
 
-  &__group {
-    margin: 10px 10px 2px;
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    height: 34px;
+    margin-bottom: 10px;
+    padding: 0 10px;
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    background-color: var(--color-card);
+    color: var(--color-date);
+
+    input {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      outline: none;
+      background: none;
+      color: $color-text;
+      font: inherit;
+      font-size: 12.5px;
+    }
+
+    kbd {
+      padding: 2px 6px;
+      border: 1px solid var(--color-line);
+      border-radius: 4px;
+      background-color: var(--color-soft);
+      color: var(--color-date);
+      font: inherit;
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    &:focus-within {
+      border-color: var(--color-date);
+    }
+  }
+
+  &__sep {
+    flex-shrink: 0;
+    margin: 6px -2px;
+    border: 0;
+    border-top: 1px solid var(--color-line);
+  }
+
+  &__empty {
+    padding: 8px 10px;
     color: var(--color-muted);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 13px;
   }
 
   &__list {
@@ -121,22 +230,33 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 10px;
-    border-radius: 10px;
-    color: $color-text;
-    font-size: 14px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 6px;
+    color: var(--color-nav-text);
+    font-size: 13.5px;
     text-decoration: none;
     transition:
-      background-color 0.2s,
-      color 0.2s;
+      background-color 0.12s,
+      color 0.12s;
+
+    .sidebar__icon {
+      color: var(--color-date);
+    }
 
     &:hover {
-      background-color: $color-surface-hover;
+      background-color: var(--color-soft);
+      color: $color-title;
     }
 
     &.is-active {
-      background-color: $color-nav-hover;
-      color: $color-nav-text-hover;
+      background-color: var(--color-soft-strong);
+      color: $color-title;
+      font-weight: 500;
+
+      .sidebar__icon {
+        color: $color-title;
+      }
     }
   }
 
@@ -146,7 +266,7 @@
     height: 18px;
     fill: none;
     stroke: currentColor;
-    stroke-width: 2;
+    stroke-width: 1.6;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
@@ -155,24 +275,46 @@
 // ---------- Conta (rodapé da sidebar) ----------
 .user-menu {
   position: relative;
-  margin-top: auto; // vai para o fim da sidebar
-  padding-top: 12px;
+  margin: auto -12px 0; // vai para o fim da sidebar, de borda a borda
+  padding: 6px 10px;
   border-top: 1px solid var(--color-line);
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  // O sino abre para cima, com a largura do rodapé
+  .nav-menu {
+    position: static;
+  }
+
+  .nav-menu__dropdown {
+    top: auto;
+    right: 10px;
+    bottom: calc(100% + 6px);
+    left: 10px;
+    min-width: 0;
+    border-radius: 12px;
+  }
 
   &__button {
     display: flex;
+    flex: 1;
     align-items: center;
     gap: 10px;
-    width: 100%;
-    padding: 8px;
+    min-width: 0;
+    height: 36px;
+    padding: 0 4px;
     border: none;
-    border-radius: 12px;
+    border-radius: 6px;
     background: none;
     color: $color-title;
     font: inherit;
     text-align: left;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.12s;
 
     &:hover,
     &[aria-expanded='true'] {
@@ -184,13 +326,13 @@
     display: grid;
     place-items: center;
     flex-shrink: 0;
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     overflow: hidden;
     border-radius: 50%;
     background-color: var(--color-soft-strong);
     color: $color-title;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
 
     img {
@@ -207,32 +349,31 @@
     min-width: 0;
   }
 
-  &__name,
-  &__email {
+  &__name {
     overflow: hidden;
+    font-size: 13.5px;
+    font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  &__name {
-    font-size: 14px;
-    font-weight: 600;
+  &__email {
+    display: none; // só o nome, como no LexPré (o e-mail fica em Minha conta)
   }
 
-  &__email {
-    color: var(--color-muted);
-    font-size: 12px;
+  .company-picker__chevron {
+    display: none;
   }
 
   // Opções abrem para cima, por cima do menu
   &__list {
     position: absolute;
-    right: 0;
+    right: 10px;
     bottom: calc(100% + 6px);
-    left: 0;
+    left: 10px;
     z-index: 30;
     padding: 6px;
-    border-radius: 14px;
+    border-radius: 12px;
     background-color: $color-surface;
     box-shadow: var(--shadow-ring), 0 10px 30px rgb(var(--shadow-color) / calc(0.3 * var(--shadow-strength)));
   }
@@ -242,23 +383,22 @@
 .company-picker {
   position: relative;
   margin-bottom: 8px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-line);
 
   &__button,
   &__option {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     width: 100%;
-    padding: 8px;
+    height: 40px;
+    padding: 0 4px;
     border: none;
-    border-radius: 12px;
+    border-radius: 6px;
     background: none;
     color: $color-title;
     font: inherit;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
     text-align: left;
     cursor: pointer;
     transition: background-color 0.2s;
@@ -275,9 +415,9 @@
 
   &__avatar {
     flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
     background-color: #fff;
     object-fit: cover;
   }
@@ -313,7 +453,7 @@
   // Lista aberta: desce por cima do menu, com a mesma largura do seletor
   &__list {
     position: absolute;
-    top: calc(100% - 8px);
+    top: calc(100% + 4px);
     right: 0;
     left: 0;
     z-index: 30;
@@ -324,7 +464,7 @@
     padding: 6px;
     overflow-y: auto;
     list-style: none;
-    border-radius: 14px;
+    border-radius: 12px;
     background-color: $color-surface;
     box-shadow: var(--shadow-ring), 0 10px 30px rgb(var(--shadow-color) / calc(0.3 * var(--shadow-strength)));
   }
@@ -342,28 +482,26 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
-  border-radius: 25px;
-  background-color: $color-surface;
-  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
+  padding: 4px 6px;
+  border-radius: 6px;
   color: $color-text;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.12s;
 
   &:hover {
     background-color: $color-surface-hover;
   }
 
   &__icon {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     fill: $color-logo;
   }
 
   &__name {
     font-family: $font-family-logo;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 600;
   }
 }
@@ -373,7 +511,7 @@
   display: block;
   padding: 8px 14px;
   border: none;
-  border-radius: 25px;
+  border-radius: 8px;
   background: none;
   color: $color-nav-text;
   font: inherit;
@@ -386,15 +524,9 @@
 
   &:hover,
   &.is-active {
-    background-color: $color-nav-hover;
-    color: $color-nav-text-hover;
+    background-color: $color-surface-hover;
+    color: $color-title;
   }
-}
-
-.bottons {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .nav-button {
@@ -405,7 +537,7 @@
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: 40px;
+  border-radius: 8px;
   background-color: $color-surface;
   box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
   color: $color-icon;
@@ -452,36 +584,6 @@
   }
 }
 
-.nav-search {
-  display: flex;
-  align-items: center;
-  border-radius: 40px;
-  background-color: $color-surface;
-  box-shadow: var(--shadow-ring), 0 2px 8px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
-
-  .nav-button {
-    box-shadow: none;
-  }
-
-  &__input {
-    width: 0;
-    padding: 0;
-    border: none;
-    outline: none;
-    background: none;
-    color: $color-text;
-    font: inherit;
-    transition:
-      width 0.3s ease,
-      padding 0.3s ease;
-  }
-
-  &.is-open &__input {
-    width: 200px;
-    padding-left: 16px;
-  }
-}
-
 .nav-menu {
   position: relative;
 
@@ -509,22 +611,11 @@
 
     &--notifications {
       min-width: 280px;
-      border-radius: 10px 0 10px 10px;
     }
   }
 
   &__list {
     list-style: none;
-  }
-
-  &__notification {
-    padding: 10px 14px;
-    color: $color-text;
-    font-size: 14px;
-
-    &.is-unread {
-      font-weight: 600;
-    }
   }
 
   &__toggle {
@@ -565,11 +656,34 @@
   }
 }
 
-// ☰ + logo, lado a lado na esquerda
-.nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+// Botões redondos lisos: tema e sino no rodapé da sidebar, e o ☰
+.nav-button--flat,
+.nav-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: none;
+  box-shadow: none;
+  color: var(--color-nav-text);
+
+  &:hover {
+    background-color: var(--color-soft);
+    color: $color-title;
+  }
+
+  .nav-button__icon {
+    width: 18px;
+    height: 18px;
+    stroke-width: 1.8;
+  }
+
+  .nav-button__badge {
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-color: $color-background;
+  }
 }
 
 // Botão ☰: só aparece quando a sidebar vira painel (tablet e celular)
@@ -585,87 +699,58 @@
     grid-template-areas:
       'nav'
       'main';
-    grid-template-columns: 1fr;
-    grid-template-rows: 74px 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  // A sidebar sai da grade e vira um painel que abre pelo ☰, abaixo da barra
+  // A sidebar sai da grade e vira uma gaveta à esquerda que abre pelo ☰, abaixo da barra
   .sidebar {
     display: none;
     position: fixed;
-    top: 92px;
-    right: 12px;
-    left: 12px;
+    top: 56px;
+    bottom: 0;
+    left: 0;
     z-index: 20;
-    max-height: calc(100dvh - 110px);
-    box-shadow: var(--shadow-ring), 0 6px 12px rgb(var(--shadow-color) / calc(0.12 * var(--shadow-strength)));
-
-    overflow-y: auto;
+    width: min(276px, 100vw);
 
     &.is-open {
       display: block;
     }
   }
 
-  // No painel o menu ocupa só o necessário
   .sidebar__inner {
     position: static;
-    height: auto;
-    overflow: visible;
-  }
-
-  .navigation-top {
-    position: relative; // referência para o painel do menu
+    height: 100%;
   }
 
   .nav-toggle {
     display: grid;
   }
+
+  .navigation-top__title {
+    padding: 0 120px;
+  }
 }
 
 @media (max-width: $bp-mobile) {
-  .container-main {
-    grid-template-rows: 64px auto;
-    min-height: auto;
-    margin: 10px;
+  .main-content {
+    padding: 16px;
   }
 
-  .main-content {
-    padding: 12px;
+  .navigation-top {
+    padding: 0 16px;
   }
 
   .week-date__title {
     font-size: 22px;
   }
-
-  .bottons {
-    gap: 8px;
-  }
-
-  // Pesquisa aberta cobre a barra inteira, em vez de empurrar os botões
-  .nav-search.is-open {
-    position: absolute;
-    inset: 0;
-    z-index: 30;
-
-    .nav-search__input {
-      flex: 1;
-      width: auto;
-    }
-  }
-
-  // Menus do sino e do avatar alinham pela barra, para não sair da tela
-  .nav-menu {
-    position: static;
-
-    &__dropdown {
-      top: calc(100% + 8px);
-      max-width: 100%;
-    }
-  }
 }
 
 @media (max-width: $bp-small) {
+  .nav-back {
+    gap: 0;
+    font-size: 0; // só a seta, para caber na barra
+  }
+
   .logo-sys {
     padding: 8px 10px;
 
@@ -719,4 +804,199 @@
 // os botões do fim da tela (ex.: "Finalizar Daily")
 body:has(.assistant__fab) .main-content {
   padding-bottom: 88px;
+}
+
+// ---------- Painel de notificações (padrão LexPré): Entrada / Arquivadas ----------
+// Fixo acima do sino, no canto da sidebar: assim passa da largura dela (a sidebar corta o que vaza para o lado)
+.user-menu .nav-menu__dropdown--notifications.inbox {
+  position: fixed;
+  right: auto;
+  bottom: 56px;
+  left: 10px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(100vw - 20px));
+  max-height: min(480px, calc(100dvh - 80px));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background-color: var(--color-card);
+  box-shadow: 0 8px 40px rgb(0 0 0 / 0.45);
+}
+
+.inbox {
+  &__head {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 14px 12px;
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  &__head-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__title {
+    color: $color-title;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  &__mark-all {
+    padding: 2px 6px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--color-date);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--color-soft);
+      color: $color-title;
+    }
+  }
+
+  // Duas abas lado a lado, a ativa em destaque (controle segmentado)
+  &__seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background-color: $color-background;
+
+    button {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: none;
+      color: var(--color-date);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+
+      &:hover {
+        color: $color-title;
+      }
+
+      &.is-active {
+        border-color: var(--color-line);
+        background-color: var(--color-soft);
+        color: $color-title;
+      }
+    }
+  }
+
+  &__badge {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background-color: var(--color-accent);
+    color: var(--color-on-accent);
+    font-size: 11px;
+    line-height: 18px;
+  }
+
+  &__list {
+    flex: 1;
+    overflow-y: auto;
+    list-style: none;
+  }
+
+  &__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    border: none;
+    border-bottom: 1px solid var(--color-line);
+    background: none;
+    color: var(--color-muted);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+
+    &.is-unread {
+      color: $color-title;
+      font-weight: 500;
+      cursor: pointer;
+
+      &:hover {
+        background-color: var(--color-soft);
+      }
+    }
+  }
+
+  &__item-text {
+    flex: 1;
+    line-height: 1.4;
+  }
+
+  &__dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background-color: #3b82f6;
+  }
+
+  // Lista vazia: sino numa caixinha, título e uma linha de apoio
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  &__empty-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 6px;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    background-color: var(--color-soft);
+    color: var(--color-date);
+
+    svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  }
+
+  &__empty-title {
+    color: $color-title;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  &__empty-sub {
+    color: var(--color-date);
+    font-size: 13px;
+    line-height: 1.4;
+  }
 }

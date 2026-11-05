@@ -1,6 +1,6 @@
 // Variáveis globais (cores, espaçamentos, fontes)
 // As cores apontam para variáveis CSS (definidas em _theme.scss) para o tema claro/escuro trocar em tempo real
-$font-family: 'Google Sans', sans-serif;
+$font-family: 'Geist', ui-sans-serif, sans-serif;
 $color-background: var(--color-background);
 $font-family-logo: 'Sora', sans-serif;
 $color-surface: var(--color-surface);
@@ -12,7 +12,7 @@ $color-nav-text-hover: var(--color-on-accent);
 $color-nav-hover: var(--color-accent);
 $color-icon: var(--color-icon);
 $color-badge: #e5484d;
-$font-family-title: 'Roboto', sans-serif;
+$font-family-title: 'Geist', ui-sans-serif, sans-serif;
 $color-title: var(--color-title);
 $bp-tablet: 1024px;
 $bp-mobile: 768px;

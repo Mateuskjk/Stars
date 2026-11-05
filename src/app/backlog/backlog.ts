@@ -1,18 +1,20 @@
 import { Component, DestroyRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { initials } from '../format';
+import { BoardToolbar, BoardView, FilterField, FilterRule, matchesQuery, optionsOf, passesFilters } from '../kanban/board-toolbar';
 import { AddColumn } from '../kanban/add-column';
+import { CardActions } from '../kanban/card-actions';
+import { ConfirmDelete } from '../kanban/confirm-delete';
 import { ColumnTitle, isCustomColumn } from '../kanban/column-title';
 import { MembersStore } from '../members/members-store';
-import { SprintStore } from '../planning/sprint-store';
+import { SprintStore, sprintFilterField, sprintOptionOf } from '../planning/sprint-store';
 import { BacklogEditor } from './backlog-editor';
-import { BacklogItem, BacklogStatus, BacklogStore, inBacklog, tagColor } from './backlog-store';
+import { BacklogItem, BacklogStatus, BacklogStore, inBacklog } from './backlog-store';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 @Component({
-  imports: [AddColumn, ColumnTitle, BacklogEditor],
+  imports: [AddColumn, ColumnTitle, BacklogEditor, BoardToolbar, CardActions, ConfirmDelete],
   selector: 'app-backlog',
   templateUrl: './backlog.html',
   host: { class: 'backlog' },
@@ -34,13 +36,39 @@ export class Backlog {
 
   protected readonly columns = this.store.columns;
 
-  protected readonly initials = initials;
-  protected readonly tagColor = tagColor;
 
+  // Barra acima do quadro: busca pelo nome e kanban/lista
+  protected readonly query = signal('');
+  protected readonly view = signal<BoardView>('board');
+  protected readonly filters = signal<FilterRule[]>([]);
+  protected readonly filterFields = computed<FilterField[]>(() => {
+    const all = this.store.ofCompany().filter(inBacklog);
+    return [
+      {
+        key: 'responsavel',
+        label: 'Responsável',
+        options: optionsOf(all.flatMap((i) => [i.assignee, ...i.sharedWith])),
+      },
+      { key: 'etiqueta', label: 'Etiqueta', options: optionsOf(all.flatMap((i) => i.tags)) },
+      this.sprintField(),
+    ];
+  });
+  private readonly sprintField = computed(() => sprintFilterField(this.sprints.ofCompany(), true));
+  protected readonly total = computed(() => this.store.ofCompany().filter(inBacklog).length);
   protected readonly board = computed(() =>
     this.columns().map((column) => ({
       ...column,
-      cards: this.store.ofCompany().filter((item) => item.status === column.id && inBacklog(item)),
+      cards: this.store
+        .ofCompany()
+        .filter(
+          (item) =>
+            item.status === column.id &&
+            inBacklog(item) &&
+            matchesQuery(item.name, this.query()) &&
+            passesFilters(this.filters(), (key) =>
+              key === 'etiqueta' ? item.tags : key === 'sprint' ? (item.sprintId === undefined ? 'none' : sprintOptionOf(this.sprintField(), item.sprintId)) : [item.assignee, ...item.sharedWith],
+            ),
+        ),
     })),
   );
 
@@ -107,6 +135,22 @@ export class Backlog {
 
   protected sprintOf(item: BacklogItem) {
     return item.sprintId ? this.sprints.byId(item.sprintId) : null;
+  }
+
+  protected readonly hasCards = computed(() => this.board().some((c) => c.cards.length));
+
+  // Botões do cartão
+  protected archive(item: BacklogItem) {
+    this.store.patch(item.id, { status: 'archived' });
+  }
+
+  protected removeItem(item: BacklogItem) {
+    return () => this.store.remove(item.id);
+  }
+
+  // Linha de dados do cartão: etiquetas · sprint · responsável
+  protected meta(item: BacklogItem) {
+    return [item.tags.join(', '), this.sprintOf(item)?.name, item.assignee].filter(Boolean).join(' · ');
   }
 
   protected doneSubtasks(item: BacklogItem) {
