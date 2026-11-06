@@ -25,14 +25,18 @@ const SUGGESTIONS = ['Como funciona esta tela?', 'Me dá uma dica para usar melh
   imports: [RouterLink],
   selector: 'app-assistant',
   templateUrl: './assistant.html',
-  host: { class: 'assistant' },
+  host: {
+    class: 'assistant',
+    '[class.is-open]': 'open()',
+    '(document:keydown)': 'onShortcut($event)',
+  },
 })
 export class Assistant {
   protected readonly store = inject(AiStore);
   private readonly router = inject(Router);
   protected readonly suggestions = SUGGESTIONS;
 
-  protected readonly open = signal(false);
+  readonly open = signal(false);
   protected readonly messages = signal<ChatTurn[]>([]);
   protected readonly thinking = signal(false);
   protected readonly error = signal('');
@@ -47,9 +51,23 @@ export class Assistant {
     return assistant ? PROVIDERS.find((p) => p.id === assistant.provider)!.label : '';
   }
 
-  protected toggle() {
+  // Aba "LexAI" do menu e atalho Ctrl+K (⌘+K no Mac)
+  toggle() {
     this.open.update((open) => !open);
     if (this.open()) requestAnimationFrame(() => this.input()?.nativeElement.focus());
+  }
+
+  protected close() {
+    this.open.set(false);
+  }
+
+  protected onShortcut(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
+      event.preventDefault(); // o Ctrl+K do navegador (busca na barra de endereço) não abre por cima
+      this.toggle();
+    } else if (event.key === 'Escape' && this.open()) {
+      this.close();
+    }
   }
 
   private currentPage() {

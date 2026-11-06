@@ -1,9 +1,11 @@
 @if (open()) {
-  <section class="assistant__panel" role="dialog" aria-label="Assistente de IA">
+  <!-- LexAI: modal no meio da tela, com o fundo desfocado (clicar fora ou Esc fecha) -->
+  <div class="assistant__backdrop" (click)="close()"></div>
+  <section class="assistant__panel" role="dialog" aria-modal="true" aria-label="LexAI">
     <header class="assistant__header">
       <span class="assistant__spark"><svg class="assistant__logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 1Q13 12 24 12Q13 12 13 23Q13 12 2 12Q13 12 13 1Z" /><path d="M25 18Q25 24 31 24Q25 24 25 30Q25 24 19 24Q25 24 25 18Z" /></svg></span>
       <div class="assistant__title">
-        <strong>Assistente LexÁgile</strong>
+        <strong>LexAI</strong>
         @if (store.assistant(); as model) {
           <span>{{ vendorLabel() }} · {{ model.model }}</span>
         }
@@ -11,7 +13,8 @@
       @if (messages().length) {
         <button class="attachment__link" type="button" (click)="clear()">Limpar</button>
       }
-      <button class="modal__icon-button" type="button" aria-label="Fechar assistente" (click)="toggle()">✕</button>
+      <kbd class="assistant__kbd" title="Atalho para abrir e fechar">Ctrl K</kbd>
+      <button class="modal__icon-button" type="button" aria-label="Fechar LexAI" (click)="close()">✕</button>
     </header>
 
     @if (store.assistant()) {
@@ -61,16 +64,9 @@
     } @else {
       <div class="assistant__setup">
         <p>O assistente ainda não está ligado a nenhuma IA.</p>
-        <a class="modal__primary assistant__setup-link" routerLink="/configuracoes/integracao-ia" (click)="toggle()">Configurar um modelo de IA</a>
+        <a class="modal__primary assistant__setup-link" routerLink="/configuracoes/integracao-ia" (click)="close()">Configurar um modelo de IA</a>
       </div>
     }
   </section>
 }
 
-<button class="assistant__fab" type="button" [attr.aria-expanded]="open()" aria-label="Abrir assistente de IA" (click)="toggle()">
-  @if (open()) {
-    ✕
-  } @else {
-    <svg class="assistant__logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 1Q13 12 24 12Q13 12 13 23Q13 12 2 12Q13 12 13 1Z" /><path d="M25 18Q25 24 31 24Q25 24 25 30Q25 24 19 24Q25 24 25 18Z" /></svg>
-  }
-</button>

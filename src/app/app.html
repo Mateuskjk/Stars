@@ -83,6 +83,21 @@
           />
           <kbd>F</kbd>
         </label>
+        <!-- LexAI: chat com a IA num modal (também pelo atalho Ctrl+K) -->
+        @if (account.account().assistantEnabled && (!navQuery().trim() || 'lexai'.includes(navQuery().trim().toLowerCase()))) {
+          <ul class="sidebar__list">
+            <li>
+              <button class="sidebar__link sidebar__ai" type="button" [class.is-active]="assistant()?.open()" (click)="assistant()?.toggle()">
+                <svg class="sidebar__icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+                  <path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z" />
+                </svg>
+                LexAI
+                <kbd class="sidebar__kbd">Ctrl K</kbd>
+              </button>
+            </li>
+          </ul>
+        }
         @for (group of filteredNav(); track group.label; let first = $first) {
           @if (!first) {
             <hr class="sidebar__sep" />

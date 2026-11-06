@@ -110,6 +110,9 @@ export class App {
     return prefs.enabled ? this.allNotifications.filter((n) => prefs.types[n.type]).map((n) => ({ ...n, read: n.read || readIds.has(n.id) })) : [];
   });
   // Menu principal (sidebar): todas as telas, agrupadas
+  // LexAI (chat com a IA): abre o modal pelo menu ou com Ctrl+K
+  protected readonly assistant = viewChild(Assistant);
+
   protected readonly navGroups: { label: string; items: { label: string; link: string; icon: string[] }[] }[] = [
     {
       label: '',
