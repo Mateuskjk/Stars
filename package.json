@@ -26,7 +26,7 @@
     "nodemailer": "^10.3.1",
     "pg": "^8.23.1",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0",
+    "tslib": "^2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
