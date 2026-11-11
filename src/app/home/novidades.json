@@ -1,0 +1,103 @@
+[
+  {
+    "id": "07cf520",
+    "date": "2026-11-06",
+    "title": "LexAI: chat num modal com fundo desfocado, aba no menu e atalho Ctrl+K",
+    "items": [
+      "Sai o botão flutuante do assistente; entra a aba LexAI no topo do menu lateral",
+      "O chat abre num modal central com o fundo escurecido e desfocado",
+      "Ctrl+K (⌘+K no Mac) abre e fecha de qualquer tela; Esc, clique fora ou ✕ fecham",
+      "Sai o espaço reservado embaixo das telas para o botão flutuante"
+    ]
+  },
+  {
+    "id": "2344cf4",
+    "date": "2026-11-05",
+    "title": "Convite de membros por e-mail de verdade, com visual novo",
+    "items": [
+      "O servidor envia o convite por SMTP (nodemailer 10): código de 6 números (24h, 5 tentativas), guardado só como hash em lexagile.convite; quem já tem conta recebe o aviso do acesso novo",
+      "E-mail em HTML com faixa no topo, cabeçalho colorido com a marca, título e botão em pílula, corpo claro com \"Olá, Nome!\", mensagem de quem convidou e o código",
+      "/convite abre sem login: valida o código, cria a senha, ativa a conta e já entra (ativa os convites da pessoa em todas as empresas)",
+      "Reenviar convite gera código novo; a tela de Membros mostra se o e-mail saiu ou falhou",
+      "Sai a validação do código no navegador (não valia nada)"
+    ]
+  },
+  {
+    "id": "818e006",
+    "date": "2026-11-05",
+    "title": "Layout no padrão LexPré, Dashboards refeitos e análise diária da IA às 10h",
+    "items": [
+      "Visual no padrão LexPré: tema, menu lateral, barra do topo com o título da tela e botão Voltar",
+      "Kanbans no estilo CRM, com barra de busca, painel \"Filtro\" (salvo por tela) e modo lista em todas as telas",
+      "Botões de ação coloridos nos cartões e nas linhas; modais viram painel lateral direito",
+      "Planning enxuta; ao fechar a sprint, as pendentes ficam em \"aguardando para voltar à sprint\"",
+      "Projetos (lista + kanban), setores e cabeçalhos de projeto/setor mais limpos, com menu \"…\"",
+      "Nova aba Setores (os da empresa escolhida); notificações lidas ficam salvas na conta",
+      "Atividade não entra em sprint fechada (o servidor usa a sprint ativa)",
+      "Nomes das sprints da Planning nos projetos; sprints de mesmo nome viram uma opção só nos filtros"
+    ]
+  },
+  {
+    "id": "52dc9f3",
+    "date": "2026-10-26",
+    "title": "Planning: editar a atividade antes de mandar para a sprint",
+    "items": []
+  },
+  {
+    "id": "19d67fe",
+    "date": "2026-10-26",
+    "title": "Kanbans com altura pelos cartões e barras de rolagem invisíveis",
+    "items": [
+      "Todos os kanbans (Work, Backlog, setor, Projetos › Geral e página do projeto): colunas dividem a largura, a altura de cada uma acompanha os seus cartões e o quadro cresce até a coluna mais cheia (antes cortava cartões e deixava espaço vazio embaixo)",
+      "Barras de rolagem invisíveis no site inteiro (a rolagem continua)"
+    ]
+  },
+  {
+    "id": "fb46877",
+    "date": "2026-10-26",
+    "title": "Nova sprint traz as pendências das sprints fechadas",
+    "items": []
+  },
+  {
+    "id": "3a9a501",
+    "date": "2026-10-26",
+    "title": "Work para cargos administrativos, responsável obrigatório e remoção de Integrações",
+    "items": [
+      "Work: Admin e Supervisor veem as atividades da sprint atual de todos da empresa (gerais e de projetos), com filtros por pessoa e por origem",
+      "Responsável obrigatório: atividade na sprint ou de projeto precisa de responsável (regra no servidor; Planning, setor, projeto e modais seguem)",
+      "Lista de sprint só com a atual no modal e na criação de atividade de projeto",
+      "Remove Integrações (webhooks e bancos externos) e os eventos de webhook",
+      "Remove a tela Erros do navegador"
+    ]
+  },
+  {
+    "id": "d42d191",
+    "date": "2026-10-22",
+    "title": "Limpeza do banco e áreas do sistema inutilizados",
+    "items": []
+  },
+  {
+    "id": "dbf0038",
+    "date": "2026-10-15",
+    "title": "Aumeto do tempo do token de 12h para 7 dias úteis",
+    "items": []
+  },
+  {
+    "id": "4047436",
+    "date": "2026-10-15",
+    "title": "Criação do loading do sistema",
+    "items": []
+  },
+  {
+    "id": "4319868",
+    "date": "2026-10-15",
+    "title": "Criação do MCP DISCORD PARA DASHBOARDS",
+    "items": []
+  },
+  {
+    "id": "76faa0a",
+    "date": "2026-10-14",
+    "title": "Fix anexo e botão de excluir",
+    "items": []
+  }
+]

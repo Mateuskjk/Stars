@@ -27,6 +27,9 @@
         Voltar
       </button>
       <h1 class="navigation-top__title">{{ pageTitle() }}</h1>
+      @if (season(); as s) {
+        <app-season-mark class="season-mark--top" [season]="s" />
+      }
       <a class="logo-sys" routerLink="/">
         <svg class="logo-sys__icon" viewBox="0 0 32 32" aria-hidden="true">
           <path d="M13 1Q13 12 24 12Q13 12 13 23Q13 12 2 12Q13 12 13 1Z" />

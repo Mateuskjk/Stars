@@ -23,6 +23,7 @@ export interface Account {
   notifications: { enabled: boolean; sound: boolean; types: Record<NotificationType, boolean>; readIds: number[] };
   assistantEnabled: boolean;
   reduceMotion: boolean;
+  seasonalThemes: boolean; // temas de datas comemorativas (ligam sozinhos pela data)
 }
 
 export const DEFAULT_ACCOUNT: Account = {
@@ -37,6 +38,7 @@ export const DEFAULT_ACCOUNT: Account = {
   notifications: { enabled: true, sound: true, types: { daily: true, planning: true, mentions: true, system: true }, readIds: [] },
   assistantEnabled: true,
   reduceMotion: false,
+  seasonalThemes: true,
 };
 
 const KEY = 'stars.account';

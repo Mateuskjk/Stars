@@ -95,6 +95,10 @@
         <input type="checkbox" role="switch" [checked]="store.account().reduceMotion" (change)="store.update({ reduceMotion: $any($event.target).checked })" />
         <span>Reduzir animações (carrosséis não andam sozinhos)</span>
       </label>
+      <label class="modal__toggle">
+        <input type="checkbox" role="switch" [checked]="store.account().seasonalThemes" (change)="store.update({ seasonalThemes: $any($event.target).checked })" />
+        <span>Temas de datas comemorativas (Natal, Páscoa, Outubro Rosa…)</span>
+      </label>
     </section>
 
     <!-- Notificações -->

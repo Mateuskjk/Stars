@@ -1,9 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CompanyStore } from '../companies/company-store';
+import { NewsBanner } from './news-banner';
 
 @Component({
-  imports: [RouterLink],
+  imports: [RouterLink, NewsBanner],
   selector: 'app-home',
   templateUrl: './home.html',
   host: { class: 'home' },

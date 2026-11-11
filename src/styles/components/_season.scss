@@ -1,0 +1,370 @@
+@use '../variables' as *;
+
+// =====================================================================================================
+// Temas de datas comemorativas (<html data-season="…">, ligados pela data em src/app/season.ts)
+// Cada data tem 3 cores: --season-a (principal), --season-b (apoio) e --season-light (principal no escuro).
+// O tema pinta a página toda: fundo, cards, linhas, botões principais, item ativo do menu, a marca e um brilho
+// no topo; o símbolo (lacinho/emoji) fica ao lado da logo.
+// =====================================================================================================
+
+:root[data-season='natal'] {
+  --season-a: #c1121f;
+  --season-b: #2a9d4b;
+  --season-light: #ff6b6b;
+}
+
+:root[data-season='ano-novo'] {
+  --season-a: #b8860b;
+  --season-b: #94a3b8;
+  --season-light: #f5c451;
+}
+
+:root[data-season='carnaval'] {
+  --season-a: #d6246e;
+  --season-b: #2bb5e0;
+  --season-light: #ff5fa2;
+}
+
+:root[data-season='pascoa'] {
+  --season-a: #9c6644;
+  --season-b: #e8a0bf;
+  --season-light: #e0a77a;
+}
+
+:root[data-season='maes'] {
+  --season-a: #c2185b;
+  --season-b: #f48fb1;
+  --season-light: #f78fb3;
+}
+
+:root[data-season='junina'] {
+  --season-a: #d35400;
+  --season-b: #f1c40f;
+  --season-light: #ff9f43;
+}
+
+:root[data-season='pais'] {
+  --season-a: #1e40af;
+  --season-b: #64748b;
+  --season-light: #7aa2f7;
+}
+
+:root[data-season='independencia'] {
+  --season-a: #15803d;
+  --season-b: #eab308;
+  --season-light: #4ade80;
+}
+
+:root[data-season='halloween'] {
+  --season-a: #ea580c;
+  --season-b: #7c3aed;
+  --season-light: #fb923c;
+}
+
+:root[data-season='outubro-rosa'] {
+  --season-a: #db2777;
+  --season-b: #f9a8d4;
+  --season-light: #f472b6;
+}
+
+:root[data-season='novembro-azul'] {
+  --season-a: #1d4ed8;
+  --season-b: #60a5fa;
+  --season-light: #60a5fa;
+}
+
+// ---------- Paleta da página no tema (claro) ----------
+:root[data-season] {
+  --season-ink: var(--season-a);
+  --color-background: color-mix(in srgb, var(--season-a) 5%, #fafafa);
+  --color-surface: color-mix(in srgb, var(--season-a) 3%, #fff);
+  --color-card: color-mix(in srgb, var(--season-a) 2%, #fff);
+  --color-soft: color-mix(in srgb, var(--season-a) 7%, #f4f4f5);
+  --color-soft-strong: color-mix(in srgb, var(--season-a) 12%, #eaeaea);
+  --color-board: color-mix(in srgb, var(--season-a) 6%, #f4f4f5);
+  --color-line: color-mix(in srgb, var(--season-a) 16%, #eaeaea);
+  --color-logo: var(--season-a);
+  --color-accent: var(--season-a);
+  --color-on-accent: #fff;
+  --shadow-ring: 0 0 0 1px var(--color-line);
+}
+
+// ---------- Paleta da página no tema (escuro) ----------
+:root[data-theme='dark'][data-season] {
+  --season-ink: var(--season-light);
+  --color-background: color-mix(in srgb, var(--season-a) 9%, #000);
+  --color-surface: color-mix(in srgb, var(--season-a) 7%, #050505);
+  --color-card: color-mix(in srgb, var(--season-a) 7%, #070707);
+  --color-soft: color-mix(in srgb, var(--season-a) 13%, #111);
+  --color-soft-strong: color-mix(in srgb, var(--season-a) 18%, #1a1a1a);
+  --color-board: color-mix(in srgb, var(--season-a) 10%, #0a0a0a);
+  --color-line: color-mix(in srgb, var(--season-a) 28%, #262626);
+  --color-logo: var(--season-light);
+  --color-accent: var(--season-light);
+  --color-on-accent: #050505;
+  --shadow-ring: 0 0 0 1px var(--color-line);
+}
+
+:root[data-season] {
+  // Brilho suave no topo da área de conteúdo
+  .main-content {
+    background-image: radial-gradient(1100px 420px at 50% -220px, color-mix(in srgb, var(--season-a) 22%, transparent), transparent 70%);
+    background-repeat: no-repeat;
+  }
+
+  // Linha colorida embaixo da barra do topo
+  .navigation-top::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--season-a), var(--season-b), var(--season-a));
+    content: '';
+    pointer-events: none;
+  }
+
+  .logo-sys__icon {
+    color: var(--season-ink);
+    fill: var(--season-ink);
+  }
+
+  // Item ativo do menu lateral com a cor do tema
+  .sidebar__link.is-active {
+    background-color: color-mix(in srgb, var(--season-a) 16%, transparent);
+    box-shadow: inset 3px 0 0 var(--season-ink);
+    color: $color-title;
+
+    .sidebar__icon {
+      color: var(--season-ink);
+      stroke: var(--season-ink);
+    }
+  }
+
+  // Botões principais com degradê do tema
+  .modal__primary,
+  .backlog__new {
+    border-color: transparent;
+    background-image: linear-gradient(135deg, var(--season-a), color-mix(in srgb, var(--season-a) 60%, var(--season-b)));
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline-color: var(--season-ink);
+  }
+}
+
+// ---------- Símbolo do tema (lacinho/emoji) ----------
+.season-mark {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+
+  &__ribbon {
+    width: 16px;
+    height: 22px;
+    fill: var(--season-ink, currentColor);
+    filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--season-a, #000) 45%, transparent));
+  }
+
+  &__emoji {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  // Na barra do topo, colado à esquerda da logo
+  &--top {
+    margin-left: auto;
+
+    + .logo-sys {
+      margin-left: 2px;
+    }
+  }
+}
+
+// =====================================================================================================
+// Banner fixo da Home: faixa do tema + carrossel das últimas novidades
+// =====================================================================================================
+.news-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+
+  // Faixa da data comemorativa
+  &__season {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    background: linear-gradient(100deg, var(--season-a), color-mix(in srgb, var(--season-a) 55%, var(--season-b)));
+    box-shadow: 0 10px 24px -14px var(--season-a);
+    color: #fff;
+    font-size: 14px;
+
+    strong {
+      margin-right: 6px;
+      font-weight: 700;
+    }
+
+    .season-mark__ribbon {
+      width: 20px;
+      height: 28px;
+      fill: #fff;
+    }
+  }
+
+  &__card {
+    position: relative;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 10px;
+    min-height: 196px;
+    padding: 18px 22px 14px;
+    overflow: hidden;
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    background:
+      radial-gradient(80% 160% at 100% 0%, color-mix(in srgb, var(--season-a, #6366f1) 18%, transparent), transparent 60%),
+      var(--color-card);
+    box-shadow: 0 14px 30px -20px rgb(var(--shadow-color) / 0.7);
+
+    &::before {
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--season-a, #6366f1), var(--season-b, #a78bfa));
+      content: '';
+    }
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__badge {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--season-a, #6366f1) 20%, transparent);
+    color: var(--season-ink, #818cf8);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  &__date,
+  &__count {
+    color: var(--color-muted);
+    font-size: 12px;
+  }
+
+  &__count {
+    margin-left: auto;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: news-in 0.35s ease-out;
+  }
+
+  &__title {
+    color: $color-title;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  &__items {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-left: 18px;
+    color: $color-text;
+    font-size: 13.5px;
+    line-height: 1.5;
+
+    li::marker {
+      color: var(--season-ink, #818cf8);
+    }
+  }
+
+  &__nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__arrow {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--color-line);
+    border-radius: 50%;
+    background: var(--color-card);
+    color: $color-text;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--season-ink, var(--color-text));
+      color: var(--season-ink, var(--color-title));
+    }
+  }
+
+  &__dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background-color: var(--color-soft-strong);
+    cursor: pointer;
+    transition:
+      width 0.25s,
+      background-color 0.25s;
+
+    &.is-active {
+      width: 22px;
+      background-color: var(--season-ink, var(--color-title));
+    }
+  }
+
+  // Barrinha que mostra quanto falta para passar para a próxima
+  &__progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--season-a, #6366f1), var(--season-b, #a78bfa));
+    animation: news-progress linear forwards;
+  }
+}
+
+@keyframes news-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes news-progress {
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 100%;
+  }
+}

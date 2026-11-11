@@ -1,10 +1,12 @@
-import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { Location, NgTemplateOutlet } from '@angular/common';
+import { DOCUMENT, Location, NgTemplateOutlet } from '@angular/common';
 import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { Assistant } from './ai/assistant';
 import { Login } from './login/login';
+import { seasonOf } from './season';
+import { SeasonMark } from './season-mark';
 import { Invite } from './members/invite';
 import { Loader } from './loader/loader';
 import { initials } from './format';
@@ -17,7 +19,7 @@ type Menu = 'nav' | 'notifications';
 const THEME_KEY = 'stars.theme';
 
 @Component({
-  imports: [Assistant, Invite, Login, NgTemplateOutlet, RouterLink, RouterLinkActive, RouterOutlet, Loader],
+  imports: [Assistant, Invite, Login, SeasonMark, NgTemplateOutlet, RouterLink, RouterLinkActive, RouterOutlet, Loader],
   selector: 'app-root',
   templateUrl: './app.html',
   host: {
@@ -65,6 +67,9 @@ export class App {
   // Link do e-mail de convite (/convite?email=…): sem sessão, mostra a tela de ativar a conta no lugar do login
   protected readonly invitePage = typeof location !== 'undefined' && location.pathname.startsWith('/convite');
 
+  // Data comemorativa de hoje (Natal, Novembro Azul…): tema da página e o símbolo ao lado da logo
+  protected readonly season = computed(() => (this.account.account().seasonalThemes ? seasonOf(new Date()) : null));
+
   // Voltar (barra do topo): a página anterior dentro do sistema; abriu direto aqui (link, recarga), vai para a Home
   private readonly location = inject(Location);
   private visited = 0;
@@ -86,6 +91,13 @@ export class App {
     const destroyRef = inject(DestroyRef);
     const counting = this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => this.visited++);
     destroyRef.onDestroy(() => counting.unsubscribe());
+    // Tema da data comemorativa (Natal, Páscoa…) no <html data-season>; some se a pessoa desligar em Minha conta
+    const html = inject(DOCUMENT).documentElement;
+    effect(() => {
+      const season = this.season();
+      if (season) html.setAttribute('data-season', season.id);
+      else html.removeAttribute('data-season');
+    });
     afterNextRender(() => {
       void this.session.check();
       this.account.load();
